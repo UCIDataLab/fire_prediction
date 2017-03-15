@@ -5,7 +5,7 @@ import numpy as np
 from raw_to_dict import read_raw_data
 
 
-def convert_to_pd_batch(my_dir, outfi=None):
+def convert_to_pd_batch(my_dir, outfi=None, beginning=2010, ending=2016):
     year_list = []
     month_list = []
     day_list = []
@@ -14,15 +14,18 @@ def convert_to_pd_batch(my_dir, outfi=None):
     frp_list = []
     confidence_list = []
     for i,fname in enumerate(os.listdir(my_dir)):
-        dl = read_raw_data(os.path.join(my_dir,fname))
-        year_list.append(map(lambda x: x[0], dl))
-        month_list.append(map(lambda x: x[1], dl))
-        day_list.append(map(lambda x: x[2], dl))
-        lat_list.append(map(lambda x: x[3], dl))
-        long_list.append(map(lambda x: x[4], dl))
-        frp_list.append(map(lambda x: x[5], dl))
-        confidence_list.append(map(lambda x: x[6], dl))
-        print "finished reading file %d of %d" %(i, len(os.listdir(my_dir)))
+        year = int(fname.split(".")[1][0:4])
+        if not beginning <= year <= ending:
+            continue
+        dl = read_raw_data(os.path.join(my_dir,fname))[1:]
+        year_list += map(lambda x: x[0], dl)
+        month_list += map(lambda x: x[1], dl)
+        day_list += map(lambda x: x[2], dl)
+        lat_list += map(lambda x: x[3], dl)
+        long_list += map(lambda x: x[4], dl)
+        frp_list += map(lambda x: x[5], dl)
+        confidence_list += map(lambda x: x[6], dl)
+        print "finished reading file %d" %(i)
     pd_dict = dict()
     pd_dict['year'] = year_list
     pd_dict['month'] = month_list
