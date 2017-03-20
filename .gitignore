@@ -1,0 +1,9 @@
+### Types of files
+*.zip
+*.tar
+*.gz
+*.pyc
+
+### Specific files
+data/
+mcd14ml/
