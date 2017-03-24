@@ -48,6 +48,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
             print "passing month %d day %d" % (month, day)
         elif ymd_str not in map(lambda x: x.split("/")[-1], ftp.nlst(ym_str)):
             print "month %d day %d not on server" % (month, day)
+            bad_days += 1
         else:
             dir_list_with_fluff = ftp.nlst('/'.join([ym_str, ymd_str]))
             dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
@@ -64,6 +65,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
                 foundit = 1
             else:
                 print "Didn't find month %d, day %d" % (month, day)
+                bad_days += 1
 
             if foundit:
                 if local:
