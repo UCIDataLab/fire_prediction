@@ -23,6 +23,7 @@ def get_tensor_from_server(out_fi, temp_fi, tensor_type='temp', year=2013):
 
         # Now, pull the temperature data to store locally
         grbs = pygrib.open(temp_fi)
+
         for layer in grbs:
             if tensor_type.startswith('temp'):
                 if layer.name == "Temperature" and layer.level == 0:
