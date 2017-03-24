@@ -26,6 +26,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
     bad_days = 0
 
     if partial_data_acquired:
+        print "partial data yoooo\n\n"
         if local:
             existing_grbs = os.listdir(remote_dir)
         else:
