@@ -29,18 +29,20 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
         if local:
             existing_grbs = os.listdir(remote_dir)
         else:
-            ls = subprocess.Popen(['ssh','zbutler@datalab-11.ics.uci.edu',
-                                   'ls /extra/zbutler0/data/gfs'],
+            ls = subprocess.Popen(['ssh',host_name,
+                                   'ls %s' % remote_dir],
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE)
             out, err = ls.communicate()
             existing_grbs = out.split("\n")
     ftp = FTP(server_name)
-    ftp.login("anonymous", "zbutler@uci.edu")
+    ftp.login("anonymous", "zbutler@fire_prediction.github")
     ftp.cwd(gfs_loc)
+
     while month < 13:  # Get data for every day of the year
         ym_str = "%d%.2d" % (year, month)
         ymd_str = "%d%.2d%.2d" % (year, month, day)
+
         if partial_data_acquired and (ymd_str + ".grb") in existing_grbs:
             print "passing month %d day %d" % (month, day)
         else:
@@ -69,6 +71,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
         else:
             day += 1
         day_of_year += 1
+
     ftp.quit()
     print "%d bad days" % bad_days
 
