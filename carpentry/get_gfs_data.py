@@ -86,4 +86,14 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
 
 
 if __name__ == "__main__":
-    get_gfs_data(int(sys.argv[1]), bool(sys.argv[2]), bool(sys.argv[3]))
+    if sys.argv[2].startswith('f') or sys.argv[2].startswith('F')\
+            or sys.argv[2].startswith('N') or sys.argv[2].startswith('n'):
+        arg2 = False
+    else:
+        arg2 = True
+    if sys.argv[3].startswith('f') or sys.argv[3].startswith('F')\
+            or sys.argv[3].startswith('N') or sys.argv[3].startswith('n'):
+        arg3 = False
+    else:
+        arg3 = True
+    get_gfs_data(int(sys.argv[1]), arg2, arg3)
