@@ -43,6 +43,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
         ym_str = "%d%.2d" % (year, month)
         ymd_str = "%d%.2d%.2d" % (year, month, day)
 
+        foundit = 0
         if partial_data_acquired and (ymd_str + ".grb") in existing_grbs:
             print "passing month %d day %d" % (month, day)
         elif ymd_str not in map(lambda x: x.split("/")[-1], ftp.nlst(ym_str)):
@@ -55,17 +56,20 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
                 with open(temp_fi_name, "w") as ftmp:
                     ftp.retrbinary("RETR %s/%s/gfsanl_3_%s_1200_000.grb" % (ym_str, ymd_str, ymd_str), ftmp.write)
                 print "Found month %d, day %d (grb)" % (month, day)
+                foundit = 1
             elif ("gfsanl_4_%s_1200_000.grb2" % ymd_str) in dir_list:
                 with open(temp_fi_name, "w") as ftmp:
                     ftp.retrbinary("RETR %s/%s/gfsanl_4_%s_1200_000.grb2" % (ym_str, ymd_str, ymd_str), ftmp.write)
                 print "Found month %d, day %d (grb2)" % (month, day)
+                foundit = 1
             else:
                 print "Didn't find month %d, day %d" % (month, day)
 
-            if local:
-                os.rename(temp_fi_name, remote_dir + ymd_str + ".grb")
-            else:
-                os.system("scp %s %s:%s/%s.grb" % (temp_fi_name, host_name, remote_dir, ymd_str))
+            if foundit:
+                if local:
+                    os.rename(temp_fi_name, remote_dir + ymd_str + ".grb")
+                else:
+                    os.system("scp %s %s:%s/%s.grb" % (temp_fi_name, host_name, remote_dir, ymd_str))
 
         if day == days_arr[month-1]:
             day = 1
