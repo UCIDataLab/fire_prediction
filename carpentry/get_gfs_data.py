@@ -57,7 +57,6 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
                 print "Found month %d, day %d (grb2)" % (month, day)
             else:
                 print "Didn't find month %d, day %d" % (month, day)
-            ftp.close()
 
             if local:
                 os.rename(temp_fi_name, remote_dir + ymd_str + ".grb")
@@ -70,6 +69,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
         else:
             day += 1
         day_of_year += 1
+    ftp.quit()
     print "%d bad days" % bad_days
 
 
