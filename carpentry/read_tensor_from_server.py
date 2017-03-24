@@ -13,11 +13,11 @@ def get_tensor_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local
     tensor = np.zeros((181, 360, 365), dtype=float)
 
     days_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
-    day = 6
+    day = 1
     month = 1
     day_of_year = 0
 
-    while month < 9:  # Get data for every day of the year
+    while month < 13:  # Get data for every day of the year
         ymd_str = "%d%.2d%.2d" % (year, month, day)
         if local:
             grib_fi = input_server.split(":")[-1] + ymd_str + ".grb"
