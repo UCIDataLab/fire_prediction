@@ -9,7 +9,7 @@ import sys
 input_server = "zbutler@datalab-11.ics.uci.edu:/extra/zbutler0/data/gfs/"  # Where we will store raw data
 
 
-def get_tensor_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=None):
+def get_tensor_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=True):
     tensor = np.zeros((181, 360, 365), dtype=float)
 
     days_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
