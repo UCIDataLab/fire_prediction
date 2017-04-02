@@ -7,7 +7,6 @@ server_name = "nomads.ncdc.noaa.gov"  # Server from which to pull the data
 gfs_loc = "GFS/analysis_only/"  # location on server of GFS data
 host_name = "zbutler@datalab-11.ics.uci.edu"
 remote_dir = "/extra/zbutler0/data/gfs/"  # Where we will store raw data
-temp_fi_name = "./tmp_2015.grb"  # Place to store grib files locally temporarily
 out_temp_arr = "./data/gfs_temp_2015.pkl"  # Place to store temperature tensor
 out_hum_arr = "./data/gfs_hum_2015.pkl"  # Place to store temperature tensor
 
@@ -24,6 +23,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
     month = 1
     day_of_year = 0
     bad_days = 0
+    temp_fi_name = "./tmp_%d.grb" % year  # Place to store grib files locally temporarily
 
     if partial_data_acquired:
         print "partial data yoooo\n\n"
