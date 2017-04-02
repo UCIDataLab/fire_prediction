@@ -61,7 +61,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
             #    foundit = 1
             if ("gfsanl_4_%s_1200_000.grb2" % ymd_str) in dir_list:
                 with open(temp_fi_name, "w") as ftmp:
-                    ftp.retrbinary("RETR %s/%s/gfsanl_4_%s_1200_000.grb2" % (ym_str, ymd_str, ymd_str), ftmp.write)
+                    ftp.retrbinary("RETR %s/%s/gfsanl_4_%s_0000_000.grb2" % (ym_str, ymd_str, ymd_str), ftmp.write)
                 print "Found month %d, day %d (grb2)" % (month, day)
                 foundit = 1
             else:
