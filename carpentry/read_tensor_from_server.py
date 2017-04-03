@@ -28,7 +28,9 @@ def get_tensor_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local
         # Now, pull the temperature data to store locally
         grbs = pygrib.open(grib_fi)
 
-        print "day %d, month %d, %d layers" % (day, month, len(grbs))
+        for i,_ in enumerate(grbs):
+            pass
+        print "day %d, month %d, %d layers" % (day, month, i)
 
         if tensor_type.startswith('temp'):
             layer = grbs[211]
