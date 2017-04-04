@@ -20,11 +20,21 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
 
     while month < 13:  # Get data for every day of the year
         ymd_str = "%d%.2d%.2d" % (year, month, day)
-        if local:
-            grib_fi = input_server.split(":")[-1] + ymd_str + ".grb"
-        else:
-            os.system("scp %s/%s.grb %s" % (input_server, ymd_str, temp_fi))
-            grib_fi = temp_fi
+        try:
+            if local:
+                grib_fi = input_server.split(":")[-1] + ymd_str + ".grb"
+            else:
+                os.system("scp %s/%s.grb %s" % (input_server, ymd_str, temp_fi))
+                grib_fi = temp_fi
+        except IOError:
+            print "couldn't find %d/%d" %(month, day)
+            if day == days_arr[month-1]:
+                day = 1
+                month += 1
+            else:
+                day += 1
+            day_of_year += 1
+            continue
 
         # Now, pull the temperature data to store locally
         grbs = pygrib.open(grib_fi)
