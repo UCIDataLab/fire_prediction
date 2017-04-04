@@ -28,6 +28,8 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
             else:
                 os.system("scp %s/%s.grb %s" % (input_server, ymd_str, temp_fi))
                 grib_fi = temp_fi
+            # Now, pull the temperature data to store locally
+            grbs = pygrib.open(grib_fi)
         except IOError:
             print "couldn't find %d/%d" %(month, day)
             if day == days_arr[month-1]:
@@ -37,9 +39,6 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
                 day += 1
             day_of_year += 1
             continue
-
-        # Now, pull the temperature data to store locally
-        grbs = pygrib.open(grib_fi)
 
         if tensor_type.startswith('temp'):
             layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
