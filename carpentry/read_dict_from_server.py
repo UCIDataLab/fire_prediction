@@ -17,6 +17,8 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
     month = 1
     day_of_year = 0
     first_grib = 1
+    min_val = np.inf
+    max_val = -np.inf
 
     while month < 13:  # Get data for every day of the year
         ymd_str = "%d%.2d%.2d" % (year, month, day)
@@ -52,6 +54,12 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
             res_dict['lats'] = lats
             res_dict['lons'] = lons
             first_grib = 0
+        mn = np.min(layer.values)
+        mx = np.max(layer.values)
+        if mn < min_val:
+            min_val = mn
+        if mx > max_val:
+            max_val = mx
 
         print "Finished processing month %d/%d" % (month, day)
         if day == days_arr[month-1]:
@@ -60,6 +68,9 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
         else:
             day += 1
         day_of_year += 1
+
+    res_dict['min'] = min_val
+    res_dict['max'] = max_val
 
     with open(out_fi,"w") as fout:
         cPickle.dump(res_dict, fout, cPickle.HIGHEST_PROTOCOL)
