@@ -12,12 +12,15 @@ def read_raw_data(instr, outstr=None):
             year = int(yyyymmdd[0:4])
             month = int(yyyymmdd[4:6])
             day = int(yyyymmdd[6:])
+            hhmm = line.split()[1]
+            hour = int(hhmm[0:2])
+            minute = int(hhmm[2:])
             lat = float(line.split()[3])
             lon = float(line.split()[4])
             frp = float(line.split()[8])
             conf = float(line.split()[9]) / 100.
 
-            data_list.append([year, month, day, lat, lon, frp, conf])
+            data_list.append([year, month, day, hour, minute, lat, lon, frp, conf])
     return data_list
 
 

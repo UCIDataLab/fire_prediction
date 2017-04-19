@@ -5,10 +5,12 @@ import numpy as np
 from raw_to_dict import read_raw_data
 
 
-def convert_to_pd_batch(my_dir, outfi=None, beginning=2010, ending=2016):
+def convert_to_pd_batch(my_dir, outfi=None, beginning=2013, ending=2016):
     year_list = []
     month_list = []
     day_list = []
+    hour_list = []
+    minute_list = []
     lat_list = []
     long_list = []
     frp_list = []
@@ -21,15 +23,19 @@ def convert_to_pd_batch(my_dir, outfi=None, beginning=2010, ending=2016):
         year_list += map(lambda x: x[0], dl)
         month_list += map(lambda x: x[1], dl)
         day_list += map(lambda x: x[2], dl)
-        lat_list += map(lambda x: x[3], dl)
-        long_list += map(lambda x: x[4], dl)
-        frp_list += map(lambda x: x[5], dl)
-        confidence_list += map(lambda x: x[6], dl)
+        hour_list += map(lambda x: x[3], dl)
+        minute_list += map(lambda x: x[4], dl)
+        lat_list += map(lambda x: x[5], dl)
+        long_list += map(lambda x: x[6], dl)
+        frp_list += map(lambda x: x[7], dl)
+        confidence_list += map(lambda x: x[8], dl)
         print "finished reading file %d" %(i)
     pd_dict = dict()
     pd_dict['year'] = year_list
     pd_dict['month'] = month_list
     pd_dict['day'] = day_list
+    pd_dict['hour'] = hour_list
+    pd_dict['minute'] = minute_list
     pd_dict['lat'] = lat_list
     pd_dict['long'] = long_list
     pd_dict['frp'] = frp_list

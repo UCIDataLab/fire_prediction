@@ -43,8 +43,19 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
         if tensor_type.startswith('temp'):
             layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
         elif tensor_type.startswith('hum'):
-            layer = grbs.select(name='Relative humidity', level=0, typeOfLevel='unknown',
-                                typeOfFirstFixedSurface='200')[0]
+            layer = grbs.select(name='Surface air relative humidity')[0]
+        elif tensor_type.startswith('vpd'):
+            A = -1.88E4
+            B = -13.1
+            C = -1.5E-2
+            D = 8E-7
+            E = -1.69E-11
+            F = 6.456
+            temp_layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
+            hum_layer = grbs.select(name='Surface air relative humidity')[0]
+            vp_sat = np.exp(float(A)/temp_layer + B + C*temp_layer + D*temp_layer**2 + E*temp_layer**3 +
+                            F*np.log(temp_layer))
+            layer = vp_sat - (vp_sat * hum_layer/100.)
         else:
             raise ValueError("Unknown tensor type")
         res_dict[(month, day)] = layer.values
