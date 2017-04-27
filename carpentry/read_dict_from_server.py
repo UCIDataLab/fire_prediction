@@ -7,6 +7,7 @@ import ftplib
 import sys
 
 input_server = "zbutler@datalab-11.ics.uci.edu:/extra/zbutler0/data/gfs/"  # Where we will store raw data
+local_dir = "/Users/zbutler/research/fire_prediction/data/gfs/"
 
 
 def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=True):
@@ -19,12 +20,13 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
     first_grib = 1
     min_val = np.inf
     max_val = -np.inf
+    surfaceair = True
 
     while month < 13:  # Get data for every day of the year
         ymd_str = "%d%.2d%.2d" % (year, month, day)
         try:
             if local:
-                grib_fi = input_server.split(":")[-1] + ymd_str + ".grb"
+                grib_fi = local_dir + ymd_str + ".grb"
             else:
                 os.system("scp %s/%s.grb %s" % (input_server, ymd_str, temp_fi))
                 grib_fi = temp_fi
@@ -43,24 +45,34 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
         if tensor_type.startswith('temp'):
             layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
         elif tensor_type.startswith('hum'):
-            layer = grbs.select(name='Surface air relative humidity')[0]
+            if surfaceair:
+                try:
+                    layer = grbs.select(name='Surface air relative humidity')[0]
+                except ValueError:
+                    surfaceair = False
+            if not surfaceair:
+                layer = grbs.select(name='2 metre relative humidity')[0]
+
         elif tensor_type.startswith('vpd'):
-            A = -1.88E4
-            B = -13.1
-            C = -1.5E-2
-            D = 8E-7
-            E = -1.69E-11
-            F = 6.456
             temp_layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
-            hum_layer = grbs.select(name='Surface air relative humidity')[0]
-            vp_sat = np.exp(float(A)/temp_layer + B + C*temp_layer + D*temp_layer**2 + E*temp_layer**3 +
-                            F*np.log(temp_layer))
-            layer = vp_sat - (vp_sat * hum_layer/100.)
+            temp_vals = temp_layer.values - 273.15  # Convert to celsius
+            hum_vals = grbs.select(name='Surface air relative humidity')[0].values
+            svp = .6108 * np.exp(17.27 * temp_vals / (temp_vals + 237.3))
+                #np.exp(float(A)/temp_vals + B + C*temp_vals + D*temp_vals**2 + E*temp_vals**3 +
+                #            F*np.log(temp_vals))
+
+            class LayerClass:
+                pass
+            layer = LayerClass()
+            layer.values = svp * (1 - (hum_vals / 100.))
         else:
             raise ValueError("Unknown tensor type")
         res_dict[(month, day)] = layer.values
         if first_grib:
-            lats,lons = layer.latlons()
+            if tensor_type.startswith("vpd"):
+                lats,lons = temp_layer.latlons()
+            else:
+                lats,lons = layer.latlons()
             res_dict['lats'] = lats
             res_dict['lons'] = lons
             first_grib = 0
@@ -70,7 +82,8 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
             min_val = mn
         if mx > max_val:
             max_val = mx
-
+        print np.min(layer.values)
+        print np.max(layer.values)
         print "Finished processing month %d/%d" % (month, day)
         if day == days_arr[month-1]:
             day = 1

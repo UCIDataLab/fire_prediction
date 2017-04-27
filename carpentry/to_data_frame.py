@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 from raw_to_dict import read_raw_data
+from geometry.grid_conversion import get_latlon_xy_fxns
 
 
 def convert_to_pd_batch(my_dir, outfi=None, beginning=2013, ending=2016):
