@@ -10,19 +10,20 @@ input_server = "zbutler@datalab-11.ics.uci.edu:/extra/zbutler0/data/gfs/"  # Whe
 local_dir = "/Users/zbutler/research/fire_prediction/data/gfs/"
 
 
-def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=True):
+def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, lastyear=2013, local=True):
     res_dict = dict()
 
     days_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
     day = 1
     month = 1
+    year = firstyear
     day_of_year = 0
     first_grib = 1
     min_val = np.inf
     max_val = -np.inf
     surfaceair = True
 
-    while month < 13:  # Get data for every day of the year
+    while year <= lastyear:
         ymd_str = "%d%.2d%.2d" % (year, month, day)
         try:
             if local:
@@ -88,6 +89,9 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
         if day == days_arr[month-1]:
             day = 1
             month += 1
+            if month == 13:
+                month = 1
+                year += 1
         else:
             day += 1
         day_of_year += 1
@@ -100,4 +104,4 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', year=2013, local=T
 
 
 if __name__ == "__main__":
-    get_dict_from_server(sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]))
+    get_dict_from_server(sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]))
