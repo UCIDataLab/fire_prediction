@@ -57,7 +57,10 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
         elif tensor_type.startswith('vpd'):
             temp_layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
             temp_vals = temp_layer.values - 273.15  # Convert to celsius
-            hum_vals = grbs.select(name='Surface air relative humidity')[0].values
+            if surfaceair:
+                hum_vals = grbs.select(name='Surface air relative humidity')[0].values
+            else:
+                hum_vals = grbs.select(name='2 metre relative humidity')[0].values
             svp = .6108 * np.exp(17.27 * temp_vals / (temp_vals + 237.3))
                 #np.exp(float(A)/temp_vals + B + C*temp_vals + D*temp_vals**2 + E*temp_vals**3 +
                 #            F*np.log(temp_vals))
