@@ -41,7 +41,7 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
                 dayofyear = fire_df.iloc(fire_event).dayofyear
                 fire_df.iloc(fire_event)[name] = get_gfs_val(lat, lon, dayofyear, gfs_dict)
             except KeyError:
-                continue
+                fire_df.iloc(fire_event)[name] = np.nan
 
     if outfile:
         with open(outfile,'w') as fout:
