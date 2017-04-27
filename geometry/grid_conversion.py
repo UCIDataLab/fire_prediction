@@ -62,7 +62,7 @@ def get_latlon_grid_fxns(bb, grid_res=1.1):
     return latlon2grid, grid2latlon, (x_shape, y_shape)
 
 
-def get_gfs_val(lat, lon, day, gfs_dict):
+def get_gfs_val(lat, lon, day, gfs_dict, year=2013):
     """ Find the GFS value for the lat/lon nearest to the one specified
     :param lat: latitude
     :param lon: longitude
@@ -71,7 +71,7 @@ def get_gfs_val(lat, lon, day, gfs_dict):
     :return: val from gfs
     """
     month,day = day2monthday(day)
-    if (month,day) not in gfs_dict:
+    if (month,day,year) not in gfs_dict:
         raise KeyError("%d/%d not in gfs dict" % (month,day))
     lats = gfs_dict['lats']
     lons = gfs_dict['lons']
@@ -82,4 +82,4 @@ def get_gfs_val(lat, lon, day, gfs_dict):
     row = int(float(lats[0,0] - lat) / lat_res)
     positive_lon = lon % 360   # convert longitude to a positive value, which is what GFS uses
     col = int(float(lons[0,0] - positive_lon) / lon_res)
-    return gfs_dict[(month,day)][row,col]
+    return gfs_dict[(month,day,year)][row,col]
