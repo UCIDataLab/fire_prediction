@@ -35,9 +35,13 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
             grbs = pygrib.open(grib_fi)
         except IOError:
             print "couldn't find %d/%d" %(month, day)
-            if day == days_arr[month-1]:
+            if day >= days_arr[month-1] and not (month == 2 and day == 28 and year % 4 == 0):
                 day = 1
                 month += 1
+                if month == 13:
+                    month = 1
+                    year += 1
+                    day_of_year = 0
             else:
                 day += 1
             day_of_year += 1
