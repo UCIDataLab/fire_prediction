@@ -78,7 +78,7 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
             layer.values = svp * (1 - (hum_vals / 100.))
         else:
             raise ValueError("Unknown tensor type")
-        res_dict[(month, day)] = layer.values
+        res_dict[(month, day, year)] = layer.values
         if first_grib:
             if tensor_type.startswith("vpd"):
                 lats,lons = temp_layer.latlons()

@@ -2,10 +2,12 @@ import pandas as pd
 import numpy as np
 import cPickle
 from geometry.grid_conversion import get_latlon_xy_fxns, ak_bb
+from geometry.get_xys import append_xy
 from util.daymonth import monthday2day, day2monthday
 from geometry.grid_conversion import get_gfs_val
 from prediction.fire_clustering import cluster_fires
 from scipy.spatial import ConvexHull
+import sys
 
 
 def add_daymonth(df):
@@ -21,7 +23,7 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
     :param clusts: Cluster assignments for each detection
     :param gfs_dict_dict: Dict of dicts, each inner dict representing a GFS (weather) layer
     :return: a DataFrame for prediction, with fields fire id, day, day_cent, n_det, n_det_cum, hull_size, hull_size_cum,
-                gfs...  where we have as many gfs fields as the len of gfs_dict_dict
+                gfs...  where we have as many gfs fields as the len zof gfs_dict_dict
     """
     detections = fire_df[fire_df.year == year]
     N = len(detections)
@@ -84,6 +86,10 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
     if "dayofmonth" not in fire_df:
         fire_df = add_daymonth(fire_df)
 
+    # If no XYs, create them, assuming we're in Alaska
+    if "x" not in fire_df:
+        fire_df = append_xy(fire_df, ak_bb)
+
     gfs_dict_dict = dict()
     for loc,name in zip(gfs_locs, gfs_names):
         with open(loc) as fpkl:
@@ -98,6 +104,11 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
     return feat_df
 
 
+def get_multiple_feat_dfs(first_year, last_year, base_file_name):
+    for year in xrange(first_year, last_year+1):
+        get_feat_df(year, base_file_name + "_%d.pkl" % year)
+
+
 if __name__ == "__main__":
-    get_feat_df(2013, "data/feat_df_2013.pkl")
+    get_multiple_feat_dfs(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3])
 
