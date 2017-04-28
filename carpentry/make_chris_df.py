@@ -45,8 +45,8 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
                 day = fire_df.day[fire_event]
                 month = fire_df.month[fire_event]
                 gfs_vecs[name][i] = get_gfs_val(lat, lon, day, month, gfs_dict, year)
-            except KeyError:
-                pass
+            except KeyError as e:
+                print e
 
     for name, vec in gfs_vecs.iteritems():
         fire_df[name] = pd.Series(vec, index=fire_df.index)
