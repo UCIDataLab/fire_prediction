@@ -82,7 +82,7 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
                 try:
                     gfs_val = get_gfs_val(center_lat, center_lon, dayofmonth, month, gfs_dict, year)
                     df_dict[name].append(gfs_val)
-                except KeyError:
+                except (KeyError or ValueError):
                     df_dict[name].append(np.nan)
 
     return pd.DataFrame(df_dict)

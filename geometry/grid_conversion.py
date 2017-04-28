@@ -82,7 +82,4 @@ def get_gfs_val(lat, lon, day, month, gfs_dict, year=2013):
     row = int(float(lats[0,0] - lat) / lat_res)
     positive_lon = lon % 360   # convert longitude to a positive value, which is what GFS uses
     col = int(float(lons[0,0] - positive_lon) / lon_res)
-    print "lat, lon: " + str((lat, lon))
-    print "row, col: " + str((row, col))
-    print gfs_dict[(month,day,year)].shape
     return gfs_dict[(month,day,year)][row,col]
