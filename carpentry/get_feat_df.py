@@ -72,7 +72,7 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
                 df_dict['hull_size_cum'].append(0.)
 
             for name, gfs_dict in gfs_dict_dict.iteritems():
-                gfs_val = get_gfs_val(center_lat, center_lon, day, gfs_dict)
+                gfs_val = get_gfs_val(center_lat, center_lon, day, month, gfs_dict)
                 df_dict[name].append(gfs_val)
 
     return pd.DataFrame(df_dict)

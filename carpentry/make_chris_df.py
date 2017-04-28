@@ -42,8 +42,9 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
             try:
                 lat = fire_df.lat[fire_event]
                 lon = fire_df.long[fire_event]
-                dayofyear = fire_df.dayofyear[fire_event]
-                gfs_vecs[name][i] = get_gfs_val(lat, lon, dayofyear, gfs_dict, year)
+                day = fire_df.day[fire_event]
+                month = fire_df.month[fire_event]
+                gfs_vecs[name][i] = get_gfs_val(lat, lon, day, month, gfs_dict, year)
             except KeyError:
                 pass
 
