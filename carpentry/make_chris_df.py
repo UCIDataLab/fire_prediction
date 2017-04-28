@@ -45,9 +45,10 @@ def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast
                 lon = fire_df.long[fire_event]
                 day = fire_df.day[fire_event]
                 month = fire_df.month[fire_event]
+                print "lat %f lon %f day %d month %d val %f" %(lat,lon,day,month,get_gfs_val(lat, lon, day, month, gfs_dict, year))
                 gfs_vecs[name][i] = get_gfs_val(lat, lon, day, month, gfs_dict, year)
             except KeyError as e:
-                print e
+                print "yolo" + str(e)
 
     for name, vec in gfs_vecs.iteritems():
         fire_df[name] = pd.Series(vec, index=fire_df.index)
