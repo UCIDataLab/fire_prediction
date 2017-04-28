@@ -33,15 +33,22 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
         with open(loc) as fpkl:
             gfs_dict_dict[name] = cPickle.load(fpkl)
 
-    for fire_event in fire_df.keys():
+    gfs_vecs = dict()
+    for name, gfs_dict in gfs_dict_dict.iteritems():
+        gfs_vecs[name] = np.zeros(len(fire_df)) + np.nan
+
+    for i,fire_event in enumerate(fire_df.keys()):
         for name, gfs_dict in gfs_dict_dict.iteritems():
             try:
                 lat = fire_df.lat[fire_event]
                 lon = fire_df.long[fire_event]
                 dayofyear = fire_df.dayofyear[fire_event]
-                fire_df[name][fire_event] = get_gfs_val(lat, lon, dayofyear, gfs_dict, year)
+                gfs_vecs[name][i] = get_gfs_val(lat, lon, dayofyear, gfs_dict, year)
             except KeyError:
-                fire_df[name][fire_event] = np.nan
+                pass
+
+    for name, vec in gfs_vecs.iteritems():
+        fire_df[name] = pd.Series(vec, index=fire_df.index)
 
     if outfile:
         with open(outfile,'w') as fout:
