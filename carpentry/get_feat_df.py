@@ -11,7 +11,7 @@ import sys
 
 
 def add_daymonth(df):
-    days = map(monthday2day, df.month, df.day)
+    days = map(lambda x,y,z: monthday2day(x,y,leapyear=(z%4)), df.month, df.day, df.year)
     df.loc[:,'dayofyear'] = days
     return df
 
@@ -78,9 +78,10 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
     return pd.DataFrame(df_dict)
 
 
-def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
-                gfs_locs=('data/temp_dict.pkl', 'data/hum_dict.pkl', 'data/vpd_dict.pkl'),
-                gfs_names=('temp','humidity','vpd'), clust_thresh=10):
+def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast.pkl',
+                gfs_locs=('/extra/zbutler0/data/temp_dict.pkl', '/extra/zbutler0/data/hum_dict.pkl',
+                          '/extra/zbutler0/data/vpd_dict.pkl'),
+                gfs_names=('temp','humidity','vpd'), clust_thresh=20):
     with open(fire_df_loc) as ffire:
         fire_df = cPickle.load(ffire)
     if "dayofmonth" not in fire_df:
