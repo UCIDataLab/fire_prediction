@@ -39,6 +39,8 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
     df_dict['hull_size_cum'] = []
     df_dict['lat'] = []
     df_dict['lon'] = []
+    df_dict['x'] = []
+    df_dict['y'] = []
     for name in gfs_dict_dict.keys():
         df_dict[name] = []
 
@@ -49,10 +51,14 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
         max_day = np.max(days)
         center_lat = np.mean(clust_dets.lat)
         center_lon = np.mean(clust_dets.long)
+        center_x = np.mean(clust_dets.x)
+        center_y = np.mean(clust_dets.y)
         for day in xrange(min_day, max_day+1):
             # We'll have exactly one entry in our DataFrame for this cluster on this day
             df_dict['lat'].append(center_lat)
             df_dict['lon'].append(center_lon)
+            df_dict['x'].append(center_x)
+            df_dict['y'].append(center_y)
             day_dets = clust_dets[(clust_dets.dayofyear == day)]
             cum_dets = clust_dets[(clust_dets.dayofyear <= day)]
             df_dict['fire_id'].append(clust)
@@ -71,8 +77,9 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
             else:
                 df_dict['hull_size_cum'].append(0.)
 
+            month, dayofmonth = day2monthday(day, leapyear=(year%4))
             for name, gfs_dict in gfs_dict_dict.iteritems():
-                gfs_val = get_gfs_val(center_lat, center_lon, day, month, gfs_dict)
+                gfs_val = get_gfs_val(center_lat, center_lon, day, month, gfs_dict, year)
                 df_dict[name].append(gfs_val)
 
     return pd.DataFrame(df_dict)
