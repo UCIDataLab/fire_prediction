@@ -84,5 +84,5 @@ def get_gfs_val(lat, lon, day, month, gfs_dict, year=2013):
     col = int(float(lons[0,0] - positive_lon) / lon_res)
     print "lat, lon: " + str((lat, lon))
     print "row, col: " + str((row, col))
-    print gfs_dict['lats'].shape
+    print gfs_dict[(month,day,year)].shape
     return gfs_dict[(month,day,year)][row,col]
