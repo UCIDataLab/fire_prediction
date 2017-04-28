@@ -78,9 +78,8 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
                 df_dict['hull_size_cum'].append(0.)
 
             month, dayofmonth = day2monthday(day, leapyear=(year%4))
-            print "dayofyear %d, month %d, day %d, year %d" %(day, month, dayofmonth, year)
             for name, gfs_dict in gfs_dict_dict.iteritems():
-                gfs_val = get_gfs_val(center_lat, center_lon, day, month, gfs_dict, year)
+                gfs_val = get_gfs_val(center_lat, center_lon, dayofmonth, month, gfs_dict, year)
                 df_dict[name].append(gfs_val)
 
     return pd.DataFrame(df_dict)
