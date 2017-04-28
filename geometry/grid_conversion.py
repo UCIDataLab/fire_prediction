@@ -72,7 +72,7 @@ def get_gfs_val(lat, lon, day, month, gfs_dict, year=2013):
     :return: val from gfs
     """
     if (month,day,year) not in gfs_dict:
-        raise KeyError("%d/%d not in gfs dict" % (month,day))
+        raise KeyError("%d/%d/%d not in gfs dict" % (month,day,year))
     lats = gfs_dict['lats']
     lons = gfs_dict['lons']
     n_lat, n_lon = lats.shape
