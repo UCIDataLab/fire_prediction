@@ -79,8 +79,11 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
 
             month, dayofmonth = day2monthday(day, leapyear=(year%4))
             for name, gfs_dict in gfs_dict_dict.iteritems():
-                gfs_val = get_gfs_val(center_lat, center_lon, dayofmonth, month, gfs_dict, year)
-                df_dict[name].append(gfs_val)
+                try:
+                    gfs_val = get_gfs_val(center_lat, center_lon, dayofmonth, month, gfs_dict, year)
+                    df_dict[name].append(gfs_val)
+                except KeyError:
+                    df_dict[name].append(np.nan)
 
     return pd.DataFrame(df_dict)
 
