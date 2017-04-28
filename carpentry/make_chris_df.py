@@ -36,12 +36,12 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
     for fire_event in fire_df.keys():
         for name, gfs_dict in gfs_dict_dict.iteritems():
             try:
-                lat = fire_df.iloc(fire_event).lat
-                lon = fire_df.iloc(fire_event).long
-                dayofyear = fire_df.iloc(fire_event).dayofyear
-                fire_df.iloc(fire_event)[name] = get_gfs_val(lat, lon, dayofyear, gfs_dict, year)
+                lat = fire_df.lat[fire_event]
+                lon = fire_df.long[fire_event]
+                dayofyear = fire_df.dayofyear[fire_event]
+                fire_df[name][fire_event] = get_gfs_val(lat, lon, dayofyear, gfs_dict, year)
             except KeyError:
-                fire_df.iloc(fire_event)[name] = np.nan
+                fire_df[name][fire_event] = np.nan
 
     if outfile:
         with open(outfile,'w') as fout:
