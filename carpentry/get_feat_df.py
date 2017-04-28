@@ -35,8 +35,8 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
     df_dict['day_cent'] = []
     df_dict['n_det'] = []
     df_dict['n_det_cum'] = []
-    df_dict['hull_size'] = []
-    df_dict['hull_size_cum'] = []
+    #df_dict['hull_size'] = []
+    #df_dict['hull_size_cum'] = []
     df_dict['lat'] = []
     df_dict['lon'] = []
     df_dict['x'] = []
@@ -66,16 +66,16 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
             df_dict['day_cent'].append(day - min_day)
             df_dict['n_det'].append(len(day_dets))
             df_dict['n_det_cum'].append(len(cum_dets))
-            if len(day_dets) > 2:
-                xys = np.column_stack((day_dets.x, day_dets.y))
-                df_dict['hull_size'].append(ConvexHull(xys).volume)
-            else:
-                df_dict['hull_size'].append(0.)
-            if len(cum_dets) > 2:
-                xys_cum = np.column_stack((cum_dets.x, cum_dets.y))
-                df_dict['hull_size_cum'].append(ConvexHull(xys_cum).volume)
-            else:
-                df_dict['hull_size_cum'].append(0.)
+            #if len(day_dets) > 2:
+            #    xys = np.column_stack((day_dets.x, day_dets.y))
+            #    df_dict['hull_size'].append(ConvexHull(xys).volume)
+            #else:
+            #    df_dict['hull_size'].append(0.)
+            #if len(cum_dets) > 2:
+            #    xys_cum = np.column_stack((cum_dets.x, cum_dets.y))
+            #    df_dict['hull_size_cum'].append(ConvexHull(xys_cum).volume)
+            #else:
+            #    df_dict['hull_size_cum'].append(0.)
 
             month, dayofmonth = day2monthday(day, leapyear=(year%4))
             for name, gfs_dict in gfs_dict_dict.iteritems():
