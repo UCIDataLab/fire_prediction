@@ -33,7 +33,7 @@ def get_feat_df(year, outfile=None, fire_df_loc='data/ak_fires.pkl',
         with open(loc) as fpkl:
             gfs_dict_dict[name] = cPickle.load(fpkl)
 
-    for fire_event in xrange(len(fire_df)):
+    for fire_event in fire_df.keys():
         for name, gfs_dict in gfs_dict_dict.iteritems():
             try:
                 lat = fire_df.iloc(fire_event).lat

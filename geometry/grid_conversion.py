@@ -3,6 +3,7 @@ from util.daymonth import day2monthday
 
 # constants
 ak_bb = [55, 71, -165, -138]
+west_coast_bb = [32,50,-125,-110]
 km_per_deg_lat = 111.
 
 
