@@ -48,6 +48,8 @@ def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast
                 gfs_vecs[name][i] = get_gfs_val(lat, lon, day, month, gfs_dict, year)
             except KeyError as e:
                 pass
+            except IndexError as e:
+                pass
     for name, vec in gfs_vecs.iteritems():
         fire_df[name] = pd.Series(vec, index=fire_df.index)
 
