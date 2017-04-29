@@ -64,6 +64,17 @@ def get_multiple_feat_dfs(first_year, last_year, base_file_name):
         get_feat_df(year, base_file_name + "_%d.pkl" % year)
 
 
+def to_csv(basename, outname):
+    df_arr = []
+    for year in xrange(2010,2017):
+        with open('%s_%d.pkl' % (basename, year)) as fpkl:
+            df = cPickle.load(fpkl)
+            df['year'] = pd.Series(np.zeros(len(df)) + year, index=df.index)
+            df_arr.append(df)
+    big_df = pd.concat(df_arr)
+    big_df.to_csv(outname)
+
+
 if __name__ == "__main__":
     get_multiple_feat_dfs(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3])
 
