@@ -77,4 +77,5 @@ def to_csv(basename, outname):
 
 if __name__ == "__main__":
     get_multiple_feat_dfs(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3])
+    to_csv(sys.argv[3], sys.argv[3] + ".csv")
 
