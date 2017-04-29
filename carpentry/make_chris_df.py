@@ -22,9 +22,9 @@ def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast
                 gfs_names=('temp','humidity','vpd'), clust_thresh=10):
     with open(fire_df_loc) as ffire:
         fire_df = cPickle.load(ffire)
+    fire_df = fire_df[fire_df.year == year]
     if "dayofyear" not in fire_df:
         fire_df = add_daymonth(fire_df)
-
     # If no XYs, create them, assuming we're in Alaska
     if "x" not in fire_df:
         fire_df = append_xy(fire_df, ak_bb)
