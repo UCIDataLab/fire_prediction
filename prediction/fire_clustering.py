@@ -8,8 +8,8 @@ def cluster_fires(df, thresh, return_df=False):
     :param thresh: a threshold below which we consider two fire detections to be part of the same fire
     :return: n_fires, fires: number of fires detected and a vector of cluster assignments
     """
-    min_year = np.min(df.year)
-    max_year = np.max(df.year)
+    min_year = int(np.min(df.year))
+    max_year = int(np.max(df.year))
     df['cluster'] = 0
     n_fires = 0
     for year in xrange(min_year, max_year+1):
