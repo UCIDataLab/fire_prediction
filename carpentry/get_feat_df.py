@@ -128,7 +128,7 @@ def compute_global_feat_df(fire_df, gfs_dict_dict, clust_thresh=10):
             n_clusts, _ = cluster_fires(today_fires, clust_thresh, return_df=False)
         else:
             n_clusts = 0
-        df_dict['n_clusters'].append(len(np.unique(n_clusts)))
+        df_dict['n_clusters'].append(n_clusts)
         for name, gfs_dict in gfs_dict_dict.iteritems():
             try:
                 mean_gfs = np.mean(get_gfs_for_region(day, month, year, gfs_dict))  # default bb is ak_inland_bb
@@ -189,7 +189,7 @@ def get_global_df(outfile=None, fire_df_loc='/extra/zbutler0/data/ak_fires.pkl',
                 gfs_locs=('/extra/zbutler0/data/temp_dict.pkl', '/extra/zbutler0/data/hum_dict.pkl',
                           '/extra/zbutler0/data/vpd_dict.pkl'),
                 gfs_names=('temp','humidity','vpd'), clust_thresh=20):
-    print "debug 5"
+    print "debug 6"
     with open(fire_df_loc) as ffire:
         fire_df = cPickle.load(ffire)
     if "dayofyear" not in fire_df:
