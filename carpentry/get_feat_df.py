@@ -123,6 +123,8 @@ def compute_global_feat_df(fire_df, gfs_dict_dict, clust_thresh=10):
         df_dict['dayofyear'].append(dayofyear)
         today_fires = fire_df[(fire_df.day == day) & (fire_df.month == month) & (fire_df.year == year)]
         df_dict['n_det'].append(len(today_fires))
+        print "today: %d/%d/%d" % (day, month, year)
+        print "yearz: " + str(today_fires.year)
         n_clusts, _ = cluster_fires(today_fires, clust_thresh, return_df=False)
         df_dict['n_clusters'].append(len(np.unique(n_clusts)))
         for name, gfs_dict in gfs_dict_dict.iteritems():
@@ -184,7 +186,7 @@ def get_global_df(outfile=None, fire_df_loc='/extra/zbutler0/data/ak_fires.pkl',
                 gfs_locs=('/extra/zbutler0/data/temp_dict.pkl', '/extra/zbutler0/data/hum_dict.pkl',
                           '/extra/zbutler0/data/vpd_dict.pkl'),
                 gfs_names=('temp','humidity','vpd'), clust_thresh=20):
-    print "debug 1"
+    print "debug 2"
     with open(fire_df_loc) as ffire:
         fire_df = cPickle.load(ffire)
     if "dayofyear" not in fire_df:
