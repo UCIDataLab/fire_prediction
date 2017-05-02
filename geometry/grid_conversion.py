@@ -95,4 +95,4 @@ def get_gfs_for_region(day, month, year, gfs_dict, bb=ak_inland_bb):
     gfs_bb_0 = np.where(lats[:,0] < bb[1])[0][0]
     gfs_bb_2 = np.where(lons[0,:] > (bb[2] % 360))[0][-1]
     gfs_bb_3 = np.where(lons[0,:] < (bb[3] % 360))[0][0]
-    return gfs_dict[(month,day,year)][gfs_bb_0:gfs_bb_1, gfs_bb_2:gfs_bb_3]
+    return gfs_dict[(month,day,year)][gfs_bb_0:gfs_bb_1+1, gfs_bb_2:gfs_bb_3+1]
