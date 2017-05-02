@@ -3,6 +3,7 @@ from util.daymonth import day2monthday
 
 # constants
 ak_bb = [55, 71, -165, -138]
+ak_inland_bb = [60, 69.5, -163, -141]   # Alaska but skip some land in order to avoid most of the water in ak_bb
 west_coast_bb = [32,50,-125,-110]
 km_per_deg_lat = 111.
 
@@ -83,3 +84,15 @@ def get_gfs_val(lat, lon, day, month, gfs_dict, year=2013):
     positive_lon = lon % 360   # convert longitude to a positive value, which is what GFS uses
     col = int(float(lons[0,0] - positive_lon) / lon_res)
     return gfs_dict[(month,day,year)][row,col]
+
+
+def get_gfs_for_region(day, month, year, gfs_dict, bb=ak_inland_bb):
+    if (month,day,year) not in gfs_dict:
+        raise KeyError("%d/%d/%d not in gfs dict" % (month,day,year))
+    lats = gfs_dict['lats']
+    lons = gfs_dict['lons']
+    gfs_bb_1 = np.where(lats[:,0] > bb[0])[0][-1]   # Since lats start at the top and go down, have to reverse these
+    gfs_bb_0 = np.where(lats[:,0] < bb[1])[0][0]
+    gfs_bb_2 = np.where(lons[0,:] > (bb[2] % 360))[0][-1]
+    gfs_bb_3 = np.where(lons[0,:] < (bb[3] % 360))[0][0]
+    return gfs_dict[(month,day,year)][gfs_bb_0:gfs_bb_1, gfs_bb_2:gfs_bb_3]
