@@ -189,7 +189,7 @@ def get_global_df(outfile=None, fire_df_loc='/extra/zbutler0/data/ak_fires.pkl',
                 gfs_locs=('/extra/zbutler0/data/temp_dict.pkl', '/extra/zbutler0/data/hum_dict.pkl',
                           '/extra/zbutler0/data/vpd_dict.pkl'),
                 gfs_names=('temp','humidity','vpd'), clust_thresh=20):
-    print "debug 4"
+    print "debug 5"
     with open(fire_df_loc) as ffire:
         fire_df = cPickle.load(ffire)
     if "dayofyear" not in fire_df:
