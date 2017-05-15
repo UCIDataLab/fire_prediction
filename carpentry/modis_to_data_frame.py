@@ -6,7 +6,7 @@ from raw_to_dict import read_raw_data
 from geometry.grid_conversion import get_latlon_xy_fxns
 
 
-def convert_to_pd_batch(my_dir, outfi=None, beginning=2013, ending=2016):
+def convert_to_pd_batch(my_dir, outfi=None, beginning=2007, ending=2016):
     year_list = []
     month_list = []
     day_list = []
@@ -30,7 +30,7 @@ def convert_to_pd_batch(my_dir, outfi=None, beginning=2013, ending=2016):
         long_list += map(lambda x: x[6], dl)
         frp_list += map(lambda x: x[7], dl)
         confidence_list += map(lambda x: x[8], dl)
-        print "finished reading file %d" %(i)
+        print "finished reading file %d" % i
     pd_dict = dict()
     pd_dict['year'] = year_list
     pd_dict['month'] = month_list
@@ -50,4 +50,4 @@ def convert_to_pd_batch(my_dir, outfi=None, beginning=2013, ending=2016):
 
 
 if __name__ == "__main__":
-    convert_to_pd_batch("mcd14ml", "modis.pkl")
+    convert_to_pd_batch("mcd14ml", "data/full_modis.pkl")

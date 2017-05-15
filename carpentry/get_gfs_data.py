@@ -11,11 +11,12 @@ out_temp_arr = "./data/gfs_temp_2015.pkl"  # Place to store temperature tensor
 out_hum_arr = "./data/gfs_hum_2015.pkl"  # Place to store temperature tensor
 
 
-def get_gfs_data(year, partial_data_acquired=False, local=False):
+def get_gfs_data(year, partial_data_acquired=False, local=False, hour='000'):
     """ Read GFS
     :param year: Year to get data from
     :param partial_data_acquired: whether or not we have partial data already on our server
     :param local: if true, store locally rather than remotely
+    :param hour: which "hour" file to get data from
     :return:
     """
     days_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
@@ -59,9 +60,13 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
             #        ftp.retrbinary("RETR %s/%s/gfsanl_3_%s_1200_000.grb" % (ym_str, ymd_str, ymd_str), ftmp.write)
             #    print "Found month %d, day %d (grb)" % (month, day)
             #    foundit = 1
-            if ("gfsanl_4_%s_0000_000.grb2" % ymd_str) in dir_list:
-                with open(temp_fi_name, "w") as ftmp:
-                    ftp.retrbinary("RETR %s/%s/gfsanl_4_%s_0000_000.grb2" % (ym_str, ymd_str, ymd_str), ftmp.write)
+            if ("gfsanl_4_%s_0000_%s.grb2" % (ymd_str, hour)) in dir_list:
+                if local:
+                    with open(remote_dir + ymd_str + "_" + hour + ".grb", 'w') as fout:
+                        ftp.retrbinary("RETR %s/%s/gfsanl_4_%s_0000_%s.grb2" % (ym_str, ymd_str, ymd_str, hour), fout.write)
+                else:
+                    with open(temp_fi_name, "w") as ftmp:
+                        ftp.retrbinary("RETR %s/%s/gfsanl_4_%s_0000_%s.grb2" % (ym_str, ymd_str, ymd_str, hour), ftmp.write)
                 print "Found month %d, day %d (grb2)" % (month, day)
                 foundit = 1
             else:
@@ -69,9 +74,7 @@ def get_gfs_data(year, partial_data_acquired=False, local=False):
                 bad_days += 1
 
             if foundit:
-                if local:
-                    os.rename(temp_fi_name, remote_dir + ymd_str + ".grb")
-                else:
+                if not local:
                     os.system("scp %s %s:%s/%s.grb" % (temp_fi_name, host_name, remote_dir, ymd_str))
 
         if day == days_arr[month-1]:
@@ -96,4 +99,7 @@ if __name__ == "__main__":
         arg3 = False
     else:
         arg3 = True
-    get_gfs_data(int(sys.argv[1]), arg2, arg3)
+    if len(sys.argv) > 4:
+        get_gfs_data(int(sys.argv[1]), arg2, arg3, sys.argv[4])
+    else:
+        get_gfs_data(int(sys.argv[1]), arg2, arg3)
