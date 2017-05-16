@@ -103,6 +103,7 @@ def get_cumulative_gfs(year_range, out_fi, temp_grb, layer_name="Total Precipita
                     max_val = mx
                 if mn < min_val:
                     min_val = mn
+            year, month, day = increment_day(year, month, day)
 
     except Exception as e:  # I know...sue me
         print e
