@@ -39,7 +39,7 @@ def get_cumulative_gfs(year_range, out_fi, temp_grb, layer_name="Total Precipita
     :return: a dict from (hour, day, month, year) tuples to a layer matrix.
     """
     # Date/time parameters
-    hours_arr = ['0000','0006','00012','00018']
+    hours_arr = ['0000','0600','1200','1800']
     day = 1
     month = 1
     year = year_range[0]
