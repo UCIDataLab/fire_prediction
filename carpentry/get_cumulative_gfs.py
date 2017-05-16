@@ -47,7 +47,7 @@ def get_cumulative_gfs(year_range, out_fi, temp_grb, layer_name="Total Precipita
     bad_days = 0
 
     # grib dictionary parameters
-    res_dict = []
+    res_dict = dict()
     max_val = -np.inf
     min_val = np.inf
 
