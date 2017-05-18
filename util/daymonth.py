@@ -23,3 +23,21 @@ def monthday2day(month, day, leapyear=False):
         days += month_arr[mon - 1]
     days += day - 1
     return days
+
+
+def increment_day(year, month, day):
+    if year % 4:  # not leap year
+        days_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
+    else:  # leap year
+        days_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
+
+    if day == days_arr[month-1]:
+        day = 1
+        month += 1
+        if month == 13:
+            month = 1
+            year += 1
+    else:
+        day += 1
+
+    return year, month, day

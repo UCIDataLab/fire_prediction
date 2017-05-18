@@ -90,10 +90,18 @@ def get_cumulative_gfs(year_range, out_fi, temp_grb, layer_name="Total Precipita
 
                 # We have the file!
                 grbs = pygrib.open(temp_grb)
-                select = grbs.select(name=layer_name)
-                if len(select) != 1:
-                    raise ValueError("expected 1 layer of name %s, got %d" % layer_name, len(select))
-                layer = select[0]
+                try:
+                    select = grbs.select(name=layer_name)
+                    if len(select) != 1:
+                        raise ValueError("expected 1 layer of name %s, got %d" % layer_name, len(select))
+                    layer = select[0]
+                except Exception:
+                    print "no rainfall found %s, %s" % (ymd_str, hour)
+                    bad_times += 1
+                    if not bad_day:
+                        bad_day = 1
+                        bad_days += 1
+                    continue
                 if 'lat' not in res_dict:
                     res_dict['lat'], res_dict['lon'] = layer.latlons()
                 res_dict[(year, month, day, hour)] = layer.values
