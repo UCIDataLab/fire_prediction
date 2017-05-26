@@ -56,65 +56,61 @@ def get_cumulative_gfs(year_range, out_fi, temp_grb, layer_name="Total Precipita
     ftp.login("anonymous", "zbutler@fire_prediction.github")
     ftp.cwd(gfs_loc)
 
-    try:
-        while year <= year_range[1]:  # Get data for every day of the year
-            ym_str = "%d%.2d" % (year, month)
-            ymd_str = "%d%.2d%.2d" % (year, month, day)
+    while year <= year_range[1]:  # Get data for every day of the year
+        ym_str = "%d%.2d" % (year, month)
+        ymd_str = "%d%.2d%.2d" % (year, month, day)
 
-            # Check if today even exists on the server
-            if ymd_str not in map(lambda x: x.split("/")[-1], ftp.nlst(ym_str)):
-                print "month %d day %d not on server" % (month, day)
-                bad_days += 1
-                bad_times += 1
-                year, month, day = increment_day(year, month, day)
-                continue
-            dir_list_with_fluff = ftp.nlst('/'.join([ym_str, ymd_str]))
-            dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
-
-            # Now check for each hour
-            bad_day = 0
-            for hour in hours_arr:
-                filename = "gfsanl_4_%s_%s_006.grb2" % (ymd_str, hour)
-                # pull the file from the FTP server
-                if filename in dir_list:
-                    with open(temp_grb, "w") as ftmp:
-                        ftp.retrbinary("RETR %s/%s/%s" % (ym_str, ymd_str, filename), ftmp.write)
-                    print "Found %s" % filename
-                else:
-                    print "Didn't find %s" % filename
-                    bad_times += 1
-                    if not bad_day:
-                        bad_day = 1
-                        bad_days += 1
-                    continue
-
-                # We have the file!
-                grbs = pygrib.open(temp_grb)
-                try:
-                    select = grbs.select(name=layer_name)
-                    if len(select) != 1:
-                        raise ValueError("expected 1 layer of name %s, got %d" % layer_name, len(select))
-                    layer = select[0]
-                except Exception:
-                    print "no rainfall found %s, %s" % (ymd_str, hour)
-                    bad_times += 1
-                    if not bad_day:
-                        bad_day = 1
-                        bad_days += 1
-                    continue
-                if 'lat' not in res_dict:
-                    res_dict['lat'], res_dict['lon'] = layer.latlons()
-                res_dict[(year, month, day, hour)] = layer.values
-                mx = np.max(layer.values)
-                mn = np.min(layer.values)
-                if mx > max_val:
-                    max_val = mx
-                if mn < min_val:
-                    min_val = mn
+        # Check if today even exists on the server
+        if ymd_str not in map(lambda x: x.split("/")[-1], ftp.nlst(ym_str)):
+            print "month %d day %d not on server" % (month, day)
+            bad_days += 1
+            bad_times += 1
             year, month, day = increment_day(year, month, day)
+            continue
+        dir_list_with_fluff = ftp.nlst('/'.join([ym_str, ymd_str]))
+        dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
 
-    except Exception as e:  # I know...sue me
-        print e
+        # Now check for each hour
+        bad_day = 0
+        for hour in hours_arr:
+            filename = "gfsanl_4_%s_%s_006.grb2" % (ymd_str, hour)
+            # pull the file from the FTP server
+            if filename in dir_list:
+                with open(temp_grb, "w") as ftmp:
+                    ftp.retrbinary("RETR %s/%s/%s" % (ym_str, ymd_str, filename), ftmp.write)
+                print "Found %s" % filename
+            else:
+                print "Didn't find %s" % filename
+                bad_times += 1
+                if not bad_day:
+                    bad_day = 1
+                    bad_days += 1
+                continue
+
+            # We have the file!
+            grbs = pygrib.open(temp_grb)
+            try:
+                select = grbs.select(name=layer_name)
+                if len(select) != 1:
+                    raise ValueError("expected 1 layer of name %s, got %d" % layer_name, len(select))
+                layer = select[0]
+            except Exception:
+                print "no rainfall found %s, %s" % (ymd_str, hour)
+                bad_times += 1
+                if not bad_day:
+                    bad_day = 1
+                    bad_days += 1
+                continue
+            if 'lat' not in res_dict:
+                res_dict['lat'], res_dict['lon'] = layer.latlons()
+            res_dict[(year, month, day, hour)] = layer.values
+            mx = np.max(layer.values)
+            mn = np.min(layer.values)
+            if mx > max_val:
+                max_val = mx
+            if mn < min_val:
+                min_val = mn
+        year, month, day = increment_day(year, month, day)
 
     print "%d bad times, %d bad days" % (bad_times, bad_days)
     res_dict['min'] = min_val
