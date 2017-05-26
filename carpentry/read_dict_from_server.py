@@ -12,11 +12,9 @@ local_dir = '/extra/zbutler0/data/gfs/' #"/Users/zbutler/research/fire_predictio
 def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, lastyear=2013, local=True):
     res_dict = dict()
 
-    days_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
     day = 1
     month = 1
     year = firstyear
-    day_of_year = 0
     first_grib = 1
     min_val = np.inf
     max_val = -np.inf
@@ -34,16 +32,7 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
             grbs = pygrib.open(grib_fi)
         except IOError:
             print "couldn't find %d/%d" %(month, day)
-            if day >= days_arr[month-1] and not (month == 2 and day == 28 and year % 4 == 0):
-                day = 1
-                month += 1
-                if month == 13:
-                    month = 1
-                    year += 1
-                    day_of_year = 0
-            else:
-                day += 1
-            day_of_year += 1
+            year, month, day = increment_day(year, month, day)
             continue
 
         if tensor_type.startswith('temp'):
@@ -78,8 +67,8 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
             layer = svp * (1 - (hum_vals / 100.))
 
         elif tensor_type.startswith('wind'):
-            u_comp = grbs.select(name="10 metre U wind component")[0]
-            v_comp = grbs.select(name="10 metre V wind component")[0]
+            u_comp = grbs.select(name="10 metre U wind component")[0].values
+            v_comp = grbs.select(name="10 metre V wind component")[0].values
             layer = np.sqrt(u_comp**2 + v_comp**2)
 
         else:
@@ -101,7 +90,6 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
         print np.max(layer)
         print "Finished processing month %d/%d" % (month, day)
         year, month, day = increment_day(year, month, day)
-        day_of_year = monthday2day(month, day, leapyear=(year%4==0))
 
     res_dict['min'] = min_val
     res_dict['max'] = max_val
