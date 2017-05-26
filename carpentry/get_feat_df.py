@@ -151,6 +151,63 @@ def compute_global_feat_df(fire_df, gfs_dict_dict, clust_thresh=10):
     return pd.DataFrame(df_dict)
 
 
+def compute_gridded_feat_df(fire_df, gfs_dict_dict, grid_len=4, bb=ak_bb):
+    """ Compute a DataFrame for predictive modeling where we break up the space into a grid
+    :param fire_df: DataFrame with MODIS fire data
+    :param gfs_dict_dict: A dict mapping names of GFS features to dicts representing that feature
+    :param cell_size: size, in km, of each grid cell
+    :param bb: bounding box for space
+    :return: the newly created DataFrame and a mapping from grid cell to lat,lon
+    """
+    if "x" not in fire_df:
+        fire_df = append_xy(fire_df, bb)
+    years = fire_df.year.unique()
+    df_dict = dict()
+    df_dict['dayofyear'] = []
+    df_dict['year'] = []
+    df_dict['n_det'] = []
+    df_dict['grid_i'] = []
+    df_dict['grid_j'] = []
+    for name in gfs_dict_dict.keys():
+        df_dict[name] = []
+
+    year = min(years)
+    annual_fires = fire_df[fire_df.year == year]
+    dayofyear = np.min(annual_fires.dayofyear)
+    max_day = np.max(annual_fires.dayofyear)
+    month, day = day2monthday(dayofyear, leapyear=not(year % 4))
+    while year <= max(years):
+        df_dict['day'].append(day)
+        df_dict['month'].append(month)
+        df_dict['year'].append(year)
+        df_dict['dayofyear'].append(dayofyear)
+        today_fires = annual_fires[(annual_fires.day == day) & (fire_df.month == month)]
+        df_dict['n_det'].append(len(today_fires))
+        else:
+            n_clusts = 0
+        df_dict['n_clusters'].append(n_clusts)
+        for name, gfs_dict in gfs_dict_dict.iteritems():
+            try:
+                mean_gfs = np.mean(get_gfs_for_region(day, month, year, gfs_dict))  # default bb is ak_inland_bb
+                df_dict[name].append(mean_gfs)
+            except KeyError:
+                df_dict[name].append(np.nan)
+            except IndexError:
+                df_dict[name].append(np.nan)
+
+        dayofyear += 1
+        if dayofyear >= max_day:
+            year += 1
+            annual_fires = fire_df[fire_df.year == year]
+            dayofyear = np.min(annual_fires.dayofyear)
+            max_day = np.max(annual_fires.dayofyear)
+            month, day = day2monthday(dayofyear, leapyear=not(year % 4))
+        else:
+            month,day = day2monthday(dayofyear, (year % 4) == 0)
+
+    return pd.DataFrame(df_dict)
+
+
 ########### INTERFACE FXNS #############
 
 def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast.pkl',

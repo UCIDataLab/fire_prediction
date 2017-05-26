@@ -1,10 +1,9 @@
 import cPickle
 import numpy as np
-from ftplib import FTP
 import pygrib
 import os
-import ftplib
 import sys
+from util.daymonth import increment_day, monthday2day
 
 input_server = "zbutler@datalab-11.ics.uci.edu:/extra/zbutler0/data/gfs/"  # Where we will store raw data
 local_dir = '/extra/zbutler0/data/gfs/' #"/Users/zbutler/research/fire_prediction/data/gfs/"
@@ -48,18 +47,19 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
             continue
 
         if tensor_type.startswith('temp'):
-            layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
+            layer = grbs.select(name='Temperature',typeOfLevel='surface')[0].values
+
         elif tensor_type.startswith('hum'):
             if surfaceair:
                 try:
-                    layer = grbs.select(name='Surface air relative humidity')[0]
+                    layer = grbs.select(name='Surface air relative humidity')[0].values
                 except ValueError:
                     surfaceair = False
             if not surfaceair:
                 try:
-                    layer = grbs.select(name='2 metre relative humidity')[0]
+                    layer = grbs.select(name='2 metre relative humidity')[0].values
                 except ValueError:
-                    layer = grbs.select(name='Relative humidity', level=2)[0]
+                    layer = grbs.select(name='Relative humidity', level=2)[0].values
 
         elif tensor_type.startswith('vpd'):
             temp_layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
@@ -75,43 +75,33 @@ def get_dict_from_server(out_fi, temp_fi, tensor_type='temp', firstyear=2013, la
                 except ValueError:
                     hum_vals = grbs.select(name='Relative humidity', level=2)[0].values
             svp = .6108 * np.exp(17.27 * temp_vals / (temp_vals + 237.3))
-                #np.exp(float(A)/temp_vals + B + C*temp_vals + D*temp_vals**2 + E*temp_vals**3 +
-                #            F*np.log(temp_vals))
+            layer = svp * (1 - (hum_vals / 100.))
 
-            class LayerClass:
-                pass
-            layer = LayerClass()
-            layer.values = svp * (1 - (hum_vals / 100.))
+        elif tensor_type.startswith('wind'):
+            u_comp = grbs.select(name="10 metre U wind component")[0]
+            v_comp = grbs.select(name="10 metre V wind component")[0]
+            layer = np.sqrt(u_comp**2 + v_comp**2)
+
         else:
             raise ValueError("Unknown tensor type")
-        res_dict[(month, day, year)] = layer.values
+
+        res_dict[(month, day, year)] = layer
         if first_grib:
-            if tensor_type.startswith("vpd"):
-                lats,lons = temp_layer.latlons()
-            else:
-                lats,lons = layer.latlons()
+            lats,lons = grbs[1].latlons()
             res_dict['lats'] = lats
             res_dict['lons'] = lons
             first_grib = 0
-        mn = np.min(layer.values)
-        mx = np.max(layer.values)
+        mn = np.min(layer)
+        mx = np.max(layer)
         if mn < min_val:
             min_val = mn
         if mx > max_val:
             max_val = mx
-        print np.min(layer.values)
-        print np.max(layer.values)
+        print np.min(layer)
+        print np.max(layer)
         print "Finished processing month %d/%d" % (month, day)
-        if day >= days_arr[month-1] and not (month == 2 and day == 28 and year % 4 == 0):
-            day = 1
-            month += 1
-            if month == 13:
-                month = 1
-                year += 1
-                day_of_year = 0
-        else:
-            day += 1
-        day_of_year += 1
+        year, month, day = increment_day(year, month, day)
+        day_of_year = monthday2day(month, day, leapyear=(year%4==0))
 
     res_dict['min'] = min_val
     res_dict['max'] = max_val
