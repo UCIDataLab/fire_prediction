@@ -91,7 +91,7 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                 v_layer = today_grbs.select(name='10 metre V wind component')[0].values
                 layer = np.sqrt(u_layer**2 + v_layer**2)
             elif field == "vpd":
-                temp_layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
+                temp_layer = today_grbs.select(name='Temperature',typeOfLevel='surface')[0]
                 temp_vals = temp_layer.values - 273.15  # Convert to celsius
                 if surfaceair:
                     hum_vals = today_grbs.select(name='Surface air relative humidity')[0].values
