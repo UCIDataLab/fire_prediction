@@ -140,6 +140,6 @@ def get_fire_data(year_range, bb, outfi, modis_loc=None):
 
 
 if __name__ == "__main__":
-    year_range = [sys.argv[1], sys.argv[2]]
+    year_range = [int(sys.argv[1]), int(sys.argv[2])]
     get_gfs_region(year_range, ak_bb, ['temp', 'humidity', 'vpd', 'wind', 'rain'],
                    sys.argv[3], sys.argv[4])
