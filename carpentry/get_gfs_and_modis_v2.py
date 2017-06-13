@@ -3,8 +3,9 @@ import pandas as pd
 import numpy as np
 import cPickle
 import pygrib
+import sys
+from geometry.grid_conversion import ak_bb
 from ftplib import FTP
-from shapely.geometry import Point
 from util.daymonth import *
 
 
@@ -14,7 +15,7 @@ host_name = "zbutler@datalab-11.ics.uci.edu"
 remote_dir = "/extra/zbutler0/data/gfs/"  # Where we will store raw data
 
 
-def get_gfs_region(year_range, bb, fields, outfi, tmpfi, gfs_loc=None, timezone='ak'):
+def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
     """ Download GFS for a given region and store in a dict of tensors
     :param year_range: range of years (inclusive) we want data for
     :param bb: bounding box or geopandas shape we want data for
@@ -122,7 +123,9 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, gfs_loc=None, timezone=
                 pass
         ret_dict['days'].append((year, month, day))
         year, month, day = increment_day(year, month, day)
-    return ret_dict
+
+    with open(outfi,'w') as fout:
+        cPickle.dump(ret_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
 def get_fire_data(year_range, bb, outfi, modis_loc=None):
@@ -134,3 +137,9 @@ def get_fire_data(year_range, bb, outfi, modis_loc=None):
     :return: nothing, but save modis DataFrame to pickle in outfi
     """
     pass
+
+
+if __name__ == "__main__":
+    year_range = [sys.argv[1], sys.argv[2]]
+    get_gfs_region(year_range, ak_bb, ['temp', 'humidity', 'vpd', 'wind', 'rain'],
+                   sys.argv[3], sys.argv[4])
