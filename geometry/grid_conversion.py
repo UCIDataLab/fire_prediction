@@ -4,6 +4,7 @@ from util.daymonth import day2monthday
 # constants
 ak_bb = [55, 71, -165, -138]
 ak_inland_bb = [60, 69.5, -163, -141]   # Alaska but skip some land in order to avoid most of the water in ak_bb
+small_fire_bb = [64.6, 64.9, -147, -146.4]
 west_coast_bb = [32,50,-125,-110]
 km_per_deg_lat = 111.
 

@@ -3,7 +3,9 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.basemap import Basemap
 import os
 from util.daymonth import day2monthday, monthday2day
+from geometry.grid_conversion import ak_bb
 import numpy as np
+import cPickle
 
 
 def draw_map_nogrid_static(bb, month=1, day=1, year=None, gfs_dict=None, latlon_df=None, marker='ro', draw_terrain=False,
@@ -133,3 +135,25 @@ def draw_map_nogrid_animated(bb, md_range, gfs_dict=None, points=None, marker=No
         mp.colorbar()
 
     FuncAnimation(fig, update, frames=np.arange(0, 10), interval=200)
+
+
+if __name__ == "__main__":
+    with open('data/gfs/temp_dict.pkl') as ftmp:
+        temp = cPickle.load(ftmp)
+    draw_map_nogrid_static(ak_bb,month=7, day=15, gfs_dict=temp)
+    plt.title("Temperature 07/15/13")
+    plt.savefig("pics/temp_ak_071513.png", bbox_inches='tight')
+    plt.close()
+
+    with open('data/gfs/hum_dict.pkl') as fhum:
+        hum = cPickle.load(fhum)
+    draw_map_nogrid_static(ak_bb,month=7, day=15, gfs_dict=hum)
+    plt.title("Humidity 07/15/13")
+    plt.savefig("pics/hum_ak_071513.png", bbox_inches='tight')
+    plt.close()
+
+    with open('data/gfs/vpd_dict.pkl') as fvpd:
+        vpd = cPickle.load(fvpd)
+    draw_map_nogrid_static(ak_bb,month=7, day=15, gfs_dict=vpd)
+    plt.title("VPD 07/15/13")
+    plt.savefig("pics/vpd_ak_071513.png", bbox_inches='tight')

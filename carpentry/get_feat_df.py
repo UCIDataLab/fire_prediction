@@ -183,9 +183,9 @@ def compute_gridded_feat_df(fire_df, gfs_dict_dict, grid_len=4, bb=ak_bb):
         df_dict['dayofyear'].append(dayofyear)
         today_fires = annual_fires[(annual_fires.day == day) & (fire_df.month == month)]
         df_dict['n_det'].append(len(today_fires))
-        else:
-            n_clusts = 0
-        df_dict['n_clusters'].append(n_clusts)
+#        else:
+#            n_clusts = 0
+#        df_dict['n_clusters'].append(n_clusts)
         for name, gfs_dict in gfs_dict_dict.iteritems():
             try:
                 mean_gfs = np.mean(get_gfs_for_region(day, month, year, gfs_dict))  # default bb is ak_inland_bb
