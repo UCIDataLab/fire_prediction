@@ -136,6 +136,7 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
             except Exception:
                 pass
         ret_dict['days'].append((year, month, day))
+        print "Finished with %d/%d/%d" % (month, day, year)
         year, month, day = increment_day(year, month, day)
 
     with open(outfi,'w') as fout:
