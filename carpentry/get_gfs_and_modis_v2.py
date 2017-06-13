@@ -60,8 +60,8 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
             continue
         dir_list_with_fluff = ftp.nlst('/'.join([ym_str, ymd_str]))
         dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
-        dir_list_with_fluff = ftp.nlst('/'.join([ym_tom_str, ymd_tom_str]))
-        tom_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
+        #dir_list_with_fluff = ftp.nlst('/'.join([ym_tom_str, ymd_tom_str]))
+        #tom_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
 
         # INSTANTANEOUS VARIABLES
         today_grbs_file = "gfsanl_4_%s_1800_003.grb2" % ymd_str
