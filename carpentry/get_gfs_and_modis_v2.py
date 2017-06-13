@@ -67,45 +67,48 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
         today_grbs_file = "gfsanl_4_%s_1800_003.grb2" % ymd_str
         if today_grbs_file not in dir_list:
             bad_days += 1
+            print "No grib file %d/%d/%d" %(month, day, year)
             year, month, day = increment_day(year, month, day)
             continue
         with open(tmpfi, 'w') as ftmp:
             ftp.retrbinary("RETR %s/%s/%s" % (ym_str, ymd_str, today_grbs_file), ftmp.write)
         today_grbs = pygrib.open(tmpfi)
         for field in fields:
-            if field == "temp":
-                layer = today_grbs.select(name='Temperature', typeOfLevel='surface')[0].values
-            elif field == "humidity":
-                if surfaceair:
-                    try:
-                        layer = today_grbs.select(name='Surface air relative humidity')[0].values
-                    except ValueError:
-                        surfaceair = False
-                if not surfaceair:
-                    try:
-                        layer = today_grbs.select(name='2 metre relative humidity')[0].values
-                    except ValueError:
-                        layer = today_grbs.select(name='Relative humidity', level=2)[0].values
-            elif field == "wind":
-                u_layer = today_grbs.select(name='10 metre U wind component')[0].values
-                v_layer = today_grbs.select(name='10 metre V wind component')[0].values
-                layer = np.sqrt(u_layer**2 + v_layer**2)
-            elif field == "vpd":
-                temp_layer = today_grbs.select(name='Temperature',typeOfLevel='surface')[0]
-                temp_vals = temp_layer.values - 273.15  # Convert to celsius
-                if surfaceair:
-                    hum_vals = today_grbs.select(name='Surface air relative humidity')[0].values
-                else:
-                    try:
-                        hum_vals = today_grbs.select(name='2 metre relative humidity')[0].values
-                    except ValueError:
-                        hum_vals = today_grbs.select(name='Relative humidity', level=2)[0].values
-                svp = .6108 * np.exp(17.27 * temp_vals / (temp_vals + 237.3))
-                layer = svp * (1 - (hum_vals / 100.))
-            elif field == "rain":
+            try:
+                if field == "temp":
+                    layer = today_grbs.select(name='Temperature', typeOfLevel='surface')[0].values
+                elif field == "humidity":
+                    if surfaceair:
+                        try:
+                            layer = today_grbs.select(name='Surface air relative humidity')[0].values
+                        except ValueError:
+                            surfaceair = False
+                    if not surfaceair:
+                        try:
+                            layer = today_grbs.select(name='2 metre relative humidity')[0].values
+                        except ValueError:
+                            layer = today_grbs.select(name='Relative humidity', level=2)[0].values
+                elif field == "wind":
+                    u_layer = today_grbs.select(name='10 metre U wind component')[0].values
+                    v_layer = today_grbs.select(name='10 metre V wind component')[0].values
+                    layer = np.sqrt(u_layer**2 + v_layer**2)
+                elif field == "vpd":
+                    temp_layer = today_grbs.select(name='Temperature',typeOfLevel='surface')[0]
+                    temp_vals = temp_layer.values - 273.15  # Convert to celsius
+                    if surfaceair:
+                        hum_vals = today_grbs.select(name='Surface air relative humidity')[0].values
+                    else:
+                        try:
+                            hum_vals = today_grbs.select(name='2 metre relative humidity')[0].values
+                        except ValueError:
+                            hum_vals = today_grbs.select(name='Relative humidity', level=2)[0].values
+                    svp = .6108 * np.exp(17.27 * temp_vals / (temp_vals + 237.3))
+                    layer = svp * (1 - (hum_vals / 100.))
+            except ValueError:
+                print "Bad grib value %d/%d/%d" %(month, day, year)
+                bad_days += 1
+                year, month, day = increment_day(year, month, day)
                 continue
-            else:
-                raise ValueError("Invalid field name. Must be one of ('temp', 'humidity', 'wind', 'vpd', and 'rain'")
 
             if first_time:
                 lats, lons = today_grbs.select(name='Temperature', typeOfLevel='surface')[0].latlons()
@@ -139,6 +142,7 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
         print "Finished with %d/%d/%d" % (month, day, year)
         year, month, day = increment_day(year, month, day)
 
+    print "%d bad days" % bad_days
     with open(outfi,'w') as fout:
         cPickle.dump(ret_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
 
