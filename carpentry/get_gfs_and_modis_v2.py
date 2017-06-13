@@ -78,14 +78,14 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
             elif field == "humidity":
                 if surfaceair:
                     try:
-                        layer = grbs.select(name='Surface air relative humidity')[0].values
+                        layer = today_grbs.select(name='Surface air relative humidity')[0].values
                     except ValueError:
                         surfaceair = False
                 if not surfaceair:
                     try:
-                        layer = grbs.select(name='2 metre relative humidity')[0].values
+                        layer = today_grbs.select(name='2 metre relative humidity')[0].values
                     except ValueError:
-                        layer = grbs.select(name='Relative humidity', level=2)[0].values
+                        layer = today_grbs.select(name='Relative humidity', level=2)[0].values
             elif field == "wind":
                 u_layer = today_grbs.select(name='10 metre U wind component')[0].values
                 v_layer = today_grbs.select(name='10 metre V wind component')[0].values
@@ -94,12 +94,12 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                 temp_layer = grbs.select(name='Temperature',typeOfLevel='surface')[0]
                 temp_vals = temp_layer.values - 273.15  # Convert to celsius
                 if surfaceair:
-                    hum_vals = grbs.select(name='Surface air relative humidity')[0].values
+                    hum_vals = today_grbs.select(name='Surface air relative humidity')[0].values
                 else:
                     try:
-                        hum_vals = grbs.select(name='2 metre relative humidity')[0].values
+                        hum_vals = today_grbs.select(name='2 metre relative humidity')[0].values
                     except ValueError:
-                        hum_vals = grbs.select(name='Relative humidity', level=2)[0].values
+                        hum_vals = today_grbs.select(name='Relative humidity', level=2)[0].values
                 svp = .6108 * np.exp(17.27 * temp_vals / (temp_vals + 237.3))
                 layer = svp * (1 - (hum_vals / 100.))
             elif field == "rain":
