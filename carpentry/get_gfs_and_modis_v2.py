@@ -76,6 +76,7 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
         with open(tmpfi, 'w') as ftmp:
             ftp.retrbinary("RETR %s/%s/%s" % (ym_str, ymd_str, today_grbs_file), ftmp.write)
         today_grbs = pygrib.open(tmpfi)
+        old_bad_days = bad_days
         for field in fields:
             try:
                 if field == "temp":
@@ -111,7 +112,7 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                 print "Bad grib value %d/%d/%d" %(month, day, year)
                 bad_days += 1
                 year, month, day = increment_day(year, month, day)
-                continue
+                break
 
             if first_time:
                 lats, lons = today_grbs.select(name='Temperature', typeOfLevel='surface')[0].latlons()
@@ -123,6 +124,8 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                 ret_dict['lons'] = lons[gfs_bb_0:gfs_bb_1, gfs_bb_2:gfs_bb_3]
                 first_time = 0
             ret_dict[field].append(layer[gfs_bb_0:gfs_bb_1, gfs_bb_2:gfs_bb_3])
+        if old_bad_days != bad_days:
+            continue
 
         # CUMULATIVE VALUES (i.e., rain)
         tuples_list = [(ym_str, ymd_str, '1200'), (ym_str, ymd_str, '1800'),
@@ -221,20 +224,36 @@ def get_fire_data(year_range, bb, outfi, modis_loc=None, modis_df=None):
         cPickle.dump(modis_df, fout, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
-def clean_gfs_dicts(dict_file_starter):
+def clean_gfs_dicts(dict_file_starter, outfi):
     dict_arr_unordered = []
     first_year_arr = []
-    for dictfilename in glob(dict_file_starter):
+    for dictfilename in glob(dict_file_starter + "*"):
         with open(dictfilename) as fdict:
             dict_arr_unordered.append(cPickle.load(fdict))
             first_year_arr.append(dict_arr_unordered[-1]['days'][0][0])
     dict_order = np.argsort(first_year_arr)[::-1]
     dict_arr = []
-    for i,d_i in enumerate(dict_order):
-        dict_arr[i] = dict_arr_unordered[d_i]
+    for d_i in dict_order:
+        dict_arr.append(dict_arr_unordered[d_i])
     del dict_arr_unordered
 
     res_dict = dict()
+    res_dict['lats'] = dict_arr[0]['lats']
+    res_dict['lons'] = dict_arr[0]['lons']
+    for field in dict_arr[0].keys():
+        if field == "lats" or field == "lons":
+            continue
+        field_arr = []
+        for dct in dict_arr:
+            field_arr += dct[field]
+        if field == "days" or field == "valid_bits":
+            res_dict[field] = field_arr
+        else:
+            res_dict[field] = np.dstack(field_arr)
+    if outfi:
+        with open(outfi,'w') as fout:
+            cPickle.dump(res_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
+    return res_dict
 
 
 if __name__ == "__main__":
