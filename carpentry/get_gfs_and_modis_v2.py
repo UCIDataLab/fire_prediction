@@ -4,7 +4,10 @@ import cPickle
 import pygrib
 import sys
 from geometry.grid_conversion import ak_bb
+from geometry.get_xys import append_xy
+from modis_to_data_frame import convert_to_pd_batch
 from ftplib import FTP
+from glob import glob
 from util.daymonth import *
 
 
@@ -139,6 +142,7 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
             except Exception:
                 pass
         ret_dict['days'].append((year, month, day))
+        ret_dict['valid_bits'].append(valid_bits)
         print "Finished with %d/%d/%d" % (month, day, year)
         year, month, day = increment_day(year, month, day)
 
@@ -147,18 +151,96 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
         cPickle.dump(ret_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
-def get_fire_data(year_range, bb, outfi, modis_loc=None):
+def just_valid_bits(year_range, outfi, timezone='ak'):
+    # Set time
+    year = year_range[0]
+    month = 1
+    day = 1
+    bad_days = 0
+    surfaceair = True
+    first_time = 1
+
+    # Prep return dict, which will contain date arrays and valid bits
+    ret_dict = dict()
+    ret_dict['valid_bits'] = []
+    ret_dict['days'] = []
+
+    # Open FTP connection
+    ftp = FTP(server_name)
+    ftp.login("anonymous", "zbutler@fire_prediction.github")
+    ftp.cwd(gfs_loc)
+
+    while year <= year_range[1]:
+        ym_str = "%d%.2d" % (year, month)
+        ymd_str = "%d%.2d%.2d" % (year, month, day)
+        tomorrow = increment_day(year, month, day)
+        ym_tom_str = "%d%.2d" % (tomorrow[0], tomorrow[1])
+        ymd_tom_str = "%d%.2d%.2d" % tomorrow
+
+        # Check if today even exists on the server
+        if ymd_str not in map(lambda x: x.split("/")[-1], ftp.nlst(ym_str)):
+            print "month %d day %d not on server" % (month, day)
+            bad_days += 1
+            year, month, day = increment_day(year, month, day)
+            continue
+
+
+        # CUMULATIVE VALUES (i.e., rain)
+        tuples_list = [(ym_str, ymd_str, '1200'), (ym_str, ymd_str, '1800'),
+                       (ym_tom_str, ymd_tom_str, '0000'), (ym_tom_str, ymd_tom_str, '0600')]
+        filenames = map(lambda x: "%s/%s/gfsanl_4_%s_%s_006.grb2" %(x[0],x[1],x[1],x[2]), tuples_list)
+        valid_bits = [0,0,0,0]
+        for fnum, filename in enumerate(filenames):
+            # pull the file from the FTP server
+            my_dir = '/'.join(filename.split('/')[0:-1])
+            if my_dir in ftp.nlst(filename.split('/')[0]) and filename in ftp.nlst(my_dir):
+                valid_bits[fnum] = 1
+
+        ret_dict['days'].append((year, month, day))
+        ret_dict['valid_bits'].append(valid_bits)
+        print "Finished with %d/%d/%d" % (month, day, year)
+        year, month, day = increment_day(year, month, day)
+
+    print "%d bad days" % bad_days
+    with open(outfi,'w') as fout:
+        cPickle.dump(ret_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
+
+
+def get_fire_data(year_range, bb, outfi, modis_loc=None, modis_df=None):
     """ Get MODIS active fire detection data and save in pandas DataFrame
     :param year_range: range of years (inclusive) we want data for
     :param bb: bounding box or geopandas shape we want data for
     :param outfi: place to store pandas DataFrame
-    :param modis_loc: location where MODIS CSV lives (if it doesn't exist, download it)
+    :param modis_loc: location where MODIS CSVs live
     :return: nothing, but save modis DataFrame to pickle in outfi
     """
-    pass
+    if modis_df is None:
+        modis_df = convert_to_pd_batch(modis_loc, outfi=None, beginning=year_range[0], ending=year_range[1])
+    modis_df = append_xy(modis_df, bb)
+    with open(outfi, 'w') as fout:
+        cPickle.dump(modis_df, fout, protocol=cPickle.HIGHEST_PROTOCOL)
+
+
+def clean_gfs_dicts(dict_file_starter):
+    dict_arr_unordered = []
+    first_year_arr = []
+    for dictfilename in glob(dict_file_starter):
+        with open(dictfilename) as fdict:
+            dict_arr_unordered.append(cPickle.load(fdict))
+            first_year_arr.append(dict_arr_unordered[-1]['days'][0][0])
+    dict_order = np.argsort(first_year_arr)[::-1]
+    dict_arr = []
+    for i,d_i in enumerate(dict_order):
+        dict_arr[i] = dict_arr_unordered[d_i]
+    del dict_arr_unordered
+
+    res_dict = dict()
 
 
 if __name__ == "__main__":
     year_range = [int(sys.argv[1]), int(sys.argv[2])]
-    get_gfs_region(year_range, ak_bb, ['temp', 'humidity', 'vpd', 'wind', 'rain'],
-                   sys.argv[3], sys.argv[4])
+    with open('data/full_modis.pkl') as fmod:
+        modis = cPickle.load(fmod)
+    get_fire_data(year_range, ak_bb, 'data/ak_fires.pkl', 'mcd14ml/', modis)
+    #get_gfs_region(year_range, ak_bb, ['temp', 'humidity', 'vpd', 'wind', 'rain'],
+    #               sys.argv[3], sys.argv[4])
