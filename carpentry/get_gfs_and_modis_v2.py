@@ -258,8 +258,8 @@ def clean_gfs_dicts(dict_file_starter, outfi):
 
 if __name__ == "__main__":
     year_range = [int(sys.argv[1]), int(sys.argv[2])]
-    with open('data/full_modis.pkl') as fmod:
-        modis = cPickle.load(fmod)
-    get_fire_data(year_range, ak_bb, 'data/ak_fires.pkl', 'mcd14ml/', modis)
-    #get_gfs_region(year_range, ak_bb, ['temp', 'humidity', 'vpd', 'wind', 'rain'],
-    #               sys.argv[3], sys.argv[4])
+    #with open('data/full_modis.pkl') as fmod:
+    #    modis = cPickle.load(fmod)
+    #get_fire_data(year_range, ak_bb, 'data/ak_fires.pkl', 'mcd14ml/', modis)
+    get_gfs_region(year_range, ak_bb, ['temp', 'humidity', 'vpd', 'wind', 'rain'],
+                   sys.argv[3], sys.argv[4])
