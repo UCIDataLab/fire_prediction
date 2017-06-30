@@ -108,6 +108,8 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                             hum_vals = today_grbs.select(name='Relative humidity', level=2)[0].values
                     svp = .6108 * np.exp(17.27 * temp_vals / (temp_vals + 237.3))
                     layer = svp * (1 - (hum_vals / 100.))
+                elif field == "rain":
+                    continue
             except ValueError:
                 print "Bad grib value %d/%d/%d" %(month, day, year)
                 bad_days += 1
@@ -146,6 +148,7 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                 pass
         ret_dict['days'].append((year, month, day))
         ret_dict['valid_bits'].append(valid_bits)
+        ret_dict['rain'].append(total_rain_layer)
         print "Finished with %d/%d/%d" % (month, day, year)
         year, month, day = increment_day(year, month, day)
 
@@ -254,6 +257,53 @@ def clean_gfs_dicts(dict_file_starter, outfi):
         with open(outfi,'w') as fout:
             cPickle.dump(res_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
     return res_dict
+
+
+def gfs_to_loc_df(gfs_dict, lat, lon, outfi=None):
+    """ Take a dict of gfs values and convert it into a pandas DataFrame for a specific lat/lon
+    :param gfs_dict: dictionary of GFS values
+    :param lat: latitude of interest
+    :param lon: longitude of interest
+    :param outfi: optional file to put pandas DataFrame in
+    :return: pandas DataFrame with gfs values for lat and lon
+    """
+    # First, get the row and column of the latitude in question
+    lats = gfs_dict['lats']
+    lons = gfs_dict['lons']
+    lat_res = lats[0,0] - lats[1,0]
+    lon_res = lons[0,1] - lons[0,0]
+    row = int(float(lats[0,0] - lat) / lat_res)
+    positive_lon = lon % 360   # convert longitude to a positive value, which is what GFS uses
+    col = int(float(positive_lon - lons[0,0]) / lon_res)
+    print "row,col: " + str((row,col))
+    print "lat/lon: " + str((lats[row,0], lons[0,col]))
+
+    # Now, build our DataFrame
+    pd_dict = dict()
+    pd_dict["day"] = []
+    pd_dict["month"] = []
+    pd_dict["year"] = []
+    pd_dict["dayofyear"] = []
+    for key in gfs_dict.keys():
+        if key not in ['lats', 'lons', 'days']:
+            pd_dict[key] = []
+    for i, (year, month, day) in enumerate(gfs_dict['days']):
+        pd_dict["day"].append(day)
+        pd_dict["month"].append(month)
+        pd_dict["year"].append(year)
+        pd_dict["dayofyear"] = monthday2day(month, day, year % 4 == 0)
+        for key in gfs_dict.keys():
+            if key in ['lats', 'lons', 'days']:
+                continue
+            if key == "valid_bits":
+                pd_dict[key].append(sum(gfs_dict[key][i]))
+            else:
+                pd_dict[key].append(gfs_dict[key][row, col, i])
+    df = pd.DataFrame(pd_dict)
+    if outfi:
+        with open(outfi,'w') as fout:
+            cPickle.dump(df, fout, protocol=cPickle.HIGHEST_PROTOCOL)
+    return df
 
 
 if __name__ == "__main__":

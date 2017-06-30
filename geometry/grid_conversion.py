@@ -7,6 +7,7 @@ ak_inland_bb = [60, 69.5, -163, -141]   # Alaska but skip some land in order to 
 small_fire_bb = [64.6, 64.9, -147, -146.4]
 west_coast_bb = [32,50,-125,-110]
 km_per_deg_lat = 111.
+fairbanks_lat_lon = (64.8039, -147.8761)
 
 
 def km_per_deg_lon(lat): return np.cos(lat*np.pi/180.) * 111.321
