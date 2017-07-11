@@ -270,13 +270,14 @@ def gfs_to_loc_df(gfs_dict, lat, lon, outfi=None):
     # First, get the row and column of the latitude in question
     lats = gfs_dict['lats']
     lons = gfs_dict['lons']
+    shp = lats.shape
     lat_res = lats[0,0] - lats[1,0]
     lon_res = lons[0,1] - lons[0,0]
     row = int(float(lats[0,0] - lat) / lat_res)
+    row = max(min(row, shp[0]-1), 0)
     positive_lon = lon % 360   # convert longitude to a positive value, which is what GFS uses
     col = int(float(positive_lon - lons[0,0]) / lon_res)
-    print "row,col: " + str((row,col))
-    print "lat/lon: " + str((lats[row,0], lons[0,col]))
+    col = max(min(col, shp[1]-1), 0)
 
     # Now, build our DataFrame
     pd_dict = dict()
@@ -291,7 +292,7 @@ def gfs_to_loc_df(gfs_dict, lat, lon, outfi=None):
         pd_dict["day"].append(day)
         pd_dict["month"].append(month)
         pd_dict["year"].append(year)
-        pd_dict["dayofyear"] = monthday2day(month, day, year % 4 == 0)
+        pd_dict["dayofyear"].append(monthday2day(month, day, year % 4 == 0))
         for key in gfs_dict.keys():
             if key in ['lats', 'lons', 'days']:
                 continue

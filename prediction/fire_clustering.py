@@ -103,7 +103,8 @@ def cluster_over_time_with_merging(df, thresh, outfi=None):
     min_year = int(np.min(df.year))
     max_year = int(np.max(df.year))
     clust_dict = dict()
-    merge_dict_dict = dict()
+    #merge_dict_dict = dict()
+    clust2nodes, nodes2clust, merge_dict = (None, None, None)
 
     for year in xrange(min_year, max_year+1):
         # Build up dictionary of nearest neighbors to make the building process easier
@@ -124,7 +125,7 @@ def cluster_over_time_with_merging(df, thresh, outfi=None):
         # Get initial clusters on day 1
         first_day = max(FIRE_SEASON[0], np.min(annual_fires.dayofyear))
         last_day = min(FIRE_SEASON[1], np.max(annual_fires.dayofyear))
-        clust2nodes, nodes2clust, merge_dict = (None, None, None)
+
         for day in xrange(first_day, last_day):
             daily_fires = annual_fires[annual_fires.dayofyear == day]
             clust2nodes, nodes2clust, merge_dict = find_daily_clusters(daily_fires, neighbors_dict,
@@ -134,11 +135,13 @@ def cluster_over_time_with_merging(df, thresh, outfi=None):
                 if node not in clust_dict:
                     clust_dict[node] = clust
 
-        merge_dict_dict[year] = merge_dict
+        #merge_dict_dict[year] = merge_dict
         print "%d merges in year %d" % (len(merge_dict), year)
     df['cluster'] = pd.Series(clust_dict, dtype=int)
 
     if outfi:
-        with open(outfi) as fout:
+        with open(outfi + "_cluster.pkl", "w") as fout:
             cPickle.dump(df, fout, cPickle.HIGHEST_PROTOCOL)
-    return df, merge_dict_dict
+        with open(outfi + "_merge_dict.pkl", "w") as fout:
+            cPickle.dump(merge_dict, fout, cPickle.HIGHEST_PROTOCOL)
+    return df, merge_dict
