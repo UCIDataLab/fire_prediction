@@ -46,7 +46,7 @@ def covar_plots(year, date_range=(133,242), modis_df=None, gfs_df=None, station_
                 plt.plot(modis_season.dayofyear, modis_season[var], gfs_marker)
         else:
             if gfs_df is not None:
-                plt.plot(gfs_season.dayofyaer, gfs_season[var], gfs_marker)
+                plt.plot(gfs_season.dayofyear, gfs_season[var], gfs_marker)
             if station_df is not None:
                 plt.plot(station_season.dayofyear, station_season[var], station_marker)
         plt.title(title_dict[var])

@@ -1,6 +1,7 @@
 import numpy as np
 import statsmodels.api as sm
 import pandas as pd
+from scipy.misc import factorial
 
 
 def get_regression_df(old_global_df, covar_cols=['temp', 'vpd'], normalize=[1,1], log_counts=True, autocorr_windows=[1],
@@ -144,7 +145,8 @@ def get_glm(X_train, y_train):
     return glm_res
 
 
-def evaluate_glm(y, y_hat, ignore_nans=True, log=False, verbose=False, metric='MSE', toss_outliers=10):
+def evaluate_glm(y, y_hat, lins=None, ignore_nans=True, log=False, verbose=False, metric='MSE', toss_outliers=10):
+
     if y.shape != y_hat.shape:
         raise ValueError("y (%d) is not the same shape as y_hat (%d)" % (y.shape[0], y_hat.shape[0]))
     if ignore_nans:
@@ -166,5 +168,7 @@ def evaluate_glm(y, y_hat, ignore_nans=True, log=False, verbose=False, metric='M
         return np.mean(sortedSEs[toss_outliers:-toss_outliers])
     elif metric == 'logMSE':
         return np.mean(np.log((y - y_hat)**2+1))
+    elif metric == 'll':
+        return np.mean(y * lins - np.exp(lins))
     else:
         raise ValueError("Invalid metric. Must be one of 'MSE', 'MedianSE', 'MeanAbsErr', 'RobustMSE', or 'logMSE")

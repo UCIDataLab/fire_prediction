@@ -7,6 +7,7 @@ from scipy.spatial import KDTree
 FIRE_SEASON = (133,242)
 
 
+# DEPRECATED
 def cluster_fires(df, thresh, return_df=False):
     """ Cluster a set of fire detections into a set of discrete fire events
     :param df: a DataFrame with x and y fields

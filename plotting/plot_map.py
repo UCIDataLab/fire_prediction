@@ -34,12 +34,15 @@ def draw_map_nogrid_static(bb, month=1, day=1, year=None, gfs_dict=None, latlon_
     if latlon_df is not None:
         mp_lons, mp_lats = mp(np.array(latlon_df.lon), np.array(latlon_df.lat))
         mp.plot(mp_lons, mp_lats, marker)
-    if gfs_dict:
+    if gfs_dict is not None:
         lats = gfs_dict['lats']
         lons = gfs_dict['lons']
         n_lat, n_lon = lats.shape
         gfs_min = gfs_dict['min']
         gfs_max = gfs_dict['max']
+        print "bb: " + str(bb[0])
+        print "lats: " + str(lats[:,0])
+        print "where: " + str(np.where(lats[:,0] <= bb[0]))
         plot_bb_0 = np.where(lats[:,0] <= bb[0])[0][0]
         plot_bb_1 = np.where(lats[:,0] <= bb[1])[0][0]
         plot_bb_2 = np.where(lons[0,:] >= (bb[2] % (n_lon/2)))[0][0]
