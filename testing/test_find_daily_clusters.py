@@ -1,8 +1,10 @@
-from prediction.fire_clustering import find_daily_clusters
-from scipy.spatial import KDTree
-import pandas as pd
-import numpy as np
 import matplotlib
+import numpy as np
+import pandas as pd
+from scipy.spatial import KDTree
+
+from geometry.fire_clustering import find_daily_clusters
+
 matplotlib.use('Qt4Agg')
 import matplotlib.pyplot as plt
 from pylab import get_current_fig_manager

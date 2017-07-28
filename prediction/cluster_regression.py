@@ -1,9 +1,7 @@
-from prediction.fire_clustering import cluster_over_time_with_merging
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
 import numpy as np
 import pandas as pd
-from scipy.stats import pearsonr
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
 
 def add_autoreg_and_n_det(df, autoreg_cols=1, t_k_max=1, zero_padding=True):

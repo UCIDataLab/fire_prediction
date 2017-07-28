@@ -1,11 +1,9 @@
-import pandas as pd
 import numpy as np
-import cPickle
-from geometry.grid_conversion import gfs_to_loc_df
-from util.daymonth import monthday2day, day2monthday
+import pandas as pd
+
 from data import data
-from prediction.fire_clustering import cluster_over_time_with_merging
-import sys
+from geometry.fire_clustering import cluster_over_time_with_merging
+from geometry.grid_conversion import gfs_to_loc_df
 
 POTENTIAL_GFS_VARS = {"temp", "humidity", "wind", "rain"}
 
