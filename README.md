@@ -1,4 +1,6 @@
-# fire_prediction
+fire_prediction
+===============
+
 Using MODIS active fire data and NOAA GFS data to predict the spread of forest fires, particularly in Alaska.
 
 The project is organized as such:
@@ -16,3 +18,40 @@ The project is organized as such:
 * testing: Unit tests
 * tutorial: iPython notebooks to acquaint user with this package
 * util: various utilites
+
+Project Organization
+--------------------
+
+* Makefile
+* README.md
+* data
+    - raw               <- Original, immutable data
+    - interim           <- Intermediate data that has gone through some transformation
+    - processed         <- Terminal form of the data; ready for modeling
+    - exploratory       <- Transformed data that is not intended for modeling
+
+* docs                  <- Sphinx project for generating documentation
+* models                <- Trained models, predictions, or other model outputs
+* notebooks             <- Jupyter notebooks. Format is "<versioning #>-<author identifier>-description"
+    - exploratory       <- Notebooks for exploring data and results
+    - reports           <- More polished notebooks that can be exported to reports
+    - tutorial          <- Notebooks that are instructive for learning about the project
+
+* references            <- Manuals and reference material
+* reports               <- Generated analysis (e.g. HTML, PDF, LaTeX) 
+    - figures           <- Graphics and figures for reports
+
+* requirements.txt
+* src                   <- Source code
+    - __init__.py
+    - data              <- Downloading and generating data
+    - features          <- Transforming and processing data
+    - models            <- Training and testing models
+    - visualization     <- Creating exploratory and report visualizations/figures
+
+* tox.ini               
+
+
+--------
+
+<p><small>Project structure based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>.</small></p>
