@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import cPickle
-from util.daymonth import monthday2day
+from helper.daymonth import monthday2day
 
 # constants
 ak_bb = [55, 71, -165, -138]
