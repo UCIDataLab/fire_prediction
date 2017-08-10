@@ -78,3 +78,4 @@ target/
 
 # Directory for dumping files
 etc/
+/reports/generated
