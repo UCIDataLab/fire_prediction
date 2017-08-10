@@ -6,7 +6,7 @@ import sys
 from geometry.grid_conversion import ak_bb
 from ftplib import FTP
 from glob import glob
-from util.daymonth import *
+from helper.daymonth import *
 
 
 server_name = "nomads.ncdc.noaa.gov"  # Server from which to pull the data
