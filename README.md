@@ -32,13 +32,14 @@ Project Organization
 
 * docs                  <- Sphinx project for generating documentation
 * models                <- Trained models, predictions, or other model outputs
-* notebooks             <- Jupyter notebooks. Format is "<versioning #>-<author identifier>-description"
+* notebooks             <- Jupyter notebooks. Format is "<description/title>-<versioning #>-<author identifier>"
     - exploratory       <- Notebooks for exploring data and results
     - reports           <- More polished notebooks that can be exported to reports
     - tutorial          <- Notebooks that are instructive for learning about the project
 
 * references            <- Manuals and reference material
 * reports               <- Generated analysis (e.g. HTML, PDF, LaTeX) 
+    - generated         <- Reports that were generated from src contained in this project
     - figures           <- Graphics and figures for reports
 
 * requirements.txt
