@@ -1,3 +1,12 @@
+import datetime
+
+def utc_to_local_time(datetime_utc, longitude):
+    """ 
+    Calculate local time based on longitude and utc time. Rounded to nearest second.
+    """
+    timedelta_offset = datetime.timedelta(0, round(longitude * 4 * 60))
+    return datetime_utc + timedelta_offset
+
 def day2monthday(my_day, leapyear=False):
     if leapyear:
         month_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
