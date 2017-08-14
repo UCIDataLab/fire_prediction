@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 import cPickle
-from helper.daymonth import monthday2day
+#from helper.daymonth import monthday2day
 
 # constants
-ak_bb = [55, 71, -165, -138]
+alaska_bb = [55, 71, -165, -138]
 ak_inland_bb = [60, 69.5, -163, -141]   # Alaska but skip some land in order to avoid most of the water in ak_bb
 small_fire_bb = [64.6, 64.9, -147, -146.4]
 west_coast_bb = [32,50,-125,-110]
@@ -14,6 +14,8 @@ fairbanks_lat_lon = (64.8039, -147.8761)
 
 def km_per_deg_lon(lat): return np.cos(lat*np.pi/180.) * 111.321
 
+def filter_bounding_box(df, bb):
+    return df[(df.lat < bb[1]) & (df.lat > bb[0]) & (df.lon < bb[3]) & (df.lon > bb[2])]
 
 def get_latlon_xy_fxns(bb):
     """ Get conversion functions from lat/lon to a uniform distance grid. Note that because longitude
@@ -40,6 +42,22 @@ def get_latlon_xy_fxns(bb):
 
     return latlon2xy, xy2latlon, (x_shape, y_shape)
 
+def append_xy(df, bb):
+    """ Add uniform XY coordinates to a specified location in a DataFrame that has latitudes and longitudes
+    :param df: DataFrame with columns named "lat" and "long" for latitude and longitude respectively
+    :param bb: Bounding box for location over which to form grid
+    :return: DataFrame in the same form as the other but with "x" and "y" columns
+    """
+    latlon2xy, _, shape = get_latlon_xy_fxns(bb)
+    xys = map(latlon2xy, df.lat, df.lon)
+
+    xs = map(lambda x: x[0], xys)
+    ys = map(lambda x: x[1], xys)
+
+    df = df.assign(x=xs)
+    df = df.assign(y=ys)
+
+    return df
 
 def get_latlon_grid_fxns(bb, grid_res=1.1):
     """ Get conversion functions from lat/lon to a uniform distance grid. Note that because longitude

@@ -63,7 +63,7 @@ def convert_to_pd_batch(my_dir, outfi=None, beginning=2007, ending=2016, verbose
                 lat_list.append(float(line.split()[3]))
                 lon_list.append(float(line.split()[4]))
                 frp_list.append(float(line.split()[8]))
-                satellite_list.append(line.split()[9])
+                satellite_list.append(line.split()[2])
                 confidence_list.append(float(line.split()[9]) / 100.)
         if verbose:
             print "finished reading file %d" % i

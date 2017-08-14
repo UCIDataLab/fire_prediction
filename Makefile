@@ -19,13 +19,9 @@ requirements: test_environment geos_install
 geos_install:
 	@echo "TODO: Add automatic GEOS installation (make sure to check for previous install or prompt user for permisison)"
 
-## Make Dataset fram raw data
-data: requirements
-	$(PYTHON_INTERPRETER) src/data/make_dataset.py
-
 ## Fetch raw data from sources
-fetch_data_raw: requirements
-	$(PYTHON_INTERPRETER) src/data/fetch_dataset.py
+fetch_data: requirements
+	$(PYTHON_INTERPRETER) src/data/fetch_raw_data.py
 
 ## Delete all compiled Python files
 clean:
