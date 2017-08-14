@@ -4,6 +4,8 @@ from ftplib import FTP
 import itertools
 from time import time
 
+from StringIO import StringIO
+
 def is_leap_year(year):
     return year % 4 == 0
 
@@ -86,10 +88,17 @@ def get_gfs_data(dest_dir, min_year, max_year):
                     if os.path.isfile(local_path):
                         continue
 
+                    """
                     with open(local_path, 'w') as ftmp:
                         ftp.retrbinary(command, ftmp.write)
+                    """
+                    r = StringIO()
+                    ftp.retrbinary(command, r.write)
+
 
                 print "(%d seconds)" % (time() - start_time_day)
+                print 'Len', len(r.getvalue())
+                exit()
 
     ftp.quit()
     total_time = (time() - start_time) / 60.
