@@ -1,5 +1,5 @@
 ## Open Questions About Data and Timing (v1.0)
-Casey Graff
+Casey A Graff
 August 10th, 2017
 
 
@@ -27,6 +27,9 @@ August 10th, 2017
 	6. Is there a correlation between FRP & confidence
 		1. **Calculate correlation between the two measures**
 		2. There should be a correlation because the equation for confidence is a function of the temperature of the fire
+	7. Possible double counting
+		1. When Aqua  and Terra overlap in the mid-day do they double count the same fire pixel
+		2. **Measure spatial distance between fire detections and nearest neighbor (within a day)**
 2.  #### GFS (Global Forecast System)
 	1. Missing Data
 		1. **Explore missing data between years, months; inside and outside fire season**
@@ -46,6 +49,7 @@ August 10th, 2017
 	1. Measuring performance of GFS
 		1. Can we use station data to investigate any lag/lead in GFS data
 		2. How can we use station data to investigate inaccuracy of GFS data
+		3. **Plot station measurements alongside the nearest GFS pixel's measurements**
 	2. Integration with GFS data
 		1. Can station data be integrated with GFS data for more accurate weather measurement/forecasting
 4. #### Timing (between multiple datasets)

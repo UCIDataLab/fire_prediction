@@ -30,11 +30,14 @@ class ModisToDfConverter(Converter):
         frames = []
         for file_name in files:
             logging.debug('Reading %s' % file_name)
+
+            # Open one month of MODIS and create a df
             with gzip.open(os.path.join(src,file_name), 'rb') as fin:
                 df = pandas.read_csv(fin, sep=' ', skipinitialspace=True, index_col=0, parse_dates=[['YYYYMMDD', 'HHMM']], infer_datetime_format=True)
-                df.index.names = ['Datetime']
+                df.index.names = ['datetime_utc'] # Make index the UTC datetime
                 frames.append(df)
 
+        # Concat all months together to make a single df
         logging.debug('Concatenating %d data frames' % len(frames))
         return pandas.concat(frames)
 
@@ -46,9 +49,9 @@ class ModisToDfConverter(Converter):
     def transform(self, data):
         logging.debug('Applying transforms to data frame')
 
-        df = data[data['type']==0] # Include only vegitation fires
+        df = data[data['type']==0] # Include only vegetation fires
         df = gc.filter_bounding_box(df, self.bounding_box) # Only use fires in bounding box
-        df = df.assign(local_datetime=map(utc_to_local_time, df.index, df.lon)) # Add local time col
+        df = df.assign(datetime_local=map(utc_to_local_time, df.index, df.lon)) # Add local time col
         df = gc.append_xy(df, self.bounding_box) # Add x,y grid coords
 
         logging.debug('Done applying transforms to data frame')
