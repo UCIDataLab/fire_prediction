@@ -2,6 +2,7 @@
 Fetches GFS (Global Forecasting System) data.
 """
 
+import cPickle as pickle
 import click
 import logging
 import os
@@ -9,7 +10,8 @@ import sys
 from ftplib import FTP
 import itertools
 from time import time
-import cPickle as pickle
+
+from ftp_async import AsyncFTP
 
 alaska_bb = [55, 71, -165, -138]
 
@@ -23,9 +25,6 @@ def days_per_month(month, is_leap):
         month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     return month_arr[month-1]
 
-def makedirs_safe(dir_name):
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
 
 server_name = "nomads.ncdc.noaa.gov"  # Server from which to pull the data
 username = "anonymous"
@@ -42,16 +41,59 @@ offsets = [0, 3, 6,]
 time_offset_list = [(t,o) for t in times for o in offsets]
 
 class GfsFetch(object):
-    def __init__(self, dest_dir, start_year, end_year):
+    def __init__(self, dest_dir, start_year, end_year, available_files_path=None, files_to_fetch_path=None):
         self.dest_dir = dest_dir
         self.year_range = (start_year, end_year)
+        self.aftp = AsyncFTP(server_name, username, password, pool_size=4, queue_size=10)
+
+        self.available_files_path = available_files_path
+        self.files_to_fetch_path = files_to_fetch_path
+
+    def src_to_dest_path(self, path):
+        path = path.split(gfs_loc)[1]
+        return os.path.join(self.dest_dir, path.lstrip('/'))
 
     def fetch(self):
         """
         Fetch raw GFS data within year range.
         """
-        bad_days = 0
-        start_time = time()
+        # Find all available files with year range
+        if not self.available_files_path and not self.files_to_fetch_path:
+            available_files = self.fetch_available_files()
+            with open(os.path.join(self.dest_dir, 'available_files.pkl'), 'wb') as fout:
+                pickle.dump(available_files, fout, protocol=pickle.HIGHEST_PROTOCOL)
+            logging.debug('Finished fetching available files list')
+        elif not self.files_to_fetch_path:
+            with open(self.available_files_path, 'rb') as fin:
+                available_files = pickle.load(fin)
+
+        # Filter out already downloaded files
+        if not self.files_to_fetch_path:
+            files_to_fetch = self.filter_existing_files(available_files)
+            with open(os.path.join(self.dest_dir, 'files_to_fetch.pkl'), 'wb') as fout:
+                pickle.dump(files_to_fetch, fout, protocol=pickle.HIGHEST_PROTOCOL)
+            logging.debug('Finished filtering downloaded files')
+        else:
+            with open(self.files_to_fetch_path, 'rb') as fin:
+                files_to_fetch = pickle.load(fin)
+
+        if not files_to_fetch:
+            logging.debug('No files to fetch')
+            return
+
+        self.make_dirs(files_to_fetch)
+
+        self.aftp.start()
+        for f in files_to_fetch:
+            self.aftp.fetch(f, self.src_to_dest_path(f))
+
+        self.aftp.join()
+
+    def fetch_available_files(self):
+        """
+        Fetch list of all available files (within year_range).
+        """
+        available_files = []
 
         ftp = FTP(server_name)
         ftp.login(username, password)
@@ -65,24 +107,22 @@ class GfsFetch(object):
                 days_in_month_dir = map(lambda x: x.split("/")[-1], ftp.nlst(year_month))
 
                 # Make month dir
-                year_month_dir = os.path.join(self.dest_dir, year_month)
-                makedirs_safe(year_month_dir)
+                #year_month_dir = os.path.join(self.dest_dir, year_month)
+                #makedirs_safe(year_month_dir)
 
                 for day in range(1, days_per_month(month, is_leap_year(year))+1):
+
                     start_time_day = time()
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
                     # Check if day not on server
                     if year_month_day not in days_in_month_dir:
-                        logging.debug('Failed: year %d month %d day %d not on server' % (year, month, day))
-                        bad_days += 1
+                        logging.debug('Missing Day: year %d month %d day %d not on server' % (year, month, day))
                         continue
 
-                    logging.debug('Fetching: year %d month %d day %d' % (year, month, day))
-
                     # Make day dir
-                    year_month_day_dir = os.path.join(self.dest_dir, year_month, year_month_day)
-                    makedirs_safe(year_month_day_dir)
+                    #year_month_day_dir = os.path.join(self.dest_dir, year_month, year_month_day)
+                    #makedirs_safe(year_month_day_dir)
 
                     dir_list_with_fluff = ftp.nlst('/'.join([year_month, year_month_day]))
                     grib_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
@@ -92,41 +132,33 @@ class GfsFetch(object):
                     for grib_file in todays_grib_files:
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
-                            logging.debug('(no grib %s)' % grib_file)
+                            logging.debug('Missing Grib: grib %s not on server' % grib_file)
                             continue
-                        path = os.path.join(year_month, year_month_day, grib_file)
-                        command = 'RETR %s' % path
-                        local_grib_path = os.path.join(self.dest_dir, path)
 
-                        # Check if grib already downloaded
-                        if not os.path.isfile(local_grib_path):
-                            logging.debug('Fetching grib %s' % grib_file)
-                            with open(local_grib_path, 'w') as ftmp:
-                                ftp.retrbinary(command, ftmp.write)
+                        path = os.path.join(gfs_loc, year_month, year_month_day, grib_file)
+                        available_files.append(path)
 
-                        continue
-
-                        # Generate pickle file path
-                        pkl_file = os.path.splitext(grib_file)[0] + '.pkl'
-                        path = os.path.join(year_month, year_month_day, pkl_file)
-                        local_pkl_path = os.path.join(self.dest_dir, path)
-
-                        # Check if pickle file already generated
-                        if not os.path.isfile(local_pkl_path):
-                            logging.debug('Generating pickle %s' % pkl_file)
-                            gribs = pygrib.open(local_grib_path)
-                            sel = get_default_selections()
-                            with open(local_pkl_path, 'wb') as f:
-                                data, lats, lons = GribSelector(sel, alaska_bb).select(gribs)
-                                pickle.dump({'data': data, 'lats': lats, 'lons': lons}, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-                    logging.info('(%d seconds)' % (time() - start_time_day))
         # Clean-up
         ftp.quit()
 
-        total_time = (time() - start_time) / 60.
-        logging.info('Total time: %d minutes' % total_time)
-        logging.info('Bad days: %s' % bad_days)
+        return available_files
+
+    def filter_existing_files(self, files):
+        filtered_files = []
+
+        for f in files:
+            local_f = self.src_to_dest_path(f)
+            if not os.path.isfile(local_f):
+                filtered_files.append(f)
+
+        return filtered_files
+
+    def make_dirs(self, files):
+        dirs = set(map(lambda x: os.path.dirname(self.src_to_dest_path(x)), files))
+        for d in dirs:
+            if not os.path.exists(d):
+                    os.makedirs(d)
+
 
 
 @click.command()
@@ -134,14 +166,16 @@ class GfsFetch(object):
 @click.option('--start', default=2007, type=click.INT)
 @click.option('--end', default=2016, type=click.INT)
 @click.option('--log', default='INFO')
-def main(dest_dir, start, end, log):
+@click.option('--avail', default=None, type=click.Path(exists=True))
+@click.option('--fetch', default=None, type=click.Path(exists=True))
+def main(dest_dir, start, end, log, avail, fetch):
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Storing data in "%s". Range is [%d, %d].' % (dest_dir, start, end))
 
     logging.info('Starting fetch for GFS')
-    GfsFetch(dest_dir, start, end).fetch()
+    GfsFetch(dest_dir, start, end, avail, fetch).fetch()
     logging.info('End fetch for GFS')
 
 
