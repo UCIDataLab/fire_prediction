@@ -44,7 +44,7 @@ class GfsFetch(object):
     def __init__(self, dest_dir, start_year, end_year, available_files_path=None, files_to_fetch_path=None):
         self.dest_dir = dest_dir
         self.year_range = (start_year, end_year)
-        self.aftp = AsyncFTP(server_name, username, password, pool_size=4, queue_size=10)
+        self.aftp = AsyncFTP(server_name, username, password, pool_size=2, queue_size=10)
 
         self.available_files_path = available_files_path
         self.files_to_fetch_path = files_to_fetch_path
@@ -84,7 +84,7 @@ class GfsFetch(object):
         self.make_dirs(files_to_fetch)
 
         self.aftp.start()
-        for f in files_to_fetch:
+        for f in files_to_fetch[:4]:
             self.aftp.fetch(f, self.src_to_dest_path(f))
 
         self.aftp.join()
@@ -100,7 +100,7 @@ class GfsFetch(object):
         ftp.cwd(gfs_loc)
 
         for year in range(self.year_range[0], self.year_range[1]+1):
-            for month in range(1, 13):
+            for month in range(1, 2):#13):
                 year_month = year_month_dir_fmt % (year, month)
 
                 # Get list of all days in this month on server
@@ -158,7 +158,6 @@ class GfsFetch(object):
         for d in dirs:
             if not os.path.exists(d):
                     os.makedirs(d)
-
 
 
 @click.command()
