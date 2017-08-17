@@ -12,25 +12,14 @@ import itertools
 from time import time
 
 from ftp_async import AsyncFTP
+from helper import date
 
 alaska_bb = [55, 71, -165, -138]
-
-def is_leap_year(year):
-    return year % 4 == 0
-
-def days_per_month(month, is_leap):
-    if is_leap:
-        month_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    else:
-        month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    return month_arr[month-1]
-
 
 server_name = "nomads.ncdc.noaa.gov"  # Server from which to pull the data
 username = "anonymous"
 password = "graffc@uci.edu"
 gfs_loc = "GFS/analysis_only/"  # location on server of GFS data
-year_range = [2007, 2007]
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
@@ -44,7 +33,7 @@ class GfsFetch(object):
     def __init__(self, dest_dir, start_year, end_year, available_files_path=None, files_to_fetch_path=None):
         self.dest_dir = dest_dir
         self.year_range = (start_year, end_year)
-        self.aftp = AsyncFTP(server_name, username, password, pool_size=2, queue_size=10)
+        self.aftp = AsyncFTP(server_name, username, password, pool_size=4, queue_size=50)
 
         self.available_files_path = available_files_path
         self.files_to_fetch_path = files_to_fetch_path
@@ -84,7 +73,7 @@ class GfsFetch(object):
         self.make_dirs(files_to_fetch)
 
         self.aftp.start()
-        for f in files_to_fetch[:4]:
+        for f in files_to_fetch:
             self.aftp.fetch(f, self.src_to_dest_path(f))
 
         self.aftp.join()
@@ -100,29 +89,20 @@ class GfsFetch(object):
         ftp.cwd(gfs_loc)
 
         for year in range(self.year_range[0], self.year_range[1]+1):
-            for month in range(1, 2):#13):
+            for month in range(1, 13):
                 year_month = year_month_dir_fmt % (year, month)
 
                 # Get list of all days in this month on server
                 days_in_month_dir = map(lambda x: x.split("/")[-1], ftp.nlst(year_month))
 
-                # Make month dir
-                #year_month_dir = os.path.join(self.dest_dir, year_month)
-                #makedirs_safe(year_month_dir)
+                for day in range(1, date.days_per_month(month, date.is_leap_year(year))+1):
 
-                for day in range(1, days_per_month(month, is_leap_year(year))+1):
-
-                    start_time_day = time()
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
                     # Check if day not on server
                     if year_month_day not in days_in_month_dir:
                         logging.debug('Missing Day: year %d month %d day %d not on server' % (year, month, day))
                         continue
-
-                    # Make day dir
-                    #year_month_day_dir = os.path.join(self.dest_dir, year_month, year_month_day)
-                    #makedirs_safe(year_month_day_dir)
 
                     dir_list_with_fluff = ftp.nlst('/'.join([year_month, year_month_day]))
                     grib_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)

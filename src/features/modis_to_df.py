@@ -23,14 +23,14 @@ class ModisToDfConverter(Converter):
         super(ModisToDfConverter, self).__init__()
         self.bounding_box = bounding_box
 
-    def load(self, src):
-        logging.info('Loading files from %s' % src)
-        files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f))]
+    def load(self, src_dir):
+        logging.info('Loading files from %s' % src_dir)
+        files = [f for f in os.listdir(src_dir) if os.path.isfile(os.path.join(src_dir, f))]
 
         frames = []
         for file_name in files:
             logging.debug('Reading %s' % file_name)
-            with gzip.open(os.path.join(src,file_name), 'rb') as fin:
+            with gzip.open(os.path.join(src_dir,file_name), 'rb') as fin:
                 df = pandas.read_csv(fin, sep=' ', skipinitialspace=True, index_col=0, parse_dates=[['YYYYMMDD', 'HHMM']], infer_datetime_format=True)
                 df.index.names = ['Datetime']
                 frames.append(df)
@@ -55,10 +55,10 @@ class ModisToDfConverter(Converter):
         return df
 
 @click.command()
-@click.argument('modis_dir', type=click.Path(exists=True))
-@click.argument('dest')
+@click.argument('src_dir', type=click.Path(exists=True))
+@click.argument('dest_path')
 @click.option('--log', default='INFO')
-def main(modis_dir, dest, log):
+def main(src_dir, dest_path, log):
     """
     Load MODIS data and create a data frame.
     """
@@ -66,7 +66,7 @@ def main(modis_dir, dest, log):
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Starting MODIS to data frame conversion')
-    ModisToDfConverter().convert(modis_dir, dest)
+    ModisToDfConverter().convert(src_dir, dest_path)
     logging.info('Finished MODIS to data frame conversion')
 
 

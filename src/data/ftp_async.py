@@ -24,11 +24,12 @@ class Writer(object):
 
 
 class AsyncFTPFetcher(object):
-    def __init__(self, ftp, write_queue, called, blk_size=81920):
-        self.ftp = ftp
+    def __init__(self, connection_info, write_queue, blk_size=81920):
+        self.connection_info = connection_info
         self.write_queue = write_queue
         self.blk_size = blk_size
-        self.called = called
+
+        self.setup_ftp()
 
     def fetch(self, src_path, dest_path):
         out_str = StringIO()
@@ -36,9 +37,20 @@ class AsyncFTPFetcher(object):
         logging.debug('Fetching %s' % src_path)
 
         command = 'RETR %s' % src_path
-        self.ftp.retrbinary(command, out_str.write, blocksize=self.blk_size)
+
+        try:
+            self.ftp.retrbinary(command, out_str.write, blocksize=self.blk_size)
+        except ftplib.error_temp as err:
+            # Reset connection and retry
+            self.ftp.close()
+            self.setup_ftp()
+
+            self.ftp.retrbinary(command, out_str.write, blocksize=self.blk_size)
 
         self.write_queue.put((dest_path, out_str))
+
+    def setup_ftp(self):
+        self.ftp = FTP(**self.connection_info)
 
 
 def fetch_thread(context, src_path, dest_path):
@@ -46,7 +58,7 @@ def fetch_thread(context, src_path, dest_path):
     async_fetcher.fetch(src_path, dest_path)
 
 class PoolLimitedTaskQueue(object):
-    def __init__(self, pool_size, task_queue_size, initializer, destructor):
+    def __init__(self, pool_size, task_queue_size, initializer=None, destructor=None):
         self.pool_size = pool_size
         self.initializer = initializer
         self.destructor = destructor
@@ -70,13 +82,13 @@ class PoolLimitedTaskQueue(object):
         [w.start() for w in self.workers]
 
     def run(self, context):
-        self.initializer(context)
+        if self.initializer: self.initializer(context)
 
         while True:
             func, args = self.task_queue.get()
             if func is None:
                 logging.debug('Pool worker (%d) stopping after reaching terminal element in task queue' % os.getpid())
-                self.destructor(context)
+                if self.destructor: self.destructor(context)
                 return
             apply(func, (context,) + args)
 
@@ -118,13 +130,13 @@ class AsyncFTP(object):
 
     def fetch(self, src_path, dest_path):
         if not self.started:
-            raise Exception('Not started.')
+            raise Exception('Not started')
 
         self.pool.apply_async(fetch_thread, args=(src_path, dest_path))
 
     def join(self):
         if not self.started:
-            raise Exception('Not started.')
+            raise Exception('Not started')
 
         self.pool.close()
         self.pool.join()
@@ -134,11 +146,8 @@ class AsyncFTP(object):
         self.writer.join()
 
     def init_worker(self, context):
-        pid = os.getpid()
-        ftp = FTP(self.server_name)
-        ftp.login(self.username, self.password)
-
-        async_fetcher = AsyncFTPFetcher(ftp, self.write_queue, pid)
+        connection_info = {'host': self.server_name, 'user': self.username, 'passwd': self.password}
+        async_fetcher = AsyncFTPFetcher(connection_info, self.write_queue)
         context['fetcher'] = async_fetcher
 
         logging.debug('Initialized worker (%d)' % os.getpid())
