@@ -10,8 +10,8 @@ import cPickle as pickle
 import datetime
 import pytz
 
+from helper import date_util as du
 from base.converter import Converter
-from helper import date
 
 import weather
 
@@ -105,7 +105,7 @@ class GFStoWeatherRegionConverter(Converter):
 
                 days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if os.path.isdir(os.path.join(self.src_dir, year_month, d))]
 
-                for day in range(1, date.days_per_month(month, date.is_leap_year(year))+1):
+                for day in range(1, du.days_per_month(month, du.is_leap_year(year))+1):
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
                     if year_month_day not in days_in_month_dir:
@@ -136,8 +136,7 @@ class GFStoWeatherRegionConverter(Converter):
         minute = int(name[11:13])
         offset = int(name[14:17])
 
-        return datetime.datetime(year, month, day, hour, minute, tzinfo=pytz.UTC).isoformat(), datetime.timedelta(hours=offset)
-
+        return du.DatetimeMeasurementOffset(year, month, day, hour, minute, tzinfo=pytz.UTC, measurement_offset=datetime.timedelta(hours=offset))
 
     def append_data(self, all_data, file_data, date_ind):
         for k, v in file_data.iteritems():
