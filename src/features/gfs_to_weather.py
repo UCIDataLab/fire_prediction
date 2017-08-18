@@ -56,11 +56,13 @@ class GFStoWeatherRegionConverter(Converter):
 
         all_data = {}
         dates = []
+        offsets = []
         for i, f in enumerate(available_files):
             logging.debug('Converting %s (%d/%d)' % (f, i+1, self.num_dates))
             # Record date
-            date = self.get_date_from_name(os.path.basename(f))
+            date, offset = self.get_date_from_name(os.path.basename(f))
             dates.append(date)
+            offsets.append(offset)
 
             # Append data
             with open(f, 'rb') as fin:
@@ -68,10 +70,10 @@ class GFStoWeatherRegionConverter(Converter):
 
             self.append_data(all_data, file_data, i)
 
-        return all_data, dates
+        return all_data, dates, offsets
 
     def transform(self, data):
-        all_data, dates = data
+        all_data, dates, offsets = data
 
         # Create WeatherRegion and add WeatherCubes for each measurement
         region = weather.WeatherRegion('gfs_alaska')
@@ -79,6 +81,7 @@ class GFStoWeatherRegionConverter(Converter):
             measurement = all_data[k]
             values, units, bb = measurement['values'], measurement['units'], measurement['bounding_box']
             cube = weather.WeatherCube(k, values, units, bb, ['lat', 'lon', 'time'], dates)
+            cube.add_attribute('offsets', offsets)
             region.add_cube(cube)
 
         return region
@@ -136,7 +139,7 @@ class GFStoWeatherRegionConverter(Converter):
         minute = int(name[11:13])
         offset = int(name[14:17])
 
-        return du.DatetimeMeasurementOffset(year, month, day, hour, minute, tzinfo=pytz.UTC, measurement_offset=datetime.timedelta(hours=offset))
+        return datetime.datetime(year, month, day, hour, minute, tzinfo=pytz.UTC), datetime.timedelta(hours=offset)
 
     def append_data(self, all_data, file_data, date_ind):
         for k, v in file_data.iteritems():

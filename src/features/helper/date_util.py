@@ -36,8 +36,3 @@ def daterange(start_date, end_date=None, increment=timedelta(hours=24)):
             yield start_date
             start_date += increment
 
-class DatetimeMeasurementOffset(datetime):
-    def __new__(cls, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None, measurement_offset=timedelta(0)):
-        dt = datetime.__new__(cls, year, month, day, hour, minute, second, microsecond, tzinfo)
-        dt.measurement_offset = measurement_offset
-        return dt

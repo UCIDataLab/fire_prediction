@@ -11,6 +11,11 @@ class WeatherCube(object):
         self.axis_labels = axis_labels
         self.dates = dates
 
+        self.attributes = {}
+
+    def add_attribute(self, name, value):
+        self.attributes[name] = value
+
 class WeatherRegion(object):
     def __init__(self, name):
         self.name = name
