@@ -1,6 +1,7 @@
 """
 Converts raw MODIS data to a data frame.
 """
+
 import click
 import cPickle as pickle
 import pandas
@@ -9,18 +10,14 @@ import gzip
 import os
 
 from geometry import grid_conversion as gc
-from helper.daymonth import utc_to_local_time
 from base.converter import Converter
 
-#from easy_ls.file_sys import DirSel, FileEnum, FileSave
-#from easy_ls.savers import to_pickle
-
-class ModisToDfConverter(Converter):
-    #INPUT_FMT = DirSel('raw', DirSel('modis', FileEnum('*')))
-    #OUTPUT_FMT = DirSel('interim', DirSel('modis', FileSave('modis_df.pkl')))
-
+class ModisRawToDfConverter(Converter):
+    """
+    Converts raw MODIS data to a data frame.
+    """
     def __init__(self, bounding_box=gc.alaska_bb):
-        super(ModisToDfConverter, self).__init__()
+        super(ModisRawToDfConverter, self).__init__()
         self.bounding_box = bounding_box
 
     def load(self, src_dir):
@@ -39,11 +36,16 @@ class ModisToDfConverter(Converter):
 
         # Concat all months together to make a single df
         logging.debug('Concatenating %d data frames' % len(frames))
-        return pandas.concat(frames)
 
-    def save(self, dest, data):
-        logging.info('Saving data frame to %s' % dest)
-        with open(dest, 'wb') as fout: 
+
+        all_frames = pandas.concat(frames)
+        all_frames.index = all_frames.index.tz_localize('UTC')
+
+        return all_frames
+
+    def save(self, dest_path, data):
+        logging.info('Saving data frame to %s' % dest_path)
+        with open(dest_path, 'wb') as fout: 
             pickle.dump(data, fout, pickle.HIGHEST_PROTOCOL)
 
     def transform(self, data):
@@ -51,7 +53,6 @@ class ModisToDfConverter(Converter):
 
         df = data[data['type']==0] # Include only vegetation fires
         df = gc.filter_bounding_box(df, self.bounding_box) # Only use fires in bounding box
-        df = df.assign(datetime_local=map(utc_to_local_time, df.index, df.lon)) # Add local time col
         df = gc.append_xy(df, self.bounding_box) # Add x,y grid coords
 
         logging.debug('Done applying transforms to data frame')
@@ -68,9 +69,9 @@ def main(src_dir, dest_path, log):
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
-    logging.info('Starting MODIS to data frame conversion')
-    ModisToDfConverter().convert(src_dir, dest_path)
-    logging.info('Finished MODIS to data frame conversion')
+    logging.info('Starting MODIS raw to data frame conversion')
+    ModisRawToDfConverter().convert(src_dir, dest_path)
+    logging.info('Finished MODIS raw to data frame conversion')
 
 
 if __name__ == '__main__':

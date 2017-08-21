@@ -44,6 +44,29 @@ class LatLonBoundingBox(object):
     def __str__(self):
         return str({'lat': (self.lat_min, self.lat_max), 'lon': (self.lon_min, self.lon_max)})
 
+    def __eq__(self, other):
+        return (self.lat_min, self.lat_max, self.lon_min, self.lon_max) == (other.lat_min, other.lat_max, other.lon_min, other.lon_max)
+
+    def __neq__(self, other):
+        return not self.__eq__(other)
+
+
+def latlonrange(bounding_box, inc_lat=1., inc_lon=1.):
+    lat_min, lat_max, lon_min, lon_max = bounding_box.get()
+
+    lat_min -= inc_lat
+    lon_max += inc_lon
+
+    lon_min_orig = lon_min
+
+    while lat_min < lat_max:
+        while lon_min < lon_max:
+            yield lat_max, lon_min
+            lon_min += inc_lon
+
+        lat_max -= inc_lat
+        lon_min = lon_min_orig
+
 
 GRIB_ARRAY_TOO_SMALL = -6
 
