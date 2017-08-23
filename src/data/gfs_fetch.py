@@ -12,7 +12,7 @@ import itertools
 from time import time
 
 from ftp_async import AsyncFTP
-from helper import date
+from helper import date_util as du
 
 alaska_bb = [55, 71, -165, -138]
 
@@ -95,7 +95,7 @@ class GfsFetch(object):
                 # Get list of all days in this month on server
                 days_in_month_dir = map(lambda x: x.split("/")[-1], ftp.nlst(year_month))
 
-                for day in range(1, date.days_per_month(month, date.is_leap_year(year))+1):
+                for day in range(1, du.days_per_month(month, du.is_leap_year(year))+1):
 
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 

@@ -178,6 +178,10 @@ def main(src_dir, dest_path, start, end, log):
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
+    # Check that dest_path (excluding file) exists
+    #if not os.path.isdir(os.path.dirname(dest_path)):
+    #    print 'Destination path does not exist "%s"' % dest_path
+
     logging.info('Starting GFS extracted to WeatherRegion conversion')
     GFStoWeatherRegionConverter(start, end).convert(src_dir, dest_path)
     logging.info('Finished GFS extracted to WeatherRegion conversion')

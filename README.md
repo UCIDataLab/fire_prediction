@@ -43,9 +43,9 @@ Project Organization
     - figures           <- Graphics and figures for reports
 
 * requirements.txt
+* scripts               <- Standalone scripts 
 * src                   <- Source code
-    - __init__.py
-    - data              <- Downloading and generating data
+    - data              <- Downloading, generating, extracting and aggregating data (final output from this stage should be source agnostic)
     - features          <- Transforming and processing data
     - models            <- Training and testing models
     - visualization     <- Creating exploratory and report visualizations/figures

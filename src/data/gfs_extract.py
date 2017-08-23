@@ -5,8 +5,9 @@ import multiprocessing
 import cPickle as pickle
 
 import grib
-from helper import date
+from helper import date_util as du
 from ftp_async import PoolLimitedTaskQueue
+from helper.geometry import get_default_bounding_box
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
@@ -37,9 +38,14 @@ def extract_thread(context, src_path, dest_path):
 
     with open(src_path, 'rb') as fin:
         grib_file = grib.GribFile(fin)
-        extracted = selector.select(grib_file)
+        try:
+            extracted = selector.select(grib_file)
+        except Exception as err:
+            logging.debug('Exception "%s" encountered while selecting from file "%s"' % (str(err), src_path))
+            extracted = None
 
-    write_queue.put((dest_path, extracted))
+    if extracted:
+        write_queue.put((dest_path, extracted))
 
 
 class GfsExtractor(object):
@@ -78,7 +84,7 @@ class GfsExtractor(object):
 
     def init_worker(self, context):
         selections = grib.get_default_selections()
-        bb = grib.get_default_bounding_box()
+        bb = get_default_bounding_box()
         context['selector'] = grib.GribSelector(selections, bb)
 
         context['write_queue'] = self.write_queue
@@ -142,7 +148,7 @@ class GfsExtract(object):
 
                 days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if os.path.isdir(os.path.join(self.src_dir, year_month, d))]
 
-                for day in range(1, date.days_per_month(month, date.is_leap_year(year))+1):
+                for day in range(1, du.days_per_month(month, du.is_leap_year(year))+1):
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
                     if year_month_day not in days_in_month_dir:

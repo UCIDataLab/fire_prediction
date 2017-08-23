@@ -8,18 +8,12 @@ import logging
 import gzip
 import os
 
-from geometry import grid_conversion as gc
-from helper.daymonth import utc_to_local_time
+from helper.geometry import get_default_bounding_box, filter_bounding_box_df
 from base.converter import Converter
 
-#from easy_ls.file_sys import DirSel, FileEnum, FileSave
-#from easy_ls.savers import to_pickle
-
 class ModisToDfConverter(Converter):
-    #INPUT_FMT = DirSel('raw', DirSel('modis', FileEnum('*')))
-    #OUTPUT_FMT = DirSel('interim', DirSel('modis', FileSave('modis_df.pkl')))
 
-    def __init__(self, bounding_box=gc.alaska_bb):
+    def __init__(self, bounding_box=get_default_bounding_box()):
         super(ModisToDfConverter, self).__init__()
         self.bounding_box = bounding_box
 
@@ -50,9 +44,7 @@ class ModisToDfConverter(Converter):
         logging.debug('Applying transforms to data frame')
 
         df = data[data['type']==0] # Include only vegetation fires
-        df = gc.filter_bounding_box(df, self.bounding_box) # Only use fires in bounding box
-        df = df.assign(datetime_local=map(utc_to_local_time, df.index, df.lon)) # Add local time col
-        df = gc.append_xy(df, self.bounding_box) # Add x,y grid coords
+        df = filter_bounding_box_df(df, self.bounding_box) # Only use fires in bounding box
 
         logging.debug('Done applying transforms to data frame')
         return df

@@ -1,5 +1,5 @@
 """
-Fetch raw data from external sources. Raw data includes MODIS and GFS (station LCD data requires using a web interface).
+Fetch raw data from external sources then extract and aggregate it. Raw data includes MODIS and GFS (station LCD data requires using a web interface).
 """
 
 import click

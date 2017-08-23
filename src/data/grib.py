@@ -2,48 +2,7 @@ import numpy as np
 import gribapi
 import logging
 
-class LatLonBoundingBox(object):
-    """
-    Stores lat/lon bounding-box info.
-
-    Lat in [-90,90], Lon in [-180, 180].
-    """
-    def __init__(self, lat_min=-90.0, lat_max=90.0, lon_min=-180.0, lon_max=180.0):
-        self.lat_min = float(lat_min)
-        self.lat_max = float(lat_max)
-        self.lon_min = float(lon_min)
-        self.lon_max = float(lon_max)
-
-        if lat_max < lat_min:
-            raise ValueError('lat_max (%f) less than lat_min (%f)' % (lat_max, lat_min))
-        if lon_max < lon_min:
-            raise ValueError('lon_max (%f) less than lon_min (%f)' % (lon_max, lon_min))
-
-    def get(self):
-        return self.lat_min, self.lat_max, self.lon_min, self.lon_max
-
-    def get_min_max_indexes(self, dlat, dlon):
-        """
-        Get indices for dlat and dlon where min/max lon/lat can be found.
-        """
-        lat_min_ind = self.get_index(dlat, self.lat_min, np.argmin)
-        lat_max_ind = self.get_index(dlat, self.lat_max, np.argmax)
-        lon_min_ind = self.get_index(dlon, self.lon_min, np.argmin)
-        lon_max_ind = self.get_index(dlon, self.lon_max, np.argmax)
-
-        return lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind
-
-    def get_index(self, distinct, val, default_func):
-        try:
-            ind = np.where(distinct == val)[0][0]
-        except:
-            ind = default_func(distinct)
-
-        return int(ind)
-
-    def __str__(self):
-        return str({'lat': (self.lat_min, self.lat_max), 'lon': (self.lon_min, self.lon_max)})
-
+from helper.geometry import LatLonBoundingBox
 
 GRIB_ARRAY_TOO_SMALL = -6
 
@@ -114,7 +73,12 @@ class GribFile(object):
         selected = []
         self.file_object.seek(0)
         while 1:
-            gid = gribapi.grib_new_from_file(self.file_object)
+            try:
+                gid = gribapi.grib_new_from_file(self.file_object)
+            except gribapi.GribInternalError as e:
+                logging.error('GRIB API Error: "%s" on file "%s"' % (str(e), self.file_object.name))
+                raise e
+
             if gid is None: break
 
             message = GribMessage(gid, self.lon_offset)
