@@ -2,6 +2,8 @@
 Generating and modifying spatial maps.
 """
 
+import numpy as np
+
 from mpl_toolkits.basemap import Basemap
 
 def make_map(bb):

@@ -56,6 +56,22 @@ class LatLonBoundingBox(object):
     def __str__(self):
         return str({'lat': (self.lat_min, self.lat_max), 'lon': (self.lon_min, self.lon_max)})
 
+def latlonrange(bounding_box, inc_lat=1., inc_lon=1.):
+    lat_min, lat_max, lon_min, lon_max = bounding_box.get()
+
+    lat_min -= inc_lat
+    lon_max += inc_lon
+
+    lon_min_orig = lon_min
+
+    while lat_min < lat_max:
+        while lon_min < lon_max:
+            yield lat_max, lon_min
+            lon_min += inc_lon
+
+        lat_max -= inc_lat
+        lon_min = lon_min_orig
+
 def get_default_bounding_box():
     return LatLonBoundingBox(55, 71, -165, -138)
 
