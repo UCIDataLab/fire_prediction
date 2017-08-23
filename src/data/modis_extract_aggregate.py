@@ -57,7 +57,7 @@ def main(src_dir, dest_path, log):
     """
     Load MODIS data and create a data frame.
     """
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Starting MODIS to data frame conversion')

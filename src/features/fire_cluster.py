@@ -1,5 +1,5 @@
 """
-Converts a data frame of MODIS data to a cluser data frame.
+Converts a data frame of fire data to a cluser data frame.
 """
 
 import click
@@ -9,12 +9,12 @@ import logging
 
 from base.converter import Converter
 
-class ModisDfToCluserConverter(Converter):
+class FireDfToCluserConverter(Converter):
     """
-    Converts a data frame of MODIS data to a cluser data frame.
+    Converts a data frame of fire data to a cluser data frame.
     """
     def __init__(self):
-        super(ModisDfToClusterConverter, self).__init__()
+        super(FireDfToClusterConverter, self).__init__()
 
     def load(self, src_path):
         logging.info('Loading file from %s' % src_path)
@@ -41,14 +41,14 @@ class ModisDfToCluserConverter(Converter):
 @click.option('--log', default='INFO')
 def main(src_dir, dest_path, log):
     """
-    Load MODIS df and create clusters.
+    Load fire data frame and create clusters.
     """
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
-    logging.info('Starting MODIS data frame to cluster conversion')
-    ModisDfToClusterConverter().convert(src_path, dest_path)
-    logging.info('Finished MODIS data frame to cluster conversion')
+    logging.info('Starting fire data frame to cluster conversion')
+    FireDfToClusterConverter().convert(src_path, dest_path)
+    logging.info('Finished fire data frame to cluster conversion')
 
 
 if __name__ == '__main__':

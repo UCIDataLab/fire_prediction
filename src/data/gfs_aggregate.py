@@ -180,7 +180,7 @@ def main(src_dir, dest_path, start, end, log):
     """
     Load MODIS data and create a data frame.
     """
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     # Check that dest_path (excluding file) exists

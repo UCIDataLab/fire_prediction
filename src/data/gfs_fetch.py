@@ -148,7 +148,7 @@ class GfsFetch(object):
 @click.option('--avail', default=None, type=click.Path(exists=True))
 @click.option('--fetch', default=None, type=click.Path(exists=True))
 def main(dest_dir, start, end, log, avail, fetch):
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Storing data in "%s". Range is [%d, %d].' % (dest_dir, start, end))

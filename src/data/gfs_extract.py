@@ -193,7 +193,7 @@ class GfsExtract(object):
 @click.option('--end', default=2016, type=click.INT)
 @click.option('--log', default='INFO')
 def main(src_dir, dest_dir, start, end, log):
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Reading data from %s. Storing data in "%s". Range is [%d, %d].' % (src_dir, dest_dir, start, end))
