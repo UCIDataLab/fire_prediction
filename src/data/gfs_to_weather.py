@@ -48,7 +48,9 @@ class GFStoWeatherRegionConverter(Converter):
         available_files = self.get_available_files()
         logging.debug('Finished fetching available files list')
 
-        if not available_files:
+        
+        available_files_present = [f[0] for f in available_files]
+        if not any(available_files_present):
             logging.debug('No files available from source')
             return None
 
@@ -56,17 +58,18 @@ class GFStoWeatherRegionConverter(Converter):
 
         all_data = {}
         dates = []
-        offsets = []
-        for i, f in enumerate(available_files):
-            logging.debug('Converting %s (%d/%d)' % (f, i+1, self.num_dates))
+        for i, (is_avail, f) in enumerate(available_files):
+            logging.debug('Converting %s (is_available=%s) (%d/%d)' % (f, is_avail, i+1, self.num_dates))
             # Record date
             date, offset = self.get_date_from_name(os.path.basename(f))
-            dates.append(date)
-            offsets.append(offset)
+            dates.append(du.DatetimeMeasurement(date, offset))
 
             # Append data
-            with open(f, 'rb') as fin:
-                file_data = pickle.load(fin)
+            if is_avail:
+                with open(f, 'rb') as fin:
+                    file_data = pickle.load(fin)
+            else:
+                file_data = None
 
             self.append_data(all_data, file_data, i)
 
@@ -81,7 +84,6 @@ class GFStoWeatherRegionConverter(Converter):
             measurement = all_data[k]
             values, units, bb = measurement['values'], measurement['units'], measurement['bounding_box']
             cube = weather.WeatherCube(k, values, units, bb, ['lat', 'lon', 'time'], dates)
-            cube.add_attribute('offsets', offsets)
             region.add_cube(cube)
 
         return region
@@ -119,13 +121,16 @@ class GFStoWeatherRegionConverter(Converter):
 
                     todays_grib_files = [extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
                     for grib_file in todays_grib_files:
+                        path = os.path.join(self.src_dir, year_month, year_month_day, grib_file)
+
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
                             logging.debug('Missing Extracted File: %s not in source' % grib_file)
-                            continue
+                            file_info = (False, path)
+                        else:
+                            file_info = (True, path)
 
-                        path = os.path.join(self.src_dir, year_month, year_month_day, grib_file)
-                        available_files.append(path)
+                        available_files.append(file_info)
 
         return available_files
 
