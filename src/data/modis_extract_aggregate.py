@@ -10,6 +10,7 @@ import os
 
 from helper.geometry import get_default_bounding_box, filter_bounding_box_df
 from base.converter import Converter
+from helper import date_util as du
 
 class ModisToDfConverter(Converter):
 
@@ -27,8 +28,12 @@ class ModisToDfConverter(Converter):
 
             # Open one month of MODIS and create a df
             with gzip.open(os.path.join(src_dir,file_name), 'rb') as fin:
-                df = pandas.read_csv(fin, sep=' ', skipinitialspace=True, index_col=0, parse_dates=[['YYYYMMDD', 'HHMM']], infer_datetime_format=True)
-                df.index.names = ['datetime_utc'] # Make index the UTC datetime
+                df = pandas.read_csv(fin, sep=' ', skipinitialspace=True, index_col=None, parse_dates=[['YYYYMMDD', 'HHMM']], infer_datetime_format=True)
+
+                # Rename datetime column
+                df.rename(columns = {'YYYYMMDD_HHMM': 'datetime_utc'}, inplace=True)
+
+                #df.index.names = ['datetime_utc'] # Make index the UTC datetime
                 frames.append(df)
 
         # Concat all months together to make a single df
@@ -43,11 +48,15 @@ class ModisToDfConverter(Converter):
     def transform(self, data):
         logging.debug('Applying transforms to data frame')
 
-        # Localize datetime to UTC
-        df = df.tz_localize('utc')
 
         df = data[data['type']==0] # Include only vegetation fires
         df = filter_bounding_box_df(df, self.bounding_box) # Only use fires in bounding box
+
+        # Localize datetime to UTC
+        df.datetime_utc = df.datetime_utc.dt.tz_localize('utc')
+
+        # Reset index numbering after dropping rows
+        df.reset_index(drop=True, inplace=True)
 
         logging.debug('Done applying transforms to data frame')
         return df
