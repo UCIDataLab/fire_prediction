@@ -74,8 +74,7 @@ class FireDfToClusterConverter(Converter):
         logging.debug('Appending cluster ids')
         n_fires_total = 0
 
-        #year_range = dfu.get_year_range(data, 'datetime_utc')
-        year_range=(2008,2008)
+        year_range = dfu.get_year_range(data, 'datetime_utc')
 
         # Calculate clusters per year
         for year in range(year_range[0], year_range[1]+1):
@@ -100,8 +99,9 @@ class FireDfToClusterConverter(Converter):
             data.loc[df_year.index, 'cluster_id'] = fire_cluster_ids
 
             n_fires_total += n_fires_year
+            logging.debug('Found %d unique clusters for year %d' % (n_fires_year, year))
 
-        logging.debug('Found %d unique clusters' % n_fires_total)
+        logging.debug('Found %d unique clusters for all years' % n_fires_total)
         return data
 
     def build_cluster_df(self, df):

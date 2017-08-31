@@ -70,6 +70,7 @@ class WeatherRegion(object):
             
         self.shape = None
         self.dates = None
+        self.bounding_box = None
 
     # TODO: Free memory for repeated shape, dates and bounding_box?
     def add_cube(self, cube):
