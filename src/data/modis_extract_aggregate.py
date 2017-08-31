@@ -55,9 +55,6 @@ class ModisToDfConverter(Converter):
         # Localize datetime to UTC
         df.datetime_utc = df.datetime_utc.dt.tz_localize('utc')
 
-        # Add local datetime column
-        df = df.assign(datetime_local=map(lambda x: du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour), zip(df.datetime_utc, df.lon)))
-
         # Reset index numbering after dropping rows
         df.reset_index(drop=True, inplace=True)
 
