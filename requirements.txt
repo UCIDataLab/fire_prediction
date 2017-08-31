@@ -11,6 +11,7 @@ click==6.7
 configparser==3.5.0
 coverage==4.4.1
 cycler==0.10.0
+Cython==0.26.1
 decorator==4.1.2
 docutils==0.14
 entrypoints==0.2.3
@@ -48,7 +49,6 @@ ptyprocess==0.5.2
 pycodestyle==2.3.1
 pyflakes==1.5.0
 Pygments==2.2.0
-pygrib==2.0.2
 pyparsing==2.2.0
 pyproj==1.9.5.1
 pyshp==1.2.11
