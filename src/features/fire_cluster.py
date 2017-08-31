@@ -74,8 +74,7 @@ class FireDfToClusterConverter(Converter):
         logging.debug('Appending cluster ids')
         n_fires_total = 0
 
-        #year_range = dfu.get_year_range(data, 'datetime_utc')
-        year_range=(2008,2008)
+        year_range = dfu.get_year_range(data, 'datetime_utc')
 
         # Calculate clusters per year
         for year in range(year_range[0], year_range[1]+1):
