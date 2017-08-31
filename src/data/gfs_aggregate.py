@@ -68,10 +68,12 @@ class GFStoWeatherRegionConverter(Converter):
             if is_avail:
                 with open(f, 'rb') as fin:
                     file_data = pickle.load(fin)
+
+                self.append_data(all_data, file_data, i)
+
             else:
                 file_data = None
 
-            self.append_data(all_data, file_data, i)
 
         return all_data, dates, offsets
 
@@ -106,18 +108,22 @@ class GFStoWeatherRegionConverter(Converter):
 
                 if year_month not in months_in_dir:
                     logging.debug('Missing Month: year %d month %d not in source' % (year, month))
-                    continue
 
-                days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if os.path.isdir(os.path.join(self.src_dir, year_month, d))]
+                try:
+                    days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if os.path.isdir(os.path.join(self.src_dir, year_month, d))]
+                except:
+                    days_in_month_dir = []
 
                 for day in range(1, du.days_per_month(month, du.is_leap_year(year))+1):
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
                     if year_month_day not in days_in_month_dir:
                         logging.debug('Missing Day: year %d month %d day %d not in source' % (year, month, day))
-                        continue
 
-                    grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day)) if os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
+                    try:
+                        grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day)) if os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
+                    except:
+                        grib_dir_list = []
 
                     todays_grib_files = [extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
                     for grib_file in todays_grib_files:

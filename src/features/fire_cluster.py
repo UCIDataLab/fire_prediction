@@ -99,8 +99,9 @@ class FireDfToClusterConverter(Converter):
             data.loc[df_year.index, 'cluster_id'] = fire_cluster_ids
 
             n_fires_total += n_fires_year
+            logging.debug('Found %d unique clusters for year %d' % (n_fires_year, year))
 
-        logging.debug('Found %d unique clusters' % n_fires_total)
+        logging.debug('Found %d unique clusters for all years' % n_fires_total)
         return data
 
     def build_cluster_df(self, df):
