@@ -51,9 +51,11 @@ class FireDfToClusterConverter(Converter):
         # Build cluster id data frame
         if not (self.cluster_id_path and os.path.isfile(self.cluster_id_path)):
             logging.debug('Building cluster id data frame')
-            fire_season_df = self.filter_fire_season(df)[:100]
+            fire_season_df = self.filter_fire_season(df)
             cluster_id_df = self.append_cluster_id(fire_season_df)
             if self.cluster_id_path: self.save(self.cluster_id_path, cluster_id_df)
+        else:
+            cluster_id_df = self.load(self.cluster_id_path)
 
         cluster_df = self.build_cluster_df(cluster_id_df)
 
