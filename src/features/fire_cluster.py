@@ -3,6 +3,7 @@ Converts a data frame of fire data to a cluser data frame.
 """
 import pyximport; pyximport.install()
 
+import os
 import click
 import cPickle as pickle
 import pandas as pd
@@ -21,9 +22,10 @@ class FireDfToClusterConverter(Converter):
     """
     Converts a data frame of fire data to a cluser data frame.
     """
-    def __init__(self, cluster_thresh_km=5., fire_season=((5,14), (8,31))):
+    def __init__(self, cluster_id_path=None, cluster_thresh_km=5., fire_season=((5,14), (8,31))):
         super(FireDfToClusterConverter, self).__init__()
 
+        self.cluster_id_path = cluster_id_path
         self.cluster_thresh_km = cluster_thresh_km
         self.fire_season = fire_season
 
@@ -46,11 +48,17 @@ class FireDfToClusterConverter(Converter):
         # Add local datetime col to determine the day the fire occured in
         df = data.assign(date_local=map(lambda x: du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour).date(), zip(data.datetime_utc, data.lon)))
 
-        fire_season_df = self.filter_fire_season(df)
-        cluster_id_df = self.append_cluster_id(fire_season_df)
+        # Build cluster id data frame
+        if not (self.cluster_id_path and os.path.isfile(self.cluster_id_path)):
+            logging.debug('Building cluster id data frame')
+            fire_season_df = self.filter_fire_season(df)[:100]
+            cluster_id_df = self.append_cluster_id(fire_season_df)
+            if self.cluster_id_path: self.save(self.cluster_id_path, cluster_id_df)
+
         cluster_df = self.build_cluster_df(cluster_id_df)
 
         cluster_df.sort_values('date_local', inplace=True)
+        cluster_df.reset_index(drop=True, inplace=True)
 
         return cluster_df
 
@@ -115,12 +123,16 @@ class FireDfToClusterConverter(Converter):
             c_df = df[df.cluster_id==cluster_id]
             lat_centroid, lon_centroid = np.mean(c_df.lat), np.mean(c_df.lon)
 
-            dates = set(c_df.date_local)
+            #dates = set(c_df.date_local)
+            dates = du.daterange(np.min(c_df.date_local), np.max(c_df.date_local))
             for date in dates:
                 date_df = c_df[c_df.date_local==date]
-                num_det = len(date_df)
-                avg_frp = np.mean(date_df.FRP)
-                avg_conf = np.mean(date_df.conf)
+                if not date_df.empty:
+                    num_det = len(date_df)
+                    avg_frp = np.mean(date_df.FRP)
+                    avg_conf = np.mean(date_df.conf)
+                else:
+                    num_det, avg_grp, avg_conf = 0, np.nan, np.nan
 
                 cluster_df_data.append((date, cluster_id, num_det, lat_centroid, lon_centroid, avg_frp, avg_conf))
 
@@ -132,8 +144,9 @@ class FireDfToClusterConverter(Converter):
 @click.command()
 @click.argument('src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
+@click.option('--cluster', default=None)
 @click.option('--log', default='INFO')
-def main(src_path, dest_path, log):
+def main(src_path, dest_path, cluster, log):
     """
     Load fire data frame and create clusters.
     """
@@ -141,7 +154,7 @@ def main(src_path, dest_path, log):
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Starting fire data frame to cluster conversion')
-    FireDfToClusterConverter().convert(src_path, dest_path)
+    FireDfToClusterConverter(cluster).convert(src_path, dest_path)
     logging.info('Finished fire data frame to cluster conversion')
 
 

@@ -11,9 +11,9 @@ import datetime
 import pytz
 
 from helper import date_util as du
+from helper import weather
 from base.converter import Converter
 
-import weather
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"

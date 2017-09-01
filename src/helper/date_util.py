@@ -2,6 +2,7 @@
 Helper functions for dealing with calendar dates.
 """
 import math
+import datetime as dt
 from datetime import timedelta, datetime, tzinfo
 import pytz
 from functools import total_ordering
@@ -217,3 +218,6 @@ def increment_day(year, month, day):
         day += 1
 
     return year, month, day
+
+def dayofyear_from_datetime(dt_):
+    return dt_.timetuple().tm_yday

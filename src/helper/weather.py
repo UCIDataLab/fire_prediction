@@ -89,6 +89,9 @@ class WeatherRegion(object):
 
         self.cubes[cube.name] = cube
 
+    def remove_cube(self, cube_name):
+        del self.cubes[cube_name]
+
     def __getitem__(self, key):
         return self.cubes[key]
 

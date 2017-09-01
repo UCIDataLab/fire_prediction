@@ -19,3 +19,7 @@ def load_gfs_weather(src):
 def load_cluster_df(src):
     with open(src, 'rb') as fin:
         return pickle.load(fin)
+
+def load_integrated_df(src):
+    with open(src, 'rb') as fin:
+        return pickle.load(fin)

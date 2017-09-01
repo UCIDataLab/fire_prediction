@@ -53,6 +53,16 @@ class LatLonBoundingBox(object):
 
         return lats, lons
 
+    def get_latlon_resolution(self, latlon_shape):
+        """
+        latlon_shape should contain two elements, the length of the lat dim and the length of the lon dim
+        """
+        lat_min, lat_max, lon_min, lon_max = self.get()
+        lat_range, lon_range = lat_max - lat_min, lon_max - lon_min
+        lat_res, lon_res = latlon_shape[0] / (1.*lat_range), latlon_shape[1] / (1.*lon_range)
+
+        return lat_res, lon_res
+
     def __str__(self):
         return str({'lat': (self.lat_min, self.lat_max), 'lon': (self.lon_min, self.lon_max)})
 

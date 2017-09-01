@@ -7,7 +7,7 @@ import cPickle as pickle
 import numpy as np
 from collections import deque
 
-import weather
+from helper import weather
 from base.converter import Converter
 
 class WeatherRegionProcessing(Converter):
@@ -31,6 +31,7 @@ class WeatherRegionProcessing(Converter):
             pickle.dump(data, fout, protocol=pickle.HIGHEST_PROTOCOL)
 
     def transform(self, data):
+        logging.debug('Applying transforms to data frame')
         self.combine_wind_components(data)
         self.integrate_rain(data)
         data = self.remove_offset_measurements(data)
@@ -38,6 +39,7 @@ class WeatherRegionProcessing(Converter):
         return data
 
     def combine_wind_components(self, data):
+        logging.debug('Combining wind component')
         u_wind_cube = data['u_wind_component']
         v_wind_cube = data['v_wind_component']
 
@@ -49,7 +51,8 @@ class WeatherRegionProcessing(Converter):
 
         data.add_cube(wind_cube)
 
-    def integrate_rain(self, weather_region):
+    def integrate_rain(self, data):
+        logging.debug('Integrating rain')
         rain_cube = data['total_precipitation']
 
         integrated_rain_values = np.empty(rain_cube.shape)
@@ -66,6 +69,10 @@ class WeatherRegionProcessing(Converter):
         data.add_cube(integrated_rain_cube)
 
     def remove_offset_measurements(self, data):
+        """
+        Remove all entries for non-zero offsets. Also replaces DatetimeMeasurements with just the datetime componenet.
+        """
+        logging.debug('Removing offset measurements')
         new_region = weather.WeatherRegion(data.name)
 
         for _, cube in data.cubes.iteritems():
@@ -75,11 +82,14 @@ class WeatherRegionProcessing(Converter):
         return new_region
 
     def remove_offset_measurements_cube(self, cube):
-        if cube.shape % 3 != 0:
-            raise ValueError('Cube shape must be divisible by three (+0, +3, +6 offsets). Shape of %s is %s.' % (cube.name, str(cube.shape)))
+        """
+        Remove all entries for non-zero offsets from a cube. Also replaces DatetimeMeasurements with just the datetime componenet.
+        """
+        if cube.shape[2] % 3 != 0:
+            raise ValueError('Cube shape\'s third dimension must be divisible by three (+0, +3, +6 offsets). Shape of %s is %s.' % (cube.name, str(cube.shape)))
 
         new_values = cube.values[:,:,::3].copy()
-        new_dates = cube.dates[::3]
+        new_dates = map(lambda x: x.get(), cube.dates[::3])
 
         new_cube = weather.WeatherCube(cube.name, new_values, cube.units, cube.bounding_box, cube.axis_labels, new_dates)
 
