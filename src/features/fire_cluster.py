@@ -134,7 +134,7 @@ class FireDfToClusterConverter(Converter):
                     avg_frp = np.mean(date_df.FRP)
                     avg_conf = np.mean(date_df.conf)
                 else:
-                    num_det, avg_grp, avg_conf = 0, np.nan, np.nan
+                    num_det, avg_frp, avg_conf = 0, np.nan, np.nan
 
                 cluster_df_data.append((date, cluster_id, num_det, lat_centroid, lon_centroid, avg_frp, avg_conf))
 
