@@ -9,24 +9,24 @@ import cPickle as pickle
 import pandas as pd
 import logging
 import numpy as np
-import scipy.sparse as sp
-import scipy.spatial.distance as sd
 from datetime import date
 
 from base.converter import Converter
 from helper import df_util as dfu
-from helper import distance as dist
 from helper import date_util as du
+import clustering as clust
 
 class FireDfToClusterConverter(Converter):
     """
     Converts a data frame of fire data to a cluser data frame.
     """
-    def __init__(self, cluster_id_path=None, cluster_thresh_km=5., fire_season=((5,14), (8,31))):
+    def __init__(self, cluster_id_path=None, cluster_type=clust.CLUST_TYPE_SPATIAL_TEMPORAL, cluster_thresh_km=5., cluster_thresh_days=3., fire_season=((5,14), (8,31))):
         super(FireDfToClusterConverter, self).__init__()
 
         self.cluster_id_path = cluster_id_path
         self.cluster_thresh_km = cluster_thresh_km
+        self.cluster_thresh_days = cluster_thresh_days
+        self.cluster_type = cluster_type
         self.fire_season = fire_season
 
     def load(self, src_path):
@@ -49,12 +49,13 @@ class FireDfToClusterConverter(Converter):
         df = data.assign(date_local=map(lambda x: du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour).date(), zip(data.datetime_utc, data.lon)))
 
         # Build cluster id data frame
-        if not (self.cluster_id_path and os.path.isfile(self.cluster_id_path)):
+        if not self.cluster_id_path:
             logging.debug('Building cluster id data frame')
             fire_season_df = self.filter_fire_season(df)
             cluster_id_df = self.append_cluster_id(fire_season_df)
             if self.cluster_id_path: self.save(self.cluster_id_path, cluster_id_df)
         else:
+            logging.debug('Loading cluster id data frame')
             cluster_id_df = self.load(self.cluster_id_path)
 
         cluster_df = self.build_cluster_df(cluster_id_df)
@@ -82,36 +83,19 @@ class FireDfToClusterConverter(Converter):
         Appends cluster id to each row of data frame.
         """
         logging.debug('Appending cluster ids')
-        n_fires_total = 0
 
-        year_range = dfu.get_year_range(data, 'datetime_utc')
-
-        # Calculate clusters per year
-        for year in range(year_range[0], year_range[1]+1):
-            logging.debug('Clustering for year %d' % year)
-
-            df_year = data[data.datetime_utc.dt.year==year]
-
-            # Build array of each (lat,lon) pair
-            points = np.transpose(np.array((df_year.lat, df_year.lon)))
-
-            # Build distance matrix 
-            logging.debug('Building distance matrix')
-            condensed_distance_matrix = sd.pdist(points, dist.dist_latlon_spherical)
-            distance_matrix = sd.squareform(condensed_distance_matrix)
-
-            # Determine clusters using connected components of threshold matrix
-            logging.debug('Tresholding and connected component calculation')
-            treshold_matrix = distance_matrix < self.cluster_thresh_km
-            n_fires_year, fire_clusters = sp.csgraph.connected_components(treshold_matrix, directed=False)
-
-            fire_cluster_ids = fire_clusters + n_fires_total # Offset cluster ids by total ids already assigned
-            data.loc[df_year.index, 'cluster_id'] = fire_cluster_ids
-
-            n_fires_total += n_fires_year
-            logging.debug('Found %d unique clusters for year %d' % (n_fires_year, year))
-
+        # TODO: Possibly replace with a dictionary for type lookup
+        if self.cluster_type==clust.CLUST_TYPE_SPATIAL:
+            data = clust.cluster_spatial(data, self.cluster_thresh_km)
+        elif self.cluster_type==clust.CLUST_TYPE_SPATIAL_TEMPORAL:
+            data = clust.cluster_spatial_temporal(data, self.cluster_thresh_km, self.cluster_thresh_days)
+        elif self.cluster_type==clust.CLUST_TYPE_SPATIAL_TEMPORAL_FORWARDS:
+            data = clust.cluster_spatial_temporal_forwards(data, self.cluster_thresh_km, self.cluster_thresh_days)
+        else:
+            raise ValueError('Invalid selection for clustering type: "%s"' % self.cluster_type)
+        
         logging.debug('Found %d unique clusters for all years' % n_fires_total)
+
         return data
 
     def build_cluster_df(self, df):
@@ -126,7 +110,7 @@ class FireDfToClusterConverter(Converter):
             lat_centroid, lon_centroid = np.mean(c_df.lat), np.mean(c_df.lon)
 
             #dates = set(c_df.date_local)
-            dates = du.daterange(np.min(c_df.date_local), np.max(c_df.date_local))
+            dates = du.daterange(np.min(c_df.date_local), np.max(c_df.date_local)+du.INC_ONE_DAY)
             for date in dates:
                 date_df = c_df[c_df.date_local==date]
                 if not date_df.empty:
@@ -146,7 +130,7 @@ class FireDfToClusterConverter(Converter):
 @click.command()
 @click.argument('src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
-@click.option('--cluster', default=None)
+@click.option('--cluster', default=None, type=click.Path(exists=True))
 @click.option('--log', default='INFO')
 def main(src_path, dest_path, cluster, log):
     """

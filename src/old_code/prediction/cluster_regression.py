@@ -145,6 +145,7 @@ class ClusterRegression:
             formula += " + ".join(map(lambda x: "autoreg_%d" % x, range(t_k + 1, t_k + n_autoreg + 1)))
         if len(weather_vars):
             formula += " + " + " + ".join(weather_vars)
+        
         self.fit_res = smf.glm(formula, data=train_df, family=sm.genmod.families.family.Poisson()).fit()
         return self.fit_res
 
@@ -153,3 +154,12 @@ class ClusterRegression:
         :param test_years: Iterable containing list of years to test on
         :return:
         """
+
+if __name__=='__main__':
+    import sys
+    import pickle
+    with open(sys.argv[1]) as fin:
+        df = pickle.load(fin)
+
+    cr = ClusterRegression(df, 0, 0)
+    print cr.fit([2008, 2010], 1)

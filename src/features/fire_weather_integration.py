@@ -15,8 +15,10 @@ import pytz
 import helper.date_util as du
 
 class FireWeatherIntegration(object):
-    def __init__(self, time, weather_vars_labels=['temperature', 'humidity', 'wind', 'rain']):
+    def __init__(self, time, fill_missing, fill_n_days, weather_vars_labels=['temperature', 'humidity', 'wind', 'rain']):
         self.time = time
+        self.fill_missing = fill_missing
+        self.fill_n_days = fill_n_days
         self.weather_vars_labels = weather_vars_labels
 
         self.integrated_data = None
@@ -73,10 +75,34 @@ class FireWeatherIntegration(object):
 
         vals = []
         for key in self.weather_vars_labels:
-            val = weather_data[key].values[lat_ind, lon_ind, date_ind]
+            data = weather_data[key].values
+            val = data[lat_ind, lon_ind, date_ind]
+
+            if np.isnan(val) and self.fill_missing:
+                val = self.fill_missing_value(data, lat_ind, lon_ind, date_ind)
+
             vals.append(val)
 
         return vals
+
+    def fill_missing_value(self, data, lat_ind, lon_ind, date_ind):
+        """
+        Try to replace with closest prev day in range [1, fill_n_days].
+
+        If no non-nan value is found, replaces with mean of all values at the given lat/lon.
+        """
+        for day_offset in range(1,self.fill_n_days+1):
+            new_date_ind = date_ind - day_offset
+
+            if new_date_ind < 0:
+                break
+
+            val = data[lat_ind, lon_ind, new_date_ind]
+
+            if not np.isnan(val):
+                return val
+
+        return np.nanmean(data[lat_ind, lon_ind, :])
 
     def get_latlon_index(self, weather_data, lat, lon):
         bb = weather_data.bounding_box
@@ -110,15 +136,17 @@ class FireWeatherIntegration(object):
 @click.argument('weather_src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
 @click.option('--time', default=12, type=click.INT)
+@click.option('--fill', default=True, type=click.BOOL)
+@click.option('--filldays', default=5, type=click.INT)
 @click.option('--log', default='INFO')
-def main(fire_src_path, weather_src_path, dest_path, time, log):
+def main(fire_src_path, weather_src_path, dest_path, time, fill, filldays, log):
     """
     Load fire data frame and create clusters.
     """
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
-    fwi = FireWeatherIntegration(time)
+    fwi = FireWeatherIntegration(time, fill, filldays)
 
     logging.info('Starting fire/weather integration')
     fwi.integrate(fire_src_path, weather_src_path)

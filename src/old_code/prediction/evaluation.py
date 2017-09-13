@@ -1,5 +1,5 @@
 import numpy as np
-from prediction.cluster_regression import ClusterRegression
+from cluster_regression import ClusterRegression
 
 
 def all_except_year(year, rng=(2007,2016)):
