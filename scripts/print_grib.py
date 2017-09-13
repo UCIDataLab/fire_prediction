@@ -41,7 +41,7 @@ def main(src_path, keys, log):
 
     messages, keys = ls_grib(src_path, keys)
 
-    df = pandas.DataFrame.from_dict(messages)
+    df = pandas.DataFrame(messages, columns=keys)
     df.sort_values(keys, inplace=True)
 
     print df.to_csv()
