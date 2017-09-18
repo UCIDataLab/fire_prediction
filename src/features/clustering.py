@@ -47,6 +47,7 @@ def cluster_spatial(data, max_thresh_km):
         n_fires_total += n_fires_year
         logging.debug('Found %d unique clusters for year %d' % (n_fires_year, year))
 
+    logging.debug('Found %d unique clusters for all years' % n_fires_total)
     return data
 
 

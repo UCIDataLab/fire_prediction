@@ -49,7 +49,7 @@ class FireDfToClusterConverter(Converter):
         df = data.assign(date_local=map(lambda x: du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour).date(), zip(data.datetime_utc, data.lon)))
 
         # Build cluster id data frame
-        if not self.cluster_id_path:
+        if not os.path.isfile(self.cluster_id_path):
             logging.debug('Building cluster id data frame')
             fire_season_df = self.filter_fire_season(df)
             cluster_id_df = self.append_cluster_id(fire_season_df)
@@ -94,8 +94,6 @@ class FireDfToClusterConverter(Converter):
         else:
             raise ValueError('Invalid selection for clustering type: "%s"' % self.cluster_type)
         
-        logging.debug('Found %d unique clusters for all years' % n_fires_total)
-
         return data
 
     def build_cluster_df(self, df):
@@ -130,7 +128,7 @@ class FireDfToClusterConverter(Converter):
 @click.command()
 @click.argument('src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
-@click.option('--cluster', default=None, type=click.Path(exists=True))
+@click.option('--cluster', default=None)
 @click.option('--log', default='INFO')
 def main(src_path, dest_path, cluster, log):
     """
