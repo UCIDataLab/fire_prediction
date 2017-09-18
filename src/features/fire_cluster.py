@@ -94,8 +94,6 @@ class FireDfToClusterConverter(Converter):
         else:
             raise ValueError('Invalid selection for clustering type: "%s"' % self.cluster_type)
         
-        logging.debug('Found %d unique clusters for all years' % n_fires_total)
-
         return data
 
     def build_cluster_df(self, df):
@@ -131,8 +129,11 @@ class FireDfToClusterConverter(Converter):
 @click.argument('src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
 @click.option('--cluster', default=None, type=click.Path(exists=True))
+@click.option('--cluster_type', default=clust.CLUST_TYPE_SPATIAL_TEMPORAL, type=click.Choice([clust.CLUST_TYPE_SPATIAL, clust.CLUST_TYPE_SPATIAL_TEMPORAL, clust.CLUST_TYPE_SPATIAL_TEMPORAL_FORWARDS]))
+@click.option('--cluster_km', default=5., type=click.FLOAT)
+@click.option('--cluster_days', default=3, type=click.INT)
 @click.option('--log', default='INFO')
-def main(src_path, dest_path, cluster, log):
+def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, log):
     """
     Load fire data frame and create clusters.
     """
@@ -140,7 +141,8 @@ def main(src_path, dest_path, cluster, log):
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Starting fire data frame to cluster conversion')
-    FireDfToClusterConverter(cluster).convert(src_path, dest_path)
+    logging.info('Cluster Type: %s, Cluster Thresh km: %s, Cluster Thresh days: %s' % (cluster_type, cluster_km, cluster_days))
+    FireDfToClusterConverter(cluster, cluster_type, cluster_km, cluster_days).convert(src_path, dest_path)
     logging.info('Finished fire data frame to cluster conversion')
 
 

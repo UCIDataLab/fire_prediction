@@ -1,6 +1,7 @@
 """
 Algorithms for clustering data.
 """
+import pyximport; pyximport.install()
 
 import numpy as np
 import datetime as dt
@@ -94,11 +95,21 @@ def cluster_spatial_temporal(data, max_thresh_km, max_thresh_days):
 
 
 def cluster_spatial_temporal_forwards(data, max_thresh_km, max_thresh_days):
+
+    def spatial_temporal_dist(p1, p2):
+        spatial_dist = dist.dist_latlon_spherical(p1, p2)
+        temporal_dist = abs(p1[2] - p2[2]).days
+
+        return (spatial_dist <= max_thresh_km) & (temporal_dist <= max_thresh_days)
+
     data = dfu.add_date_local(data)
+
+    cluster_id_counter = 0
     
     year_range = dfu.get_year_range(data, 'datetime_utc')
     for year in range(year_range[0], year_range[1]+1):
         prev_points = []
+        n_clusters_year = 0
         logging.debug('Clustering for year %d' % year)
 
         for day in du.daterange(dt.date(year, 1, 1), dt.date(year+1, 1, 1)):
@@ -106,7 +117,29 @@ def cluster_spatial_temporal_forwards(data, max_thresh_km, max_thresh_days):
 
             # Iterate over each detection for the day
             for row in df_day.itertuples():
-                pass
+                p_new = (row.lat, row.lon, row.date_local, np.nan, row.Index)
+
+                for p_old in prev_points:
+                    # TODO: Change so that there is a tiebreaker between multiple points that are connected from different clusters
+                    is_connected = spatial_temporal_dist(p_new, p_old)
+
+                    if is_connected:
+                        # Get info from new point and cluster id from old point
+                        p_new = p_new[:3] + (p_old[3], p_new[4])
+                        break
+
+                if p_new[3] is np.nan:
+                    p_new = p_new[:3] + (cluster_id_counter, p_new[4])
+                    cluster_id_counter += 1
+                    n_clusters_year += 1
+
+                prev_points.append(p_new)
+
+        logging.debug('Found %d unique clusters for year %d' % (n_clusters_year, year))
+        fire_cluster_ids = [p[3] for p in prev_points]
+        data_indices = [p[4] for p in prev_points]
+        data.loc[data_indices, 'cluster_id'] = fire_cluster_ids
+
 
     return data
 
