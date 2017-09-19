@@ -107,11 +107,20 @@ class FireWeatherIntegration(object):
     def get_latlon_index(self, weather_data, lat, lon):
         bb = weather_data.bounding_box
 
+
         lat_res, lon_res = bb.get_latlon_resolution(weather_data.shape[:2])
         lat_min, lat_max, lon_min, lon_max = bb.get()
 
+        if (lat > lat_max) or (lat < lat_min) or (lon > lon_max) or (lon < lon_min):
+            raise ValueError('Lat or lon outside of bounding box.')
+
         lat_ind = int(round(float(abs(lat_max - lat)) / lat_res))
         lon_ind = int(round(float(abs(lon_min - lon)) / lon_res))
+
+        dlats, dlons = bb.make_grid()
+
+        print lat, lon
+        print dlats[lat_ind,lon_ind], dlons[lat_ind, lon_ind]
 
         return lat_ind, lon_ind
 
