@@ -13,6 +13,8 @@ import cPickle as pickle
 import pytz
 
 import helper.date_util as du
+import helper.geometry as geo
+
 
 class FireWeatherIntegration(object):
     def __init__(self, time, fill_missing, fill_n_days, weather_vars_labels=['temperature', 'humidity', 'wind', 'rain']):
@@ -31,6 +33,8 @@ class FireWeatherIntegration(object):
         fire_df.reset_index(drop=True, inplace=True)
 
         weather_region = self.load_weather(weather_src_path)
+
+        weather_region['lons'] = weather_region['lons']-360
 
         weather_vars = []
         for i, row in enumerate(fire_df.itertuples()):
@@ -67,19 +71,27 @@ class FireWeatherIntegration(object):
             pickle.dump(self.integrated_data, fout, protocol=pickle.HIGHEST_PROTOCOL)
 
     def get_weather_variables(self, weather_data, target_datetime, lat, lon):
-        # Get lat/lon index
-        lat_ind, lon_ind = self.get_latlon_index(weather_data, lat, lon)
+        #w_df = gfs_to_loc_df(weather_data, lat, lon)
 
-        # Get date index
-        date_ind = self.get_date_index(weather_data, target_datetime)
+        lat_ind, lon_ind = self.get_latlon_index(weather_data, lat, lon)
+        date_ind = self.get_date_index(weather_data['days'], target_datetime)
 
         vals = []
         for key in self.weather_vars_labels:
-            data = weather_data[key].values
-            val = data[lat_ind, lon_ind, date_ind]
+            if key=='temperature':
+                key = 'temp'
+            try:
+                if key =='rain':
+                    val = weather_data[key][lat_ind,lon_ind,date_ind]
+                else:
+                    val = weather_data[key][lat_ind,lon_ind,date_ind]
+
+                val = float(val)
+            except:
+                val = np.nan
 
             if np.isnan(val) and self.fill_missing:
-                val = self.fill_missing_value(data, lat_ind, lon_ind, date_ind)
+                val = np.mean(weather_data[key])
 
             vals.append(val)
 
@@ -105,10 +117,26 @@ class FireWeatherIntegration(object):
         return np.nanmean(data[lat_ind, lon_ind, :])
 
     def get_latlon_index(self, weather_data, lat, lon):
-        bb = weather_data.bounding_box
+
+        lat_min, lat_max = np.min(weather_data['lats']), np.max(weather_data['lats'])
+        lon_min, lon_max = np.min(weather_data['lons']), np.max(weather_data['lons'])
+
+        if lon > lon_max:
+            lon = lon_max
+
+        if lon < lon_min:
+            lon = lon_min
+
+        if lat > lat_max:
+            lat = lat_max
+
+        if lat < lat_min:
+            lat = lat_min
 
 
-        lat_res, lon_res = bb.get_latlon_resolution(weather_data.shape[:2])
+        bb = geo.LatLonBoundingBox(lat_min, lat_max, lon_min, lon_max)
+
+        lat_res, lon_res = bb.get_latlon_resolution(weather_data['lats'].shape[:2])
         lat_min, lat_max, lon_min, lon_max = bb.get()
 
         if (lat > lat_max) or (lat < lat_min) or (lon > lon_max) or (lon < lon_min):
@@ -117,27 +145,14 @@ class FireWeatherIntegration(object):
         lat_ind = int(round(float(abs(lat_max - lat)) / lat_res))
         lon_ind = int(round(float(abs(lon_min - lon)) / lon_res))
 
-        dlats, dlons = bb.make_grid()
-
-        print lat, lon
-        print dlats[lat_ind,lon_ind], dlons[lat_ind, lon_ind]
-
         return lat_ind, lon_ind
 
-    def get_date_index(self, weather_data, target_datetime):
-        date_ind = np.searchsorted(weather_data.dates, target_datetime, side='left')
-
-        # Check if left or right element is closer
-        if date_ind != 0:
-            date_ind_left, date_ind_curr = date_ind-1, date_ind
-
-            dist_left = abs((weather_data.dates[date_ind_left] - target_datetime).total_seconds())
-            dist_curr = abs((weather_data.dates[date_ind_curr] - target_datetime).total_seconds())
-
-            if dist_left < dist_curr:
-                date_ind = date_ind_left
-
-        return date_ind
+    def get_date_index(self, days, target_datetime):
+        target_datetime = (target_datetime.year, target_datetime.month, target_datetime.day)
+        try:
+            return days.index(target_datetime)
+        except:
+            return np.nan
 
 
 @click.command()

@@ -1,5 +1,5 @@
 """
-Model for poisson regression.
+Model for linear regression.
 """
 import numpy as np
 import statsmodels.api as sm
@@ -8,13 +8,13 @@ import statsmodels.formula.api as smf
 from base.model import Model
 from helper import date_util as du
 
-class PoissonRegressionModel(Model):
+class LinearRegressionModel(Model):
     def __init__(self, t_k, covariates):
         """
         :param t_k: num of days ahead to predict (0: today, 1: tomorrow, ...)
         :param covariates: list of the names of the cols in X to use as covariates
         """
-        super(PoissonRegressionModel, self).__init__()
+        super(LinearRegressionModel, self).__init__()
         self.t_k = t_k
         self.covariates = covariates
 
@@ -28,11 +28,12 @@ class PoissonRegressionModel(Model):
         #X = X.iloc[np.random.permutation(X.shape[0])]
 
         # Build formula for prediction
-        formula = 'num_det ~ np.log(num_det_prev+1)'
+        formula = 'num_det ~ num_det_prev'
         if self.covariates:
             formula += ' + ' + ' + '.join(self.covariates)
 
-        self.fit_result = smf.glm(formula, data=X, family=sm.genmod.families.family.Poisson()).fit()
+        #self.fit_result = smf.glm(formula, data=X, family=sm.genmod.families.family.Gaussian()).fit()
+        self.fit_result = smf.ols(formula=formula, data=X).fit()
         return self.fit_result
 
     def predict(self, X):

@@ -96,7 +96,8 @@ class GfsExtract(object):
         self.dest_dir = dest_dir
         self.year_range = (start_year, end_year)
 
-        self.extractor = GfsExtractor(pool_size=8, queue_size=50)
+        # TODO: change to 8
+        self.extractor = GfsExtractor(pool_size=1, queue_size=50)
 
     def src_to_dest_path(self, path):
         # Replace src_dir with dest_dir

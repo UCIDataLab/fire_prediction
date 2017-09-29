@@ -59,7 +59,7 @@ class LatLonBoundingBox(object):
         """
         lat_min, lat_max, lon_min, lon_max = self.get()
         lat_range, lon_range = lat_max - lat_min, lon_max - lon_min
-        lat_res, lon_res = latlon_shape[0] / (1.*lat_range), latlon_shape[1] / (1.*lon_range)
+        lat_res, lon_res = lat_range / float(latlon_shape[0]-1), lon_range / float(latlon_shape[1]-1) 
 
         return lat_res, lon_res
 

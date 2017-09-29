@@ -4,9 +4,6 @@ Tools for evaluating predictive models.
 import numpy as np
 
 def cross_validation_years(model, X):
-    #X = X.assign(year=map(lambda x: x.year, X.date_local))
-    #X = model.preprocess_data(X)
-
     results = []
 
     years = range(int(X.year.min()), int(X.year.max())+1)
@@ -26,9 +23,6 @@ def cross_validation_years(model, X):
     return results, years
 
 def leave_none_out(model, X):
-    #X = X.assign(year=map(lambda x: x.year, X.date_local))
-    #X = model.preprocess_data(X)
-
     results = []
 
     model.fit(X)
