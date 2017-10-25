@@ -54,7 +54,7 @@ def utc_to_local_time_offset(lon, round_func=round_to_nearest_quarter_hour):
 
     By default rounds to nearest quarter hour.
     """
-    offset = (lon * (12./math.pi)) / 60. 
+    offset = (lon / 15.)
 
     if round_func:
         offset = round_func(offset)

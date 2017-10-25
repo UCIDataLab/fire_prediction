@@ -1,0 +1,188 @@
+## Fire Project Documentation (10-11-2017) v1.0
+Casey A Graff
+October 11th, 2017
+
+This document is designed to be an overview of the current state of the project and the information learned so far.
+
+1. Overview
+	1. Summary of Project
+		The objective of the project is to improve regional smoke prediction. Currently the focus is on the state of Alaska, but the intention is to developed an approach that can be generalized to other regions around the globe. Our approach to smoke prediction is to statistically model the regional counts of fire detections. Once the counts of fire detections can be predicted (with the scope of one or more days), the aerosols produced by the regional fires can be estimated.
+			
+	2. Current State of Project
+		The current approach to the regional modeling is to develop two models. One that makes predictions on individual "fire events" (groupings of clustered fire detections) and a second that models new detections that cannot be attributed to any existing events (the ignition model). By making predictions on each active fire event and summing those predictions with the ignition model a regional prediction of fire detections can be made. We currently use a Poisson distribution to model the fire event model and the ignition model has not yet been developed. When making predictions for T+k (where T is the current day and k is an integer >= 1), a separate model is trained for each k to directly predict forwards k days.
+			
+	3. Current Focus
+		The current focus of the work is on handling missing dates from the GFS-ANL .5 degree data, cementing the choice of clustering algorithm (for fire events), and developing the ignition model. The immediate next steps following these tasks primarily relate to improving the model. These improvements include adding "memory" to the model (both for weather that occurred prior to T and for days between T and T+k when k > 1), changing the model itself, including ground cover data and exploring the degradation of predictive power when using forecast data.
+		
+2. Data
+	1. MODIS (Moderate Resolution Imaging Spectroradiometer)
+		1. Description
+			The MODIS dataset consists of measurements of 36 spectral bands globally once every one to two days. The measurements are collected by two satellites, Aqua and Terra, which cross the equator twice daily. We use the MODIS Active fire product MCD14ML which lists all global fire detections with lat/long coordinates and a time stamp. The detections (or fire pixels) have a resolution of 1 km.
+		
+		2. Purpose
+			This dataset is used for the measurement of daily fire detections.
+			
+		3. Documentation References
+			* High-level description: https://modis.gsfc.nasa.gov/about/
+			* Active Fire User Guide: http://modis-fire.umd.edu/files/MODIS_C6_Fire_User_Guide_A.pdf
+			* "An Enhanced Contextual Fire Detection Algorithm for MODIS" by Giglio et al. 2003
+			
+		4. Data Access
+			* Data can be accessed from the FTP server at fuoco.geog.umd.edu
+				* Username: fire, password: burnt
+				* Navigate to "/modis/C6/mcd14ml"
+				* Files are compressed CSVs
+			
+		5. Available Information
+			* YYYYMMDD: UTC year, month and day
+			* HHMM: UTC hour and minute
+			* sat: initial of which satellite made the decection
+			* lat: latitude at center of fire pixel
+			* lon: longitude at center of fire pixel
+			* T21: Band 21 brightness temp. of fire pixel (Kelvin)
+			* T31: Band 31 brightness temp. of fire pixel (Kelvin)
+			* sample: scan sample number (range 0-1353) position of fire pixel within the scan
+			* FRP: fire radiative power (MW)
+			* conf: detection confidence (0-100) [Giglio et al. 2003]
+			* type: inferred hot spot type (0: vegetation, 1: active volcano, 2: other static land source, 3: offshore)
+			
+		6. Learned Information
+			1. Summary
+				It is highly likely that a significant number of true fire detections are missed by the MODIS system due to a number of factors. These factors may include  false negatives, cloud occlusion, and temporal gaps between samples. This suggests that a method for accounting for missed detections may be necessary for improving model training. It is also reasonable to suspect that false positives occur. While currently not utilized, the "conf" measurement may be useful for disregarding or reducing the weight of potential false positives. Currently we disregard detections that do not have the "type" of 0 (vegetation fire). This reduces the number of detections in the Alaskan region by .4%, but the accuracy of the "type" has not been investigated.
+				
+			2. Time Distribution of Fire Detections
+				While ideally fire detections would occur four times a day, twice from each satellite, this is not the case. When farther from the equator the time of the fire detections overlap more, in Alaska the detections overlap heavily during the middle of the day (in "local" time).
+				![](/home/cagraff/Documents/dev/fire_prediction/reports/project_document/figures/modis_fire_detections_time_distribution.png) 
+				
+			3. Confidence
+				The distribution of detection confidences is mostly smooth, but has a large jump at both 0 and 100. Three percent of all detections in Alaska have 0 confidence and 12 percent have less than 33 confidence. The spatial distribution of the low confidence detections does not have an obvious pattern.
+				
+				![](/home/cagraff/Documents/dev/fire_prediction/reports/project_document/figures/modis_fire_detections_conf.png) 
+			
+			4. FRP
+				The FRP appears to follow an exponential pattern with the majority of detections having less than 100 FRP, but a very long tail that extends up to nearly 6,000.
+				
+				![](/home/cagraff/Documents/dev/fire_prediction/reports/project_document/figures/modis_fire_detections_frp.png) 
+				
+		
+	2. GFS (Global Forecast System)
+		1. Description
+			The GFS is a weather forecast model. We use the GFS-ANL .5 degree data currently (.5 degree lat/lon resolution), but the goal is to change to using GFS forecast data. This model is run for the whole globe and has four measurements per day (with 2 accumulation periods per measurement at +3 and +6 hours).
+			 
+		2. Purpose
+			This dataset is used to collect weather variables that are covariates in the fire detection predictions. This inclusion of weather is predicated on the assumption that relevant weather factors can drive and suppress regional fire activity.
+			
+		3. Documentation References
+			* High-level description: https://www.ncdc.noaa.gov/data-access/model-data/model-datasets/global-forcast-system-gfs
+		
+		4. Data Access
+			* Data can be downloaded in a variety of ways found at https://www.ncdc.noaa.gov/data-access/model-data/model-datasets/global-forcast-system-gfs
+				* If accessing through command-line FTP
+					* Username: anonymous 
+					* Password: your contact email address (e.g. graffc@uci.edu)
+					* Browse to "GFS/analysis_only"
+					* Data is stored as grb (for 1 degree) or grb2 (for .5 degree) files
+					* File naming convention is gfsanl_4_YYYYMMDD_HHMM_OOO.grb2
+						* OOO is the accumulation period offset for accumulated variables (e.g. rain)
+							* 0 is instantaneous, 3 is +3 hours, 6 is +6 hours	
+				* It is important to note that the .grb files use 0 to 359 longitude (instead of -180 to 180), the conversion can be found in the code or online 			
+							
+		5. Available Information
+			The .grb files contain hundreds of measurement type/altitude "layers", far more than can be listed here. Fortunately the .grb format is intended to be self-documenting so almost all information can be determined by exploring the file. Of particular interest to our project are the following layers.
+			* Known Useful
+				* Temperature, typeOfLevel=surface
+				* Surface air relative humidity (this measurement isn't always present so alternatives are listed)
+					* 2 metre relative humidity'
+					* Relative humidity', level=2
+				* 10 metre U wind component
+				* 10 metre V wind component
+				* Total Precipitation (only available in non-zero offset files)
+			* Potentially Useful
+				* 202/205 Convective available potential energy (levels 25500-0 Pa)
+				* 243 Planetary boundary layer height
+				* 230/231 Volumetric soil moisture content (0.0-0.1 m)
+				* 239 Land-sea mask
+				* 210 Orography 
+				* 246 Downward short-wave radiation flux (accumulated)
+				* 240 Water equivalent of accumulated snow depth (accumulated)
+			
+		6. Learned Information
+			1. Summary
+				The GFS data is likely not perfectly accurate for a few reasons. One, the data is model-driven, rather than based on actual measurements, which likely differs from reality. Two, the data's resolution (.5 degrees lat/lon) is much less granular than the fire detections (1km) so some detail is lost (temperature likely varies little within .5 degrees, but precipitation might). It is important to note that many (~5%) of the files for the .5 data are missing and appear to be irretrievable. Using the 1 degree data as a supplement or replacement may be necessary.
+				
+			2. Missing Data
+				The 5% of files missing mean that certain times, days or weeks are missing completely. While some years have significantly more missing files (e.g. 2007 has >800 which is ~2x the next highest), there isn't a clear trend. Sometimes a day may only be missing a single file, while other times an entire week may be completely missing. Currently the approach is to replace missing measurements with values from the preceding days and use the global mean if the gap is extremely large. 
+
+			3. Spatial Correlation
+				The weather data (temperature, wind, humidity and precipitation) all have high spatial correlation. The correlation between a given pixel and its neighbor either up/down or left/right is generally very high (although left/right correlation is greater than up/down). The primary areas of lower correlation are around coastline and mountains. Fortunately, most detections occur in the Alaskan "interior" between the primary mountain ranges.
+				
+				![](/home/cagraff/Documents/dev/fire_prediction/reports/project_document/figures/gfs_precipitation_left_corr.png) 
+				
+	3. LCD (Local Climatological Data)
+3. Methods
+	1. Time
+		All of the timestamps provided found in the data (MODIS, GFS, LCD) are UTC. This means that it is important to convert the times to a local time when considering which day a particular detection or measurement belongs to. The simplest approach is to use the timezone offset for the region, but this ignores the fact that the local time is often based on politics and can differ significantly from what the local time should theoretically be. We use a conversion to approximate the true offset from UTC based on the longitude of the measurement or detection. The equation used is hour offset (from UTC) = (longitude / 15).
+		
+	2. Spatial Distance 
+		Measuring distance between two points of latitude and longitude is not accurate if you assume a flat surface. Although the Earth is slightly ellipsoidal, a spherical model is accurate enough for our purposes. The algorithm for computing the distance between two lat/long points can be found in the code and on-line. 
+
+	3. Clustering
+		1. Summary
+			By clustering fire detections into fire events a model can be trained that operates on individual fire events instead of an entire region. This allows the model to use inputs (e.g. weather) that are specific to the fire event instead of global averages.
+			
+		2. Chosen Algorithm
+			The algorithm that we have selected for clustering is Forward-only Spatial/Temporal Clustering w/ Merging. This algorithm is as follows.
+				* Forwards-only: The model runs forwards in time so detections are only considered connected when going forwards in time. Two clusters that are originally considered separate cannot be latter redefined as a single cluster (different than merging two clusters into a third, larger cluster).
+				* Spatial: Two points are only considered connected if their spatial distance is less than or equal to a threshold (currently 5km)
+				* Temporal: Two points are only considered connected if the number of days between detections is less than or equal to a threshold (currently 12)
+				* Merging: Two or more clusters can be merged together into a new, larger cluster. Note that it is important to use the sum of previous detections from all merged clusters as the number of previous detections for the merged cluster.
+				
+		3. Alternative Algorithms
+			* Spatial Only
+			* Spatial/Temporal
+			* Forwards-only Spatial/Temporal
+			
+	4. Covariates
+		1. Summary
+			We currently predict number of detections on T+k with covariates number of detections on T and weather (rain, wind, humidity and temperature) for T+k. 
+		2. Processing Weather
+			For humidity and temperature no processing is necessary. However, the measurements for rain and wind require some. 
+			*Wind: The GFS data provides a horizontal (U) and vertical (V) wind speed. The magnitude of the combination is calculated by sqrt(U**2 + V**2). 
+			* Rain: The rain is provided as accumulation totals for 6 hour periods after each of the four primary measurement times (0, 6, 12, 18 UTC). We use the trailing 24 hour total of accumulation. For example the measurement we would use for 12:00 October 13th is equal to the sum of the accumulation totals from 12:00 October 12th +6, 18:00 October 12th +6, 00:00 October 13th +6 and 06:00 October 13th +6. 
+		3. Integration of weather with fire events
+			To determine which GFS pixel will be associated with a fire event we use the centroid of all points that belong to the cluster/event. We then assign the values from the GFS pixel with the center point closest to the event's centroid. This does not take into account averaging/interpolation for events near a border. It also does not consider a changing centroid for a fire event as it moves over time. Most likely these changes would have a minimal effect because most fire events fall into only one or two pixels and we can see that correlation between adjacent GFS pixels is quite large.
+			
+	5. Prediction
+		1. Chosen approach
+			Create one model for the active fire events and one model for new fire ignitions. Both assume a Poisson distribution. 
+			
+		2. Alternatives
+			* A "global" model that predicts detections for T+k for the entire region.
+			* A pixel model that involves partitioning a region into a grid of pixels and having the model predict if a detection will occur for each pixel on T+k.
+	
+	6. Pipeline
+>       1. Data
+>           a. GFS: FTP Fetch (8.5 hours/year) --> Extract (.5 hours/year) -->  Aggregate (5 min.) --> 
+>           b. MODIS: FTP Fetch (15 min.) --> Extract/Aggregate (10 min.) --> 
+>       2. Processing
+>           a. GFS: --> Processing (1 min.) -->·
+>           b. MODIS: --> Clustering (40 min.) -->·
+>       3, Integration·
+>           a. GFS/MODIS: --> Integration (3 min.) --> Integrated
+>       3. Prediction
+>           a. Integrated: --> Prediction
+
+	7. Future Work
+		1. Missing GFS	
+		2. Ignition model + Active fire model
+		3. Forward-only Clustering w/ Merging
+		4. Day/Night Detections		
+		5. Model memory (esp. rain)
+		
+		* Missing MODIS
+		* Forecast degradation 
+		* Ground Cover
+		* Need to implement ignition model
+		* Consider alternative distributions
+		* Incorporating memory of covariates (especially for rain)
+		* Include other covariates (ground cover, lightning, shape) 
