@@ -11,6 +11,9 @@ class GribMessage(object):
     Interface for getting values from a grib message.
     """
     def __init__(self, gid, lon_offset):
+        """
+        :param lon_offset: indicates grib file uses 0 to 360 for longitude (instead of -180 to 180)
+        """
         self.gid = gid
         self.lon_offset = lon_offset
 
@@ -35,21 +38,13 @@ class GribMessage(object):
         dlat, dlon = gribapi.grib_get_array(self.gid, 'distinctLatitudes'), gribapi.grib_get_array(self.gid, 'distinctLongitudes')
 
         if self.lon_offset:
-            dlon -= 180.
-
-        print 'lat', dlat
-        print 'lon', dlon
+            dlon = np.remainder((dlon+180),360)-180 # Convert from 0 to 360 longitude notation to -180 to 180
 
         values = gribapi.grib_get_values(self.gid)
-        print 'shape', np.shape(values)
         values =  np.reshape(values, newshape=(len(dlat),len(dlon)))
 
         if bounding_box:
             lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = bounding_box.get_min_max_indexes(dlat, dlon)
-
-            print dlat[lat_min_ind, lon_min_ind], dlon[lat_max_ind, lon_max_ind]
-            print 'lat', dlat[lat_max_ind:lat_min_ind+1, lon_min_ind:lon_max_ind+1]
-            print 'lon', dlon[lat_max_ind:lat_min_ind+1, lon_min_ind:lon_max_ind+1]
 
             # Lat is typically ordered from highest to lowest
             return values[lat_max_ind:lat_min_ind+1, lon_min_ind:lon_max_ind+1], LatLonBoundingBox(dlat[lat_min_ind], dlat[lat_max_ind], dlon[lon_min_ind], dlon[lon_max_ind])
@@ -66,6 +61,9 @@ class GribFile(object):
     Interface for selecting message(s) from grib files using key/value matching.
     """
     def __init__(self, file_object, multi_field=True, lon_offset=True):
+        """
+        :param lon_offset: indicates grib file uses 0 to 360 for longitude (instead of -180 to 180)
+        """
         self.file_object = file_object
         self.lon_offset = lon_offset
 

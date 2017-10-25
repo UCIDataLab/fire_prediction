@@ -49,7 +49,7 @@ class FireDfToClusterConverter(Converter):
         df = data.assign(date_local=map(lambda x: du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour).date(), zip(data.datetime_utc, data.lon)))
 
         # Build cluster id data frame
-        if not os.path.isfile(self.cluster_id_path):
+        if not (self.cluster_id_path and os.path.isfile(self.cluster_id_path)):
             logging.debug('Building cluster id data frame')
             fire_season_df = self.filter_fire_season(df)
             cluster_id_df = self.append_cluster_id(fire_season_df)

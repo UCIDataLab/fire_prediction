@@ -117,11 +117,6 @@ class FireWeatherIntegration(object):
         lat_ind = int(round(float(abs(lat_max - lat)) / lat_res))
         lon_ind = int(round(float(abs(lon_min - lon)) / lon_res))
 
-        dlats, dlons = bb.make_grid()
-
-        print lat, lon
-        print dlats[lat_ind,lon_ind], dlons[lat_ind, lon_ind]
-
         return lat_ind, lon_ind
 
     def get_date_index(self, weather_data, target_datetime):
@@ -144,7 +139,7 @@ class FireWeatherIntegration(object):
 @click.argument('fire_src_path', type=click.Path(exists=True))
 @click.argument('weather_src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
-@click.option('--time', default=12, type=click.INT)
+@click.option('--time', default=14, type=click.INT)
 @click.option('--fill', default=True, type=click.BOOL)
 @click.option('--filldays', default=5, type=click.INT)
 @click.option('--log', default='INFO')
