@@ -23,20 +23,32 @@ gfs_loc = "GFS/analysis_only/"  # location on server of GFS data
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
-grib_file_fmt = "gfsanl_4_%s_%.4d_%.3d.grb2"
+grib_file_fmt_half_deg = "gfsanl_4_%s_%.4d_%.3d.grb2"
+grib_file_fmt_one_deg = "gfsanl_3_%s_%.4d_%.3d.grb"
+
+SCALE_HALF_DEG = '4'
+SCALE_ONE_DEG = '3'
 
 times = [0, 600, 1200, 1800]
 offsets = [0, 3, 6,]
 time_offset_list = [(t,o) for t in times for o in offsets]
 
 class GfsFetch(object):
-    def __init__(self, dest_dir, start_year, end_year, available_files_path=None, files_to_fetch_path=None):
+    def __init__(self, dest_dir, start_year, end_year, scale_sel, available_files_path=None, files_to_fetch_path=None):
         self.dest_dir = dest_dir
         self.year_range = (start_year, end_year)
         self.aftp = AsyncFTP(server_name, username, password, pool_size=4, queue_size=50)
 
         self.available_files_path = available_files_path
         self.files_to_fetch_path = files_to_fetch_path
+
+        # Choose scale to download
+        if scale_sel==SCALE_HALF_DEG:
+            self.grib_file_fmt = grib_file_fmt_half_deg
+        elif scale_sel==SCALE_ONE_DEG:
+            self.grib_file_fmt = grib_file_fmt_one_deg
+        else:
+            raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
 
     def src_to_dest_path(self, path):
         path = path.split(gfs_loc)[1]
@@ -48,10 +60,14 @@ class GfsFetch(object):
         """
         # Find all available files with year range
         if not self.available_files_path and not self.files_to_fetch_path:
+            logging.debug('Fetching available files')
+
             available_files = self.fetch_available_files()
             with open(os.path.join(self.dest_dir, 'available_files.pkl'), 'wb') as fout:
                 pickle.dump(available_files, fout, protocol=pickle.HIGHEST_PROTOCOL)
+
             logging.debug('Finished fetching available files list')
+
         elif not self.files_to_fetch_path:
             with open(self.available_files_path, 'rb') as fin:
                 available_files = pickle.load(fin)
@@ -108,7 +124,7 @@ class GfsFetch(object):
                     grib_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
 
                     # Retrieve each grib file from server and save in day dir
-                    todays_grib_files = [grib_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
+                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
                     for grib_file in todays_grib_files:
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
@@ -147,14 +163,15 @@ class GfsFetch(object):
 @click.option('--log', default='INFO')
 @click.option('--avail', default=None, type=click.Path(exists=True))
 @click.option('--fetch', default=None, type=click.Path(exists=True))
-def main(dest_dir, start, end, log, avail, fetch):
+@click.option('--scale', default='4', type=click.Choice([SCALE_HALF_DEG, SCALE_ONE_DEG]))
+def main(dest_dir, start, end, log, avail, fetch, scale):
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
-    logging.info('Storing data in "%s". Range is [%d, %d].' % (dest_dir, start, end))
+    logging.info('Storing data in "%s". Range is [%d, %d]. Downloading scale %s.' % (dest_dir, start, end, scale))
 
     logging.info('Starting fetch for GFS')
-    GfsFetch(dest_dir, start, end, avail, fetch).fetch()
+    GfsFetch(dest_dir, start, end, scale, avail, fetch).fetch()
     logging.info('End fetch for GFS')
 
 
