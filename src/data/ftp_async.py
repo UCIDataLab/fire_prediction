@@ -43,6 +43,7 @@ class AsyncFTPFetcher(object):
             self.ftp.retrbinary(command, out_str.write, blocksize=self.blk_size)
         except ftplib.error_temp as err:
             # Reset connection and retry
+            logging.debug('Resetting connection')
             self.ftp.close()
             self.setup_ftp()
 
