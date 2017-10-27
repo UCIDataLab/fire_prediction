@@ -1,3 +1,4 @@
+import ftplib
 from ftplib import FTP
 from time import time
 from StringIO import StringIO
