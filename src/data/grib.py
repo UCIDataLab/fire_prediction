@@ -17,6 +17,8 @@ class GribMessage(object):
         self.gid = gid
         self.lon_offset = lon_offset
 
+        self.lon_rot = 0
+
     def get(self, key):
         """
         Get value for key from message.
@@ -39,9 +41,15 @@ class GribMessage(object):
 
         if self.lon_offset:
             dlon = np.remainder((dlon+180),360)-180 # Convert from 0 to 360 longitude notation to -180 to 180
+            self.lon_rot = -np.argmin(dlon)
+            dlon = np.roll(dlon, self.lon_rot) # Rotate so min lon comes first
 
         values = gribapi.grib_get_values(self.gid)
         values =  np.reshape(values, newshape=(len(dlat),len(dlon)))
+
+        # If needed, roll values along longitude axis to match rolled dlon values
+        if self.lon_rot != 0:
+            values = np.roll(values, self.lon_rot, axis=1)
 
         if bounding_box:
             lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = bounding_box.get_min_max_indexes(dlat, dlon)
@@ -197,10 +205,22 @@ def get_default_selections():
     wind_v = GribSelection().add_selection(name='10 metre V wind component')
     rain = GribSelection().add_selection(name='Total Precipitation')
 
-    sel = [temperature, humidity, wind_u, wind_v, rain]
+    cape0 = GribSelection().add_selection(name='Convective available potential energy', level=0)
+    cape18000 = GribSelection().add_selection(name='Convective available potential energy', level=18000)
+    cape25500 = GribSelection().add_selection(name='Convective available potential energy', level=25500)
+
+    pblh = GribSelection().add_selection(name='Planetary boundary layer height')
+    cloud = GribSelection().add_selection(name='Total Cloud Cover')
+    soilm = GribSelection().add_selection(name='Volumetric soil moisture content', level=0)
+    mask = GribSelection().add_selection(name='Land-sea mask')
+    orog = GribSelection().add_selection(name='Orography')
+    shortwrad = GribSelection().add_selection(name='Downward short-wave radiation flux')
+
+    sel = [temperature, humidity, wind_u, wind_v, rain, cape0, cape18000, cape25500, pblh, cloud, soilm, mask, orog, shortwrad]
 
     return sel
 
 def get_default_bounding_box():
-    return LatLonBoundingBox(55, 71, -165, -138)
+    #return LatLonBoundingBox(55, 71, -165, -138)
+    return LatLonBoundingBox(-90, 90, -180, 180)
 

@@ -7,11 +7,14 @@ import cPickle as pickle
 import grib
 from helper import date_util as du
 from ftp_async import PoolLimitedTaskQueue
-from helper.geometry import get_default_bounding_box
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
-grib_file_fmt = "gfsanl_4_%s_%.4d_%.3d.grb2"
+grib_file_fmt_half_deg = "gfsanl_4_%s_%.4d_%.3d.grb2"
+grib_file_fmt_one_deg = "gfsanl_3_%s_%.4d_%.3d.grb"
+
+SCALE_HALF_DEG = '4'
+SCALE_ONE_DEG = '3'
 
 times = [0, 600, 1200, 1800]
 offsets = [0, 3, 6,]
@@ -84,17 +87,25 @@ class GfsExtractor(object):
 
     def init_worker(self, context):
         selections = grib.get_default_selections()
-        bb = get_default_bounding_box()
+        bb = grib.get_default_bounding_box()
         context['selector'] = grib.GribSelector(selections, bb)
 
         context['write_queue'] = self.write_queue
 
 
 class GfsExtract(object):
-    def __init__(self, src_dir, dest_dir, start_year, end_year):
+    def __init__(self, src_dir, dest_dir, start_year, end_year, scale_sel):
         self.src_dir = src_dir
         self.dest_dir = dest_dir
         self.year_range = (start_year, end_year)
+
+        # Choose file format based on selected scale
+        if scale_sel==SCALE_HALF_DEG:
+            self.grib_file_fmt = grib_file_fmt_half_deg
+        elif scale_sel==SCALE_ONE_DEG:
+            self.grib_file_fmt = grib_file_fmt_one_deg
+        else:
+            raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
 
         self.extractor = GfsExtractor(pool_size=8, queue_size=50)
 
@@ -157,7 +168,7 @@ class GfsExtract(object):
 
                     grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day)) if os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
 
-                    todays_grib_files = [grib_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
+                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
                     for grib_file in todays_grib_files:
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
@@ -191,15 +202,16 @@ class GfsExtract(object):
 @click.argument('dest_dir', type=click.Path(exists=True))
 @click.option('--start', default=2007, type=click.INT)
 @click.option('--end', default=2016, type=click.INT)
+@click.option('--scale', default='4', type=click.Choice([SCALE_HALF_DEG, SCALE_ONE_DEG]))
 @click.option('--log', default='INFO')
-def main(src_dir, dest_dir, start, end, log):
+def main(src_dir, dest_dir, start, end, scale, log):
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
     logging.info('Reading data from %s. Storing data in "%s". Range is [%d, %d].' % (src_dir, dest_dir, start, end))
 
     logging.info('Starting GFS extraction')
-    GfsExtract(src_dir, dest_dir, start, end).extract()
+    GfsExtract(src_dir, dest_dir, start, end, scale).extract()
     logging.info('End GFS extraction')
 
 if __name__=='__main__':
