@@ -28,7 +28,7 @@ class PoissonRegressionModel(Model):
         #X = X.iloc[np.random.permutation(X.shape[0])]
 
         # Build formula for prediction
-        formula = 'num_det ~ np.log(num_det_prev+1)'
+        formula = 'num_det_target ~ np.log(num_det+1)'
         if self.covariates:
             formula += ' + ' + ' + '.join(self.covariates)
 
@@ -51,16 +51,16 @@ class PoissonRegressionModel(Model):
         """
         Add an autoregressive column to the data.
 
-        :param t_offset: num of days (back) to generate col from (1: yesterday, ...)
+        :param t_offset: num of days ahead to generate col from (1: tomorrow, ...)
         """
-        num_det_prev = np.empty(X.shape[0])
+        num_det_target = np.empty(X.shape[0])
         for i, row in enumerate(X.itertuples()):
             date, cluster_id, num_det = row.date_local, row.cluster_id, row.num_det
 
-            prev_df = X[(X.cluster_id==cluster_id) & (X.date_local==date-du.INC_ONE_DAY*(t_offset))]
-            val = prev_df.num_det.iloc[0] if not prev_df.empty else 0
+            cluster_df = X[(X.cluster_id==cluster_id) & (X.date_local==date+du.INC_ONE_DAY*(t_offset))]
+            val = cluster_df.num_det.iloc[0] if not cluster_df.empty else 0
 
-            num_det_prev[i] = val
+            num_det_target[i] = val
 
-        return X.assign(num_det_prev=num_det_prev)
+        return X.assign(num_det_target=num_det_target)
 

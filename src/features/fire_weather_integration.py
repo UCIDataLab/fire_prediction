@@ -15,7 +15,8 @@ import pytz
 import helper.date_util as du
 
 class FireWeatherIntegration(object):
-    def __init__(self, time, fill_missing, fill_n_days, rain_offset, weather_vars_labels=['temperature', 'humidity', 'wind', 'rain']):
+    def __init__(self, k_days, time, fill_missing, fill_n_days, rain_offset, weather_vars_labels=['temperature', 'humidity', 'wind', 'rain']):
+        self.k_days = k_days
         self.time = time
         self.fill_missing = fill_missing
         self.fill_n_days = fill_n_days
@@ -38,6 +39,7 @@ class FireWeatherIntegration(object):
             logging.debug('Starting integration for row %d/%d' % (i+1, fire_df.shape[0]))
             date, lat, lon = row.date_local, row.lat_centroid, row.lon_centroid
 
+            date += du.INC_ONE_DAY * self.k_days # For row t, store weather(t+k)
             target_datetime = datetime.combine(date, dt.time(self.time, 0, 0, tzinfo=du.TrulyLocalTzInfo(lon, du.round_to_nearest_quarter_hour)))
 
             var = self.get_weather_variables(weather_region, target_datetime, lat, lon)
@@ -147,21 +149,22 @@ class FireWeatherIntegration(object):
 @click.argument('fire_src_path', type=click.Path(exists=True))
 @click.argument('weather_src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
+@click.option('--k', default=1, type=click.INT)
 @click.option('--time', default=14, type=click.INT)
 @click.option('--fill', default=True, type=click.BOOL)
 @click.option('--filldays', default=5, type=click.INT)
 @click.option('--rainoffset', default=0, type=click.INT)
 @click.option('--log', default='INFO')
-def main(fire_src_path, weather_src_path, dest_path, time, fill, filldays, rainoffset, log):
+def main(fire_src_path, weather_src_path, dest_path, k, time, fill, filldays, rainoffset, log):
     """
     Load fire data frame and create clusters.
     """
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
-    fwi = FireWeatherIntegration(time, fill, filldays, rainoffset)
+    fwi = FireWeatherIntegration(k, time, fill, filldays, rainoffset)
 
-    logging.info('Starting fire/weather integration')
+    logging.info('Starting fire/weather integration for k=%d' % k)
     fwi.integrate(fire_src_path, weather_src_path)
     fwi.save(dest_path)
     logging.info('Finished fire/weather integration')

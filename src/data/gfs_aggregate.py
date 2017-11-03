@@ -17,7 +17,11 @@ from base.converter import Converter
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
-extracted_file_fmt = "gfsanl_4_%s_%.4d_%.3d.pkl"
+extracted_file_fmt_half_deg = "gfsanl_4_%s_%.4d_%.3d.pkl"
+extracted_file_fmt_one_deg = "gfsanl_3_%s_%.4d_%.3d.pkl"
+
+SCALE_HALF_DEG = '4'
+SCALE_ONE_DEG = '3'
 
 times = [0, 600, 1200, 1800]
 offsets = [0, 3, 6,]
@@ -37,9 +41,17 @@ class GFStoWeatherRegionConverter(Converter):
     """
     Combine all extracted GFS files to a single WeatherRegion.
     """
-    def __init__(self, year_start, year_end, measurement_name_func=def_name_func):
+    def __init__(self, year_start, year_end, scale_sel, measurement_name_func=def_name_func):
         self.year_range = (year_start, year_end)
         self.measurement_name_func = measurement_name_func
+
+        # Choose file format based on selected scale
+        if scale_sel==SCALE_HALF_DEG:
+            self.extracted_file_fmt = extracted_file_fmt_half_deg
+        elif scale_sel==SCALE_ONE_DEG:
+            self.extracted_file_fmt = extracted_file_fmt_one_deg
+        else:
+            raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
 
     def load(self, src_dir):
         self.src_dir = src_dir
@@ -125,7 +137,7 @@ class GFStoWeatherRegionConverter(Converter):
                     except:
                         grib_dir_list = []
 
-                    todays_grib_files = [extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
+                    todays_grib_files = [self.extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
                     for grib_file in todays_grib_files:
                         path = os.path.join(self.src_dir, year_month, year_month_day, grib_file)
 
@@ -180,11 +192,12 @@ class GFStoWeatherRegionConverter(Converter):
 @click.argument('src_dir', type=click.Path(exists=True))
 @click.argument('dest_path')
 @click.option('--start', default=2007, type=click.INT)
+@click.option('--scale', default='4', type=click.Choice([SCALE_HALF_DEG, SCALE_ONE_DEG]))
 @click.option('--end', default=2016, type=click.INT)
 @click.option('--log', default='INFO')
-def main(src_dir, dest_path, start, end, log):
+def main(src_dir, dest_path, start, end, scale, log):
     """
-    Load MODIS data and create a data frame.
+    Load GFS data and create a weather region.
     """
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
@@ -194,7 +207,7 @@ def main(src_dir, dest_path, start, end, log):
     #    print 'Destination path does not exist "%s"' % dest_path
 
     logging.info('Starting GFS extracted to WeatherRegion conversion')
-    GFStoWeatherRegionConverter(start, end).convert(src_dir, dest_path)
+    GFStoWeatherRegionConverter(start, end, scale).convert(src_dir, dest_path)
     logging.info('Finished GFS extracted to WeatherRegion conversion')
 
 
