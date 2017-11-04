@@ -81,7 +81,10 @@ class GFStoWeatherRegionConverter(Converter):
                 with open(f, 'rb') as fin:
                     file_data = pickle.load(fin)
 
-                self.append_data(all_data, file_data, i)
+                try:
+                    self.append_data(all_data, file_data, i)
+                except Exception as e:
+                    logging.debug('Failed to append data: %s' % str(e))
 
             else:
                 file_data = None
@@ -192,8 +195,8 @@ class GFStoWeatherRegionConverter(Converter):
 @click.argument('src_dir', type=click.Path(exists=True))
 @click.argument('dest_path')
 @click.option('--start', default=2007, type=click.INT)
-@click.option('--scale', default='4', type=click.Choice([SCALE_HALF_DEG, SCALE_ONE_DEG]))
 @click.option('--end', default=2016, type=click.INT)
+@click.option('--scale', default='4', type=click.Choice([SCALE_HALF_DEG, SCALE_ONE_DEG]))
 @click.option('--log', default='INFO')
 def main(src_dir, dest_path, start, end, scale, log):
     """
