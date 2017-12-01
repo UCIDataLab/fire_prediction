@@ -42,7 +42,19 @@ class LatLonBoundingBox(object):
 
         return int(ind)
 
+    def latlon_to_indices(self, lat, lon, num_lat, lat_inc=.5, lon_inc=.5):
+        if lat > self.lat_max or lat < self.lat_min:
+            raise ValueError('Lat out of range: %f' % lat)
+        elif lon > self.lon_max or lon < self.lon_min:
+            raise ValueError('Lon out of range: %f' % lon)
+
+        lat_ind = (num_lat-1) - round((lat - self.lat_min)/lat_inc)
+        lon_ind = round((lon - self.lon_min)/lon_inc)
+
+        return int(lat_ind),int(lon_ind)
+
     def make_grid(self, lat_inc=.5, lon_inc=.5):
+        # TODO: check for divisibility by increments
         lats = np.arange(self.lat_max,self.lat_min-lat_inc, -lat_inc)
         lons = np.arange(self.lon_min,self.lon_max+lon_inc,  lon_inc)
 

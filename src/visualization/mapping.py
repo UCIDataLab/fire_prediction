@@ -11,7 +11,7 @@ from mpl_toolkits.basemap import Basemap
 
 from helper import date_util as du
 
-def make_map(bb):
+def make_map(bb, grid_spacing=(2,.5,2,.5)):
     lat_min, lat_max, lon_min, lon_max = bb.get()
 
     mp = Basemap(projection="merc",
@@ -24,19 +24,27 @@ def make_map(bb):
     mp.drawcoastlines()
     #mp.drawlsmask()
 
-    parallels = np.arange(lat_min,lat_max,2)
+    parallels = np.arange(lat_min,lat_max,grid_spacing[0])
     _ = mp.drawparallels(parallels,labels=[False,True,False,False])
     
-    parallels = np.arange(lat_min,lat_max,.5)
+    parallels = np.arange(lat_min,lat_max,grid_spacing[1])
     _ = mp.drawparallels(parallels,labels=[False,False,False,False])
 
-    meridians = np.arange(lon_min,lon_max,2)
+    meridians = np.arange(lon_min,lon_max,grid_spacing[2])
     _ = mp.drawmeridians(meridians, labels=[False,False,False,True])
     
-    meridians = np.arange(lon_min,lon_max,.5)
+    meridians = np.arange(lon_min,lon_max,grid_spacing[3])
     _ = mp.drawmeridians(meridians, labels=[False,False,False,False])
     
     return mp
+
+def make_contourf(mp, values, bb, alpha=.6, vmin=None, vmax=None):
+    mp.shadedrelief()
+
+    lats, lons = bb.make_grid()
+
+    cs = mp.contourf(lons, lats, values, latlon=True, alpha=alpha, vmin=vmin, vmax=vmax)
+    cbar = mp.colorbar(cs,location='bottom',pad="5%")
 
 def animate_map_latlon(df, bb, dates, figsize=(10,12)):
     fig = plt.figure(figsize=figsize)

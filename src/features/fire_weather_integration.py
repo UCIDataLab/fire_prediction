@@ -13,6 +13,7 @@ import cPickle as pickle
 import pytz
 
 import helper.date_util as du
+import helper.preprocessing as pp
 
 class FireWeatherIntegration(object):
     def __init__(self, k_days, time, fill_missing, fill_n_days, rain_offset, weather_vars_labels=['temperature', 'humidity', 'wind', 'rain']):
@@ -48,6 +49,8 @@ class FireWeatherIntegration(object):
         weather_df = pd.DataFrame(weather_vars, columns=self.weather_vars_labels)
 
         self.integrated_data = fire_df.join(weather_df, how='outer')
+
+        self.integrated_data = pp.add_autoregressive_col(self.integrated_data, self.k_days)
 
     def load_fire(self, src_path):
         logging.info('Loading file from %s' % src_path)
