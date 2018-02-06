@@ -84,7 +84,6 @@ def day2monthday(my_day, leapyear=False):
     day = days_left + 1
     return month,day
 
-
 def monthday2day(month, day, leapyear=False):
     """Convert month/day into days since Jan 1"""
     if leapyear:

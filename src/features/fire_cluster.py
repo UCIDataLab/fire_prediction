@@ -20,13 +20,14 @@ class FireDfToClusterConverter(Converter):
     """
     Converts a data frame of fire data to a cluser data frame.
     """
-    def __init__(self, cluster_id_path=None, cluster_type=clust.CLUST_TYPE_SPATIAL_TEMPORAL, cluster_thresh_km=5., cluster_thresh_days=3., fire_season=((5,14), (8,31))):
+    def __init__(self, cluster_id_path=None, cluster_type=clust.CLUST_TYPE_SPATIAL_TEMPORAL, cluster_thresh_km=5., cluster_thresh_days=3., only_day=False, fire_season=((5,14), (8,31))):
         super(FireDfToClusterConverter, self).__init__()
 
         self.cluster_id_path = cluster_id_path
         self.cluster_thresh_km = cluster_thresh_km
         self.cluster_thresh_days = cluster_thresh_days
         self.cluster_type = cluster_type
+        self.only_day = only_day
         self.fire_season = fire_season
 
     def load(self, src_path):
@@ -45,8 +46,18 @@ class FireDfToClusterConverter(Converter):
     def transform(self, data):
         logging.debug('Applying transforms to data frame')
 
+        def is_day_det(x):
+            local = du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour)
+            hour = local.hour
+            if hour > 9 and hour < 17:
+                return 1
+            else:
+                return 0
+
         # Add local datetime col to determine the day the fire occured in
         df = data.assign(date_local=map(lambda x: du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour).date(), zip(data.datetime_utc, data.lon)))
+        if self.only_day:
+            df = df.assign(day_det=map(lambda x: is_day_det, zip(data.datetime_utc, data.lon)))
 
         # Build cluster id data frame
         if not (self.cluster_id_path and os.path.isfile(self.cluster_id_path)):
@@ -110,7 +121,10 @@ class FireDfToClusterConverter(Converter):
             #dates = set(c_df.date_local)
             dates = du.daterange(np.min(c_df.date_local), np.max(c_df.date_local)+du.INC_ONE_DAY)
             for date in dates:
-                date_df = c_df[c_df.date_local==date]
+                if self.only_day:
+                    date_df = c_df[(c_df.date_local==date) & (c_df.day_det==1)]
+                else:
+                    date_df = c_df[(c_df.date_local==date)]
                 if not date_df.empty:
                     num_det = len(date_df)
                     avg_frp = np.mean(date_df.FRP)
@@ -132,8 +146,9 @@ class FireDfToClusterConverter(Converter):
 @click.option('--cluster_type', default=clust.CLUST_TYPE_SPATIAL_TEMPORAL, type=click.Choice([clust.CLUST_TYPE_SPATIAL, clust.CLUST_TYPE_SPATIAL_TEMPORAL, clust.CLUST_TYPE_SPATIAL_TEMPORAL_FORWARDS]))
 @click.option('--cluster_km', default=5., type=click.FLOAT)
 @click.option('--cluster_days', default=10, type=click.INT)
+@click.option('--daytime', default=False, type=click.BOOL)
 @click.option('--log', default='INFO')
-def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, log):
+def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, daytime, log):
     """
     Load fire data frame and create clusters.
     """
@@ -142,7 +157,7 @@ def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, l
 
     logging.info('Starting fire data frame to cluster conversion')
     logging.info('Cluster Type: %s, Cluster Thresh km: %s, Cluster Thresh days: %s' % (cluster_type, cluster_km, cluster_days))
-    FireDfToClusterConverter(cluster, cluster_type, cluster_km, cluster_days).convert(src_path, dest_path)
+    FireDfToClusterConverter(cluster, cluster_type, cluster_km, cluster_days, daytime).convert(src_path, dest_path)
     logging.info('Finished fire data frame to cluster conversion')
 
 
