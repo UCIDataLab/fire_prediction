@@ -23,6 +23,6 @@ def add_autoregressive_col(X, t_k):
 
 def standardize_covariates(X, covariates):
     for cov in covariates:
-        X[cov] = (X[cov] - np.mean(X[cov])) / np.var(X[cov])
+        X[cov] = (X[cov] - np.mean(X[cov])) / np.std(X[cov])
 
     return X

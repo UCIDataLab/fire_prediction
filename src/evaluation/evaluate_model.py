@@ -5,6 +5,7 @@ Used to evaluate models.
 import click
 import numpy as np
 import logging
+from collections import defaultdict
 
 import metrics 
 import cross_validation as cv
@@ -39,13 +40,39 @@ def setup_ignition_data(ignition_cube_src, fire_cube_src):
     return X_ignition_c, Y_detections_c
 
 
-def evaluate_model(model, X_active_df, X_ignition_c, Y_detections_c, t_k):
+def evaluate_model(model, X, y, years, t_k):
     # Cross validate over years
-    years = range(int(X_active_df.year.min()), int(X_active_df.year.max())+1)
-    results = cv.cv_years(model, X_active_df, X_ignition_c, Y_detections_c, years, t_k)
+    (results_tr,results_te), models = cv.cv_years(model, X, y, years, t_k)
+
+    results_tr = np.concatenate(results_tr, axis=3)
+    results_te = np.concatenate(results_te, axis=3)
+
+    return (results_tr,results_te), models
+
+def evaluate_model_grid(model, X_active_r, X_ignition_c, Y_detections_c, years, t_k):
+    # Cross validate over years
+    results = cv.cv_years_grid(model, X_active_r, X_ignition_c, Y_detections_c, years, t_k)
     results = np.concatenate(results, axis=3)
 
     return results
+
+def evaluate_model_params(model_func, param_dict, X, y, years, t_k_arr):
+    results_tr_all = defaultdict(list)
+    results_te_all = defaultdict(list)
+    models_all = defaultdict(list)
+
+    for t_k in t_k_arr:
+        results_k = {}
+        
+        # Test model with different covariates
+        print 'T_k=%d' % t_k
+        for name,params in param_dict.iteritems():
+            (results_tr,results_te), models = evaluate_model(model_func(params), X[t_k], y[t_k], years, t_k)
+            results_tr_all[name].append(results_tr)
+            results_te_all[name].append(results_te)
+            models_all[name].append(models)
+    
+    return (results_tr_all,results_te_all), models_all
 
 
 @click.command()

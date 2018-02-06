@@ -14,16 +14,19 @@ class ActiveIgnitionGridModel(Model):
         self.igm = ignition_model
 
     def fit(self, X, y=None):
+        fit_model = [None, None]
         if self.afm:
-            self.afm.fit(X[0])
+            fit_model[0] = self.afm.fit(X[0])
         if self.igm:
-            self.igm.fit(X[1])
+            fit_model[1] = self.igm.fit(X[1])
 
-    def predict(self, X):
-        pred = np.zeros(X[1].shape[:3])
+        return tuple(fit_model)
+
+    def predict(self, X, shape=None):
+        pred = np.zeros(shape)
 
         if self.afm:
-            pred += self.afm.predict(X[0])
+            pred += self.afm.predict(X[0], shape)
 
         if self.igm:
             pred += self.igm.predict(X[1])

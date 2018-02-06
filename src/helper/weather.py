@@ -110,9 +110,6 @@ class WeatherCube(object):
         return year_not, year_only
 
 
-
-
-
 class WeatherRegion(object):
     """
     A collection of WeatherCubes with matching shape and dates.
@@ -121,23 +118,27 @@ class WeatherRegion(object):
     def __init__(self, name, cubes={}):
         self.name = name
 
-        self.cubes = {}
-        for _,cube in cubes.iteritems():
-            self.add_cube(cube)
-            
         self.shape = None
         self.dates = None
         self.bounding_box = None
 
+        # TODO: Remove this, hack for cross-validation supporting Cubes or Regions
+        self.values = self
+
+        self.cubes = {}
+        for _,cube in cubes.iteritems():
+            self.add_cube(cube)
+            
+
     # TODO: Free memory for repeated shape, dates and bounding_box?
     def add_cube(self, cube):
-        if self.shape and (cube.shape != self.shape):
+        if self.shape is not None and np.any(cube.shape != self.shape):
             raise ValueError('All cubes in a region must have the same shape. Cube shape %s != region shape %s' % (cube.shape, self.shape))
 
-        if self.dates and (cube.dates != self.dates):
-            raise ValueError('All cubes in a region must have the same dates' % (np.shape(cube.data), self.shape))
+        if self.dates is not None and np.any(cube.dates != self.dates):
+            raise ValueError('All cubes in a region must have the same dates' % (np.shape(cube.dates), self.shape))
 
-        if self.bounding_box and (cube.bounding_box != self.bounding_box):
+        if self.bounding_box is not None and np.any(cube.bounding_box != self.bounding_box):
             raise ValueError('All cubes in a region must have the same bounding box. Cube bb %s != region bb %s' % (str(cube.bounding_box), str(self.bounding_box)))
 
         self.shape = cube.shape
@@ -153,9 +154,6 @@ class WeatherRegion(object):
         return self.cubes[key]
 
     def filter_dates(self, date_start, date_end):
-        ind_start = bisect.bisect_left(self.dates, date_start)
-        ind_end = bisect.bisect_right(self.dates, date_end)
-
         new_cubes = {}
         for name,cube in self.cubes.iteritems():
             new_cubes[name] = cube.filter_dates(date_start, date_end)
@@ -163,5 +161,23 @@ class WeatherRegion(object):
         new = WeatherRegion(self.name, new_cubes)
 
         return new
+
+    def remove_year(self, year):
+        """
+        :param year: Year to remove from cube
+
+        :return: (new WeatherCube w/o year, new WeatherCube w/ only year)
+        """
+        new_cubes_without_year = {}
+        new_cubes_with_year = {}
+        for name,cube in self.cubes.iteritems():
+            cube_without_year,cube_with_year = cube.remove_year(year)
+            new_cubes_without_year[name] = cube_without_year
+            new_cubes_with_year[name] = cube_with_year
+
+        new_without_year = WeatherRegion(self.name, new_cubes_without_year)
+        new_with_year = WeatherRegion(self.name, new_cubes_with_year)
+
+        return new_without_year, new_with_year
 
 
