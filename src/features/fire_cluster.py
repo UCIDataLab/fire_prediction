@@ -131,7 +131,7 @@ class FireDfToClusterConverter(Converter):
 @click.option('--cluster', default=None)
 @click.option('--cluster_type', default=clust.CLUST_TYPE_SPATIAL_TEMPORAL, type=click.Choice([clust.CLUST_TYPE_SPATIAL, clust.CLUST_TYPE_SPATIAL_TEMPORAL, clust.CLUST_TYPE_SPATIAL_TEMPORAL_FORWARDS]))
 @click.option('--cluster_km', default=5., type=click.FLOAT)
-@click.option('--cluster_days', default=3, type=click.INT)
+@click.option('--cluster_days', default=10, type=click.INT)
 @click.option('--log', default='INFO')
 def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, log):
     """

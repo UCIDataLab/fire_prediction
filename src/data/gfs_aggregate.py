@@ -10,6 +10,8 @@ import cPickle as pickle
 import datetime
 import pytz
 
+import sys
+
 from helper import date_util as du
 from helper import weather
 from base.converter import Converter
@@ -98,6 +100,7 @@ class GFStoWeatherRegionConverter(Converter):
         # Create WeatherRegion and add WeatherCubes for each measurement
         region = weather.WeatherRegion('gfs_alaska')
         for k,v in all_data.iteritems():
+            logging.debug('Building weather cube for "%s"' % k)
             measurement = all_data[k]
             values, units, bb = measurement['values'], measurement['units'], measurement['bounding_box']
             cube = weather.WeatherCube(k, values, units, bb, ['lat', 'lon', 'time'], dates)
@@ -205,9 +208,14 @@ def main(src_dir, dest_path, start, end, scale, log):
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
+    # Check that dest_path isn't a directory
+    if os.path.isdir(dest_path):
+        raise Exception('Destination path "%s" is a directory' % dest_path)
+
     # Check that dest_path (excluding file) exists
-    #if not os.path.isdir(os.path.dirname(dest_path)):
-    #    print 'Destination path does not exist "%s"' % dest_path
+    elif not os.path.isdir(os.path.dirname(dest_path)):
+        raise Exception('Destination directory "%s" does not exist' % os.path.dirname(dest_path))
+
 
     logging.info('Starting GFS extracted to WeatherRegion conversion')
     GFStoWeatherRegionConverter(start, end, scale).convert(src_dir, dest_path)
