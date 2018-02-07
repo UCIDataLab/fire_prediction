@@ -18,14 +18,14 @@ def cv_years(model, X, y, years, t_k):
         y_tr = y.sel(time=y.time.dt.year != test_year).values
         y_te = y.sel(time=y.time.dt.year == test_year).values
 
-        fit_model = model.fit(X,y_tr)
+        fit_model = model.fit(X_tr,y_tr)
 
-        y_hat_te = model.predict(X_te, np.shape(y_te))
         y_hat_tr = model.predict(X_tr, np.shape(y_tr))
+        y_hat_te = model.predict(X_te, np.shape(y_te))
 
         # Store results
-        results_te.append((y_te,y_hat_te))
         results_tr.append((y_tr,y_hat_tr))
+        results_te.append((y_te,y_hat_te))
         models.append(fit_model)
 
     return (results_tr, results_te), models

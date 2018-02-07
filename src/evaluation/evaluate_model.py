@@ -65,13 +65,14 @@ def evaluate_model_params(model_func, param_dict, X, y, years, t_k_arr):
         results_k = {}
         
         # Test model with different covariates
-        print 'T_k=%d' % t_k
+        print 'T_k=%d' % t_k,
         for name,params in param_dict.iteritems():
             (results_tr,results_te), models = evaluate_model(model_func(params), X[t_k], y[t_k], years, t_k)
             results_tr_all[name].append(results_tr)
             results_te_all[name].append(results_te)
             models_all[name].append(models)
     
+    print
     return (results_tr_all,results_te_all), models_all
 
 

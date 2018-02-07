@@ -35,14 +35,16 @@ def plot_results(results, t_k_arr):
 def plot_results_grid(results_list, t_k_arr):
     #fig = plt.figure()
     metrics_ = [metrics.mean_absolute_error, metrics.root_mean_squared_error]
+    f, axs = plt.subplots(len(metrics_), len(results_list), sharey='row')
     for j,(results,t) in enumerate(results_list):
         for i, metric in enumerate(metrics_):    
-            ax = plt.subplot(len(metrics_),len(results_list),(i*len(results_list))+j+1)
+            ax = axs[i,j]
+            #ax = plt.subplot(len(metrics_),len(results_list),(i*len(results_list))+j+1)
             ax.set_title(t)
             for k,v in results.iteritems():     
-                plt.plot(range(1,len(results[k])+1), map(lambda x: metric(*flat(x)), results[k]), "s--", label=k, linewidth=2)
-            plt.xlabel("Day of forecast (k)")
-            plt.xticks(t_k_arr)
-            plt.ylabel(metric.__name__)
+                ax.plot(range(1,len(results[k])+1), map(lambda x: metric(*flat(x)), results[k]), "s--", label=k, linewidth=2)
+            ax.set_xlabel("Day of forecast (k)")
+            ax.set_xticks(t_k_arr)
+            axs[i,0].set_ylabel(metric.__name__)
             
     lgd = plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
