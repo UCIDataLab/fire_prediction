@@ -4,6 +4,7 @@ Used to evaluate models.
 
 import click
 import numpy as np
+import pandas as pd
 import logging
 from collections import defaultdict
 
@@ -19,13 +20,21 @@ from models.bias_grid import BiasGridModel
 from models.active_ignition_grid import ActiveIgnitionGridModel
 
 def setup_active_fire_data(integrated_cluster_df_src, covariates=['temperature', 'humidity', 'wind', 'rain']):
-    X_active_df = ld.load_pickle(integrated_cluster_df_src)
+    #X_active_df = ld.load_pickle(integrated_cluster_df_src)
+    X_active_df = pd.read_pickle(integrated_cluster_df_src)
 
     # Preprocess data
     X_active_df = pp.standardize_covariates(X_active_df, covariates)
     X_active_df = X_active_df.assign(year=map(lambda x: x.year, X_active_df.date_local))
 
     return X_active_df 
+
+def setup_multiple_active_fire_data(integrated_cluster_df_src_list, covariates=['temperature', 'humidity', 'wind', 'rain']):
+    X_active_df = {}
+    for t_k,f_src in integrated_cluster_df_src_list:
+        X_active_df[t_k] = setup_active_fire_data(f_src)
+
+    return X_active_df
 
 
 def setup_ignition_data(ignition_cube_src, fire_cube_src):
@@ -42,7 +51,10 @@ def setup_ignition_data(ignition_cube_src, fire_cube_src):
 
 def evaluate_model(model, X, y, years, t_k):
     # Cross validate over years
-    (results_tr,results_te), models = cv.cv_years(model, X, y, years, t_k)
+    if years is not None:
+        (results_tr,results_te), models = cv.cv_years(model, X, y, years, t_k)
+    else:
+        (results_tr,results_te), models = cv.evaluate_all(model, X, y, t_k)
 
     results_tr = np.concatenate(results_tr, axis=3)
     results_te = np.concatenate(results_te, axis=3)

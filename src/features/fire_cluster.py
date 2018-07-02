@@ -20,7 +20,7 @@ class FireDfToClusterConverter(Converter):
     """
     Converts a data frame of fire data to a cluser data frame.
     """
-    def __init__(self, cluster_id_path=None, cluster_type=clust.CLUST_TYPE_SPATIAL_TEMPORAL, cluster_thresh_km=5., cluster_thresh_days=3., only_day=False, fire_season=((5,14), (8,31))):
+    def __init__(self, cluster_id_path=None, cluster_type=clust.CLUST_TYPE_SPATIAL_TEMPORAL, cluster_thresh_km=5., cluster_thresh_days=3., only_day=False, fixed_centroids=True, fire_season=((5,14), (8,31))):
         super(FireDfToClusterConverter, self).__init__()
 
         self.cluster_id_path = cluster_id_path
@@ -28,6 +28,7 @@ class FireDfToClusterConverter(Converter):
         self.cluster_thresh_days = cluster_thresh_days
         self.cluster_type = cluster_type
         self.only_day = only_day
+        self.fixed_centroids = fixed_centroids
         self.fire_season = fire_season
 
     def load(self, src_path):
@@ -116,7 +117,9 @@ class FireDfToClusterConverter(Converter):
         for cluster_id in cluster_ids:
             logging.debug('Starting processing of cluster %d/%d' % (cluster_id+1, len(cluster_ids)))
             c_df = df[df.cluster_id==cluster_id]
-            lat_centroid, lon_centroid = np.mean(c_df.lat), np.mean(c_df.lon)
+
+            if self.fixed_centroids:
+                lat_centroid, lon_centroid = np.mean(c_df.lat), np.mean(c_df.lon)
 
             #dates = set(c_df.date_local)
             dates = du.daterange(np.min(c_df.date_local), np.max(c_df.date_local)+du.INC_ONE_DAY)
@@ -129,8 +132,12 @@ class FireDfToClusterConverter(Converter):
                     num_det = len(date_df)
                     avg_frp = np.mean(date_df.FRP)
                     avg_conf = np.mean(date_df.conf)
+
+                    if not self.fixed_centroids:
+                        lat_centroid, lon_centroid = np.mean(date_df.lat), np.mean(date_df.lon)
                 else:
                     num_det, avg_frp, avg_conf = 0, np.nan, np.nan
+
 
                 cluster_df_data.append((date, cluster_id, num_det, lat_centroid, lon_centroid, avg_frp, avg_conf))
 
@@ -147,8 +154,9 @@ class FireDfToClusterConverter(Converter):
 @click.option('--cluster_km', default=5., type=click.FLOAT)
 @click.option('--cluster_days', default=10, type=click.INT)
 @click.option('--daytime', default=False, type=click.BOOL)
+@click.option('--fixed_cents', default=True, type=click.BOOL)
 @click.option('--log', default='INFO')
-def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, daytime, log):
+def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, daytime, fixed_cents, log):
     """
     Load fire data frame and create clusters.
     """
@@ -157,7 +165,7 @@ def main(src_path, dest_path, cluster, cluster_type, cluster_km, cluster_days, d
 
     logging.info('Starting fire data frame to cluster conversion')
     logging.info('Cluster Type: %s, Cluster Thresh km: %s, Cluster Thresh days: %s' % (cluster_type, cluster_km, cluster_days))
-    FireDfToClusterConverter(cluster, cluster_type, cluster_km, cluster_days, daytime).convert(src_path, dest_path)
+    FireDfToClusterConverter(cluster, cluster_type, cluster_km, cluster_days, daytime, fixed_cents).convert(src_path, dest_path)
     logging.info('Finished fire data frame to cluster conversion')
 
 

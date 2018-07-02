@@ -1,9 +1,9 @@
 """
-Model for fitting a bias term to each grid cell and a shared weather model with a poisson distribution.
+Model for fitting a bias term to each grid cell and a shared weather model with a zero-inflated poisson distribution.
 """
 import numpy as np
 import statsmodels.api as sm
-import statsmodels.formula.api as smf
+from statsmodels.discrete.count_model import ZeroInflatedPoisson, ZeroInflatedNegativeBinomialP
 
 from StringIO import StringIO
 
@@ -12,9 +12,9 @@ from sklearn.neural_network import MLPRegressor
 
 import pandas as pd
 
-class PoissonRegressionGridModel(Model):
+class ZIPRegressionGridModel(Model):
     def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None, pred_func=None):
-        super(PoissonRegressionGridModel, self).__init__()
+        super(ZIPRegressionGridModel, self).__init__()
 
         self.covariates = covariates
         self.regularizer_weight = regularizer_weight
@@ -66,12 +66,29 @@ class PoissonRegressionGridModel(Model):
         X_df = pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
         #print X_df
 
-
-
         if self.regularizer_weight is None:
-            self.fit_result = smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
+            #self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit()
+            formula = 'num_det_target ~ np.log(num_det+%f)' % self.log_shift
+
+            y = np.zeros(len(X_df))
+            y[:] = X_df['num_det_target']
+
+            data = np.zeros((len(X_df), 2 + len(self.covariates)))
+            data[:,1] = np.log(X_df['num_det'] + 1)
+            for i,cov in enumerate(self.covariates):
+                data[:,i+2] = X_df[cov]
+
+            self.mean = np.mean(data, axis=0)
+            self.std = np.ones(len(self.covariates)+2)#np.std(data, axis=0)
+            data = (data-self.mean)/self.std
+
+            data[:,0] = 1
+
+            self.fit_result = ZeroInflatedPoisson(y, exog=data,exog_infl=data).fit()
+            #smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
         else:
-            self.fit_result = smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit_regularized(alpha=self.regularizer_weight)
+            #self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit_regularized(alpha=self.regularizer_weight)
+            raise NotImplementedError()
         #self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
 
@@ -102,7 +119,15 @@ class PoissonRegressionGridModel(Model):
 
         X_df = X.to_dataframe()
 
-        pred = self.fit_result.predict(X_df)
+        data = np.zeros((len(X_df), 2 + len(self.covariates)))
+        data[:,1] = np.log(X_df['num_det'] + 1)
+        for i,cov in enumerate(self.covariates):
+            data[:,i+2] = X_df[cov]
+
+        data = (data-self.mean)/self.std
+        data[:,0] = 1
+
+        pred = self.fit_result.predict(exog=data, exog_infl=data)
 
         if self.pred_func:
             pred = self.pred_func(X_df, pred)

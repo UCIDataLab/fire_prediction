@@ -15,7 +15,8 @@ class BiasGridModel(Model):
         """
         :param y: currently unused
         """
-        self.fit_result = np.expand_dims(np.mean(X, axis=2), axis=2)
+        self.fit_result = np.expand_dims(np.mean(X['num_det'], axis=2), axis=2)
 
-    def predict(self, X):
-        return self.fit_result
+    def predict(self, X, shape):
+        pred = np.repeat(self.fit_result, shape[2], axis=2)
+        return pred

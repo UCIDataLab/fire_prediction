@@ -29,6 +29,6 @@ class ActiveIgnitionGridModel(Model):
             pred += self.afm.predict(X[0], shape)
 
         if self.igm:
-            pred += self.igm.predict(X[1])
+            pred += self.igm.predict(X[1], shape)
 
         return pred

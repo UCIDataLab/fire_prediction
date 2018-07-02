@@ -38,14 +38,20 @@ class FireWeatherIntegration(object):
         weather_vars = []
         for i, row in enumerate(fire_df.itertuples()):
             logging.debug('Starting integration for row %d/%d' % (i+1, fire_df.shape[0]))
-            date, lat, lon = row.date_local, row.lat_centroid, row.lon_centroid
+            num_det = row.num_det
+
+            # Don't update lat/lon if no detections
+            if num_det == 0:
+                date, _, _ = row.date_local, row.lat_centroid, row.lon_centroid
+            else:
+                date, lat, lon = row.date_local, row.lat_centroid, row.lon_centroid
 
             date += du.INC_ONE_DAY * self.k_days # For row t, store weather(t+k)
             target_datetime = datetime.combine(date, dt.time(self.time, 0, 0, tzinfo=du.TrulyLocalTzInfo(lon, du.round_to_nearest_quarter_hour)))
 
             var = self.get_weather_variables(weather_region, target_datetime, lat, lon)
             weather_vars.append(var)
-        
+
         weather_df = pd.DataFrame(weather_vars, columns=self.weather_vars_labels)
 
         self.integrated_data = fire_df.join(weather_df, how='outer')

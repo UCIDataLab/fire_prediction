@@ -43,9 +43,14 @@ class GridPredictorModel(Model):
         # Assign each detection to a cell in time and space
         for pred, row in zip(preds,X.to_dataframe().itertuples()):
             lat,lon,date = row.lat_centroid, row.lon_centroid, row.Index.date()
+            if lat == np.nan:
+                lat,lon = lat_old,lon_old
+
             lat_ind,lon_ind = self.bounding_box.latlon_to_indices(lat,lon,spatial_size[0]) # TODO: add dynamic sizing
             start = dt.date(date.year, self.fire_season[0][0], self.fire_season[0][1])
             date_ind = (date-start).days + years[date.year] * year_size
+
+            lat_old, lon_old = lat, lon
 
             grid[lat_ind,lon_ind,date_ind] += pred
 

@@ -24,17 +24,21 @@ def make_map(bb, grid_spacing=(2,.5,2,.5)):
     mp.drawcoastlines()
     #mp.drawlsmask()
 
-    parallels = np.arange(lat_min,lat_max,grid_spacing[0])
-    _ = mp.drawparallels(parallels,labels=[False,True,False,False])
+    if grid_spacing[0]!=0:
+        parallels = np.arange(lat_min,lat_max,grid_spacing[0])
+        _ = mp.drawparallels(parallels,labels=[False,True,False,False])
     
-    parallels = np.arange(lat_min,lat_max,grid_spacing[1])
-    _ = mp.drawparallels(parallels,labels=[False,False,False,False])
+    if grid_spacing[1]!=0:
+        parallels = np.arange(lat_min,lat_max,grid_spacing[1])
+        _ = mp.drawparallels(parallels,labels=[False,False,False,False])
 
-    meridians = np.arange(lon_min,lon_max,grid_spacing[2])
-    _ = mp.drawmeridians(meridians, labels=[False,False,False,True])
+    if grid_spacing[2]!=0:
+        meridians = np.arange(lon_min,lon_max,grid_spacing[2])
+        _ = mp.drawmeridians(meridians, labels=[False,False,False,True])
     
-    meridians = np.arange(lon_min,lon_max,grid_spacing[3])
-    _ = mp.drawmeridians(meridians, labels=[False,False,False,False])
+    if grid_spacing[3]!=0:
+        meridians = np.arange(lon_min,lon_max,grid_spacing[3])
+        _ = mp.drawmeridians(meridians, labels=[False,False,False,False])
     
     return mp
 

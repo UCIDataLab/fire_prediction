@@ -1,4 +1,6 @@
 /fire_pred
+nb_log.txt
+nohup.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

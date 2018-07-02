@@ -30,6 +30,28 @@ def cv_years(model, X, y, years, t_k):
 
     return (results_tr, results_te), models
 
+def evaluate_all(model, X, y, t_k):
+    results_te = []
+    results_tr = []
+    models = []
+
+    # Split X
+    X_tr, X_te = X, X
+
+    # Split Y
+    y_tr, y_te = y.values, y.values
+
+    fit_model = model.fit(X_tr,y_tr)
+
+    y_hat_te = model.predict(X_te, np.shape(y_te))
+
+    # Store results
+    results_tr.append((y_tr,y_hat_te)) # Keep this just so it matches output format for cv_years
+    results_te.append((y_te,y_hat_te))
+    models.append(fit_model)
+
+    return (results_tr, results_te), models
+
 def make_year_list(years, shape):
     num = shape / len(years)
     vals = []
@@ -39,7 +61,6 @@ def make_year_list(years, shape):
     return vals
     
 def add_cell_encoding(data):
-    print 'Hi'
     for i in range(33):
         for j in range(55):
             enc = np.zeros((33,55,1100))
