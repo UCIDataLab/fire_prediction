@@ -56,7 +56,7 @@ class LatLonBoundingBox(object):
     def make_grid(self, lat_inc=.5, lon_inc=.5):
         # TODO: check for divisibility by increments
         lats = np.arange(self.lat_max,self.lat_min-lat_inc, -lat_inc)
-        lons = np.arange(self.lon_min,self.lon_max+lon_inc,  lon_inc)
+        lons = np.arange(self.lon_min,self.lon_max, lon_inc) # Don't include upper-bound of lon
 
         num_lats, num_lons = len(lats), len(lons)
 
@@ -79,10 +79,15 @@ class LatLonBoundingBox(object):
         return str({'lat': (self.lat_min, self.lat_max), 'lon': (self.lon_min, self.lon_max)})
 
     def __eq__(self, other):
-        return self.get() == other.get()
+        if isinstance(other, LatLonBoundingBox):
+            return self.get() == other.get()
+        return False
 
     def __ne__(self, other):
-        return not self.get() == other.get()
+        return not self.__eq__(other)
+    
+    def __hash__(self):
+        return hash(self.get())
 
 def latlonrange(bounding_box, inc_lat=1., inc_lon=1.):
     lat_min, lat_max, lon_min, lon_max = bounding_box.get()

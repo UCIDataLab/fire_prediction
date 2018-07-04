@@ -36,7 +36,7 @@ def def_name_func(name):
     name_dict = def_name_conversion_dict
     if name in name_dict: name = name_dict[name]
 
-    return name.lower().replace(' ', '_')
+    return name.lower().replace(' ', '_').replace('-', '_')
 
 
 class GFStoWeatherRegionConverter(Converter):
@@ -99,7 +99,7 @@ class GFStoWeatherRegionConverter(Converter):
 
         # Create WeatherRegion and add WeatherCubes for each measurement
         region = weather.WeatherRegion('gfs_alaska')
-        for k,v in all_data.iteritems():
+        for k,v in all_data.items():
             logging.debug('Building weather cube for "%s"' % k)
             measurement = all_data[k]
             values, units, bb = measurement['values'], measurement['units'], measurement['bounding_box']
@@ -171,7 +171,7 @@ class GFStoWeatherRegionConverter(Converter):
         return datetime.datetime(year, month, day, hour, minute, tzinfo=pytz.UTC), datetime.timedelta(hours=offset)
 
     def append_data(self, all_data, file_data, date_ind):
-        for k, v in file_data.iteritems():
+        for k, v in file_data.items():
             name = self.measurement_name_func(k)
             values, units, bb = v['values'], v['units'], v['bounding_box']
 

@@ -44,7 +44,7 @@ def main(src_path, keys, log):
     df = pandas.DataFrame(messages, columns=keys)
     df.sort_values(keys, inplace=True)
 
-    print df.to_csv()
+    print(df.to_csv())
 
 
 if __name__=='__main__':

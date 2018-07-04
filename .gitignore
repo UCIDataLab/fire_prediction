@@ -2,6 +2,11 @@
 nb_log.txt
 nohup.out
 
+/logs
+
+# Direnv
+.envrc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

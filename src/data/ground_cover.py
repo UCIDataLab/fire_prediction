@@ -5,8 +5,6 @@ from src.helper.geometry import LatLonBoundingBox
 with open('data/raw/land_mcd12c1/land_cover.pkl', 'rb') as fin:
     data = pickle.load(fin)
 
-print data.shape
-
 num_land_types = len(set(data.flatten()))
 land_cover_types = np.zeros((data.shape[0]/10, data.shape[1]/10, num_land_types))
 

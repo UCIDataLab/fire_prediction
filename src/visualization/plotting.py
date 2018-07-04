@@ -26,7 +26,7 @@ def plot_training(results, t_k_arr, metric=metrics.mean_absolute_error):
 
 def plot_results(results, t_k_arr):
     for metric in [metrics.mean_absolute_error, metrics.root_mean_squared_error, metrics.neg_log_likelihood_poisson]:
-        for k,v in results.iteritems():
+        for k,v in results.items():
             plt.plot(t_k_arr, map(lambda x: metric(*flat(x)), results[k]), "s--", label=k, linewidth=2)
         lgd = plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
         plt.xlabel("Day of forecast (k)")
@@ -78,8 +78,8 @@ def plot_results_grid_errorbars(results_list, t_k_arr, metrics_):
                     y = map(lambda x: metric(*flat(x)), results[k][t_k])
                     y_final.append(y)
                 error_bars = map(lambda x: np.std(x), y_final)
-                print error_bars
-                print y_final
+                print(error_bars)
+                print(y_final)
                 y = map(lambda x: np.mean(np.power(x,2)), y_final)
                 ax.errorbar(x, y, yerr=None, fmt="s--", label=k, linewidth=2)
 

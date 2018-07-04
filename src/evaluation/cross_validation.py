@@ -68,13 +68,13 @@ def add_cell_encoding(data):
             enc = enc.flatten()
             data.append(('cell_%d_%d'%(i,j),enc))
 
-    print [k[0] for k in data][:5]
+    print([k[0] for k in data][:5])
 
 def cv_years_grid(model, X_active_r, X_ignition_c, Y_detections_c, years, t_k):
     results = []
 
     data = []
-    for k,v in X_active_r.cubes.iteritems():
+    for k,v in X_active_r.cubes.items():
         if k in model.afm.covariates + ['num_det', 'num_det_target']:
             data.append((k, v.values.flatten()))
 

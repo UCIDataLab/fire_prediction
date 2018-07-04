@@ -14,7 +14,7 @@ def build_results_table(results_list):
         for metric in metrics_:
             out.write(metric.__name__ + '\n')
             table = []
-            for k,v in results.iteritems():
+            for k,v in results.items():
                 vals = map(lambda x: round(metric(*flat(x)),5), results[k])
                 table.append([k]+vals)
             out.write(tabulate.tabulate(table))

@@ -14,7 +14,7 @@ class LcdFetch(object):
         self.data_dir = data_dir
 
     def fetch(self):
-        print 'Local Climatological Data (LCD) requires using the online request system at "https://www.ncdc.noaa.gov/cdo-web/datatools/lcd". Refer to the "Data" section of the "Getting Started" doc.'
+        print('Local Climatological Data (LCD) requires using the online request system at "https://www.ncdc.noaa.gov/cdo-web/datatools/lcd". Refer to the "Data" section of the "Getting Started" doc.')
 
 
 @click.command()

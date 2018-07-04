@@ -158,7 +158,7 @@ def build_x_grid(X, y, land_cover, t_k_arr, num_auto_memory=0, num_weather_mem=0
 
             get_weather_variables(vals, X, target_datetime, ['temperature','humidity','wind','rain'])
 
-        for k,v in vals.iteritems():
+        for k,v in vals.items():
             vals[k] = np.rollaxis(np.array(v), 0, 3)  
 
         dates = pd.to_datetime(np.array(y.dates))
@@ -245,14 +245,14 @@ def build_x_grid(X, y, land_cover, t_k_arr, num_auto_memory=0, num_weather_mem=0
 
         X_dict[t_k] = mdw.MultidataWrapper((X_ds,X_ds))
 
-        print 'T_k=%d' % t_k,
-    print
+        print('T_k=%d' % t_k, end='')
+    print()
     return X_dict
 
 def add_region_biases(X_grid_dict, region_size):
     # Add encoding pairs (for cell/region biases)
     encoding_pairs = create_cell_encoding(region_size, X_grid_dict[1][0].num_det.shape)
-    for k,v in X_grid_dict.iteritems():
+    for k,v in X_grid_dict.items():
         for name,enc in encoding_pairs:
             v[0].update({name: (('y','x','time'), enc)})
 
@@ -267,5 +267,5 @@ def add_water_mask(X_grid_dict, bounding_box):
     water_mask = np.expand_dims(water_mask, axis=2)    
     water_mask = np.tile(water_mask, (1,1,X_grid_dict[1][0].time.shape[0]))
 
-    for k,v in X_grid_dict.iteritems():
+    for k,v in X_grid_dict.items():
         v[0].update({'water_mask': (('y','x','time'), water_mask)})

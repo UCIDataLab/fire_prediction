@@ -31,7 +31,7 @@ class ZIPRegressionGridModel(Model):
         """
         """
         data = []
-        for k,v in X.cubes.iteritems():
+        for k,v in X.cubes.items():
             if k in self.covariates + ['num_det', 'num_det_target']:
                 data.append((k, v.values.flatten()))
         data = dict(data)
@@ -62,9 +62,9 @@ class ZIPRegressionGridModel(Model):
         if self.filter_func:
             X_df = self.filter_func(X_df)
 
-        #print pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
+        #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
         X_df = pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
-        #print X_df
+        #print(X_df)
 
         if self.regularizer_weight is None:
             #self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit()
@@ -98,7 +98,7 @@ class ZIPRegressionGridModel(Model):
 
         """
         data = []
-        for k,v in X.cubes.iteritems():
+        for k,v in X.cubes.items():
             if k in self.covariates + ['num_det', 'num_det_target']:
                 data.append((k, v.values.flatten()))
         data = dict(data)

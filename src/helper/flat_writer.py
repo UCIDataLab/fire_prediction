@@ -92,7 +92,7 @@ for date in Y_detection_c.dates:
     get_weather_variables(vals, weather_proc_region, target_datetime, ['temperature','humidity','wind','rain'])
 
 to_flatten = weather.WeatherRegion('flatten')
-for k,v in vals.iteritems():
+for k,v in vals.items():
     vals[k] = np.rollaxis(np.array(v), 0, 3)  
     cube = weather.WeatherCube(k, vals[k], None, dates=Y_detection_c.dates)
     to_flatten.add_cube(cube)

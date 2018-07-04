@@ -75,7 +75,7 @@ class WeatherRegionProcessing(Converter):
         logging.debug('Removing offset measurements')
         new_region = weather.WeatherRegion(data.name)
 
-        for _, cube in data.cubes.iteritems():
+        for _, cube in data.cubes.items():
             new_cube = self.remove_offset_measurements_cube(cube)
             new_region.add_cube(new_cube)
 

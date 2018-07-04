@@ -1,5 +1,8 @@
 import numpy as np
-import gribapi
+#import gribapi
+import pygrib
+import json
+
 import logging
 
 from helper.geometry import LatLonBoundingBox
@@ -51,8 +54,10 @@ class GribMessage(object):
         if self.lon_rot != 0:
             values = np.roll(values, self.lon_rot, axis=1)
 
+
         if bounding_box:
             lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = bounding_box.get_min_max_indexes(dlat, dlon)
+
 
             # Lat is typically ordered from highest to lowest
             return values[lat_max_ind:lat_min_ind+1, lon_min_ind:lon_max_ind+1], LatLonBoundingBox(dlat[lat_min_ind], dlat[lat_max_ind], dlon[lon_min_ind], dlon[lon_max_ind])
@@ -109,7 +114,7 @@ class GribFile(object):
         """
         Check if grib message matches on all key/value pairs.
         """
-        for k,v in key_val_dict.iteritems():
+        for k,v in key_val_dict.items():
             mval = message.get(k)
             if message.get(k) != v:
                 return False
@@ -122,7 +127,9 @@ class GribSelection(object):
 
     Supports "backup" selections if primary cannot be found in file.
     """
-    def __init__(self):
+    def __init__(self, name, dtype=np.float64):
+        self.name = name
+        self.dtype = dtype
         self.primary = None
         self.backups = []
 
@@ -136,7 +143,6 @@ class GribSelection(object):
 
     def __str__(self):
         return str((self.primary, self.backups))
-
 
 class GribSelector(object):
     """
@@ -155,6 +161,7 @@ class GribSelector(object):
         data = {}
 
         for s in self.selections:
+
             name, selected_messages = self.select_message(grib_file, s)
 
             # Silently fail on empty selections
@@ -167,12 +174,25 @@ class GribSelector(object):
 
             message = selected_messages[0]
 
-            values, bb = message.get_values(self.bounding_box)
-            units = message.get('units')
+            #values, bb = message.get_values(self.bounding_box)
 
-            [m.release() for m in selected_messages]
+            dlat,dlon = message.latlons()
+            dlon = np.remainder((dlon+180),360)-180 # Convert from 0 to 360 longitude notation to -180 to 180
+            self.lon_rot = -np.argmin(dlon)
+            dlon = np.roll(dlon, self.lon_rot) # Rotate so min lon comes first
 
-            data[name] = {'values': values, 'bounding_box': bb, 'units': units}
+            values = message.values.astype(s.dtype)
+            values = np.roll(values, self.lon_rot, axis=1) # Rotate values to match rotated lons
+
+            lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = self.bounding_box.get_min_max_indexes(dlat, dlon)
+
+            values = values[lat_max_ind:lat_min_ind+1, lon_min_ind:lon_max_ind+1]
+
+            units = message['units']
+
+            #[m.release() for m in selected_messages]
+
+            data[s.name] = {'values': values, 'bounding_box': self.bounding_box, 'units': units}
 
         return data
 
@@ -183,44 +203,21 @@ class GribSelector(object):
         If no match, returns None.
         """
         name, sel = selection.primary
-        selected = grib_file.select(**sel)
+        selected = grib_file_select_handle_exception(grib_file, sel)
 
         # If primary selection fails, try backup selections
         if not selected:
             for name, sel in selection.backups:
-                selected = grib_file.select(**sel)
+                selected = grib_file_select_handle_exception(grib_file, sel)
                 if selected:
                     break
 
         return name, selected
 
+def grib_file_select_handle_exception(grib_file, sel):
+    try:
+        return grib_file.select(**sel)
+    except ValueError:
+        return None
 
-def get_default_selections():
-    """
-    Build a list of GribSelections for the default GFS measurements used.
-    """
-    temperature = GribSelection().add_selection(name='Temperature', typeOfLevel='surface')
-    humidity = GribSelection().add_selection(name='Surface air relative humidity').add_selection(name='2 metre relative humidity').add_selection(name='Relative humidity', level=2)
-    wind_u = GribSelection().add_selection(name='10 metre U wind component')
-    wind_v = GribSelection().add_selection(name='10 metre V wind component')
-    rain = GribSelection().add_selection(name='Total Precipitation')
-
-    cape0 = GribSelection().add_selection(name='Convective available potential energy', level=0)
-    cape18000 = GribSelection().add_selection(name='Convective available potential energy', level=18000)
-    cape25500 = GribSelection().add_selection(name='Convective available potential energy', level=25500)
-
-    pblh = GribSelection().add_selection(name='Planetary boundary layer height')
-    cloud = GribSelection().add_selection(name='Total Cloud Cover')
-    soilm = GribSelection().add_selection(name='Volumetric soil moisture content', level=0)
-    mask = GribSelection().add_selection(name='Land-sea mask')
-    orog = GribSelection().add_selection(name='Orography')
-    shortwrad = GribSelection().add_selection(name='Downward short-wave radiation flux')
-
-    sel = [temperature, humidity, wind_u, wind_v, rain, cape0, cape18000, cape25500, pblh, cloud, soilm, mask, orog, shortwrad]
-
-    return sel
-
-def get_default_bounding_box():
-    #return LatLonBoundingBox(55, 71, -165, -138)
-    return LatLonBoundingBox(-90, 90, -180, 180)
 

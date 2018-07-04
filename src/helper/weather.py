@@ -30,7 +30,7 @@ class WeatherCube(object):
         ind_end = bisect.bisect_right(self.dates, date_end)
 
         new = WeatherCube(self.name, self.values[:,:,ind_start:ind_end], self.units, self.bounding_box, self.axis_labels, self.dates[ind_start:ind_end])
-        for k,v in self.attributes.iteritems():
+        for k,v in self.attributes.items():
             if len(v) == len(self.dates):
                 new.add_attribute(k, v[ind_start:ind_end])
             else:
@@ -90,7 +90,7 @@ class WeatherCube(object):
 
         # Build WeatherCube with only year included
         year_only = WeatherCube(self.name, self.values[:,:,ind_start:ind_end], self.units, self.bounding_box, self.axis_labels, self.dates[ind_start:ind_end])
-        for k,v in self.attributes.iteritems():
+        for k,v in self.attributes.items():
             if len(v) == len(self.dates):
                 year_only.add_attribute(k, v[ind_start:ind_end])
             else:
@@ -100,7 +100,7 @@ class WeatherCube(object):
         vals = np.concatenate((self.values[:,:,:ind_start], self.values[:,:,ind_end:]), axis=2)
         dates = np.concatenate((self.dates[:ind_start], self.dates[ind_end:]), axis=0)
         year_not = WeatherCube(self.name, vals, self.units, self.bounding_box, self.axis_labels, dates)
-        for k,v in self.attributes.iteritems():
+        for k,v in self.attributes.items():
             if len(v) == len(self.dates):
                 v_ = np.concatenate((v[:ind_start], v[ind_end:]), axis=0)
                 year_not.add_attribute(k, v_)
@@ -126,7 +126,7 @@ class WeatherRegion(object):
         self.values = self
 
         self.cubes = {}
-        for _,cube in cubes.iteritems():
+        for _,cube in cubes.items():
             self.add_cube(cube)
             
 
@@ -155,7 +155,7 @@ class WeatherRegion(object):
 
     def filter_dates(self, date_start, date_end):
         new_cubes = {}
-        for name,cube in self.cubes.iteritems():
+        for name,cube in self.cubes.items():
             new_cubes[name] = cube.filter_dates(date_start, date_end)
 
         new = WeatherRegion(self.name, new_cubes)
@@ -170,7 +170,7 @@ class WeatherRegion(object):
         """
         new_cubes_without_year = {}
         new_cubes_with_year = {}
-        for name,cube in self.cubes.iteritems():
+        for name,cube in self.cubes.items():
             cube_without_year,cube_with_year = cube.remove_year(year)
             new_cubes_without_year[name] = cube_without_year
             new_cubes_with_year[name] = cube_with_year

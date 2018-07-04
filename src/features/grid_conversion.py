@@ -101,7 +101,7 @@ def get_gfs_val(lat, lon, day, month, gfs_dict, year=2013):
     n_lat, n_lon = lats.shape
     lat_res = lats[0,0] - lats[1,0]
     lon_res = lons[0,1] - lons[0,0]
-#    print "lat %s lon %s lat_res %s lon_res %s" % (str(lat),str(lon),str(lat_res),str(lon_res))
+#    print("lat %s lon %s lat_res %s lon_res %s" % (str(lat),str(lon),str(lat_res),str(lon_res)))
     row = int(float(lats[0,0] - lat) / lat_res)
     positive_lon = lon % 360   # convert longitude to a positive value, which is what GFS uses
     col = int(float(lons[0,0] - positive_lon) / lon_res)

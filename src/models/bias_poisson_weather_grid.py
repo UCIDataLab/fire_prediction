@@ -28,7 +28,7 @@ class BiasPoissonWeatherGridModel(Model):
 
         #data = dict(map(lambda x: (x,X.cubes[x].values.flatten()), X.cubes))
         data = []
-        for k,v in X.cubes.iteritems():
+        for k,v in X.cubes.items():
             if k in self.covariates + ['num_ig_target']:
                 data.append((k, v.values.flatten()))
         data = dict(data)
@@ -49,7 +49,7 @@ class BiasPoissonWeatherGridModel(Model):
     def predict(self, X):
 
         data = []
-        for k,v in X.cubes.iteritems():
+        for k,v in X.cubes.items():
             if k in self.covariates + ['num_ig_target']:
                 data.append((k, v.values.flatten()))
         data = dict(data)
