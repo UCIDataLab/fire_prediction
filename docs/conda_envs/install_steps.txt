@@ -1,0 +1,15 @@
+conda install numpy
+conda install scipy
+conda install basemap
+conda install jupyter
+conda install click
+conda install luigi
+conda install scikit-learn
+conda install xarray
+conda install pyyaml
+conda install tabulate
+conda install h5py
+conda install netcdf4
+conda install -c conda-forge pygrib
+conda install -c conda-forge pyhdf
+pip install parse

@@ -48,7 +48,6 @@ class ModisToDfConverter(Converter):
     def transform(self, data):
         logging.debug('Applying transforms to data frame')
 
-
         df = data[data['type']==0] # Include only vegetation fires
         df = filter_bounding_box_df(df, self.bounding_box) # Only use fires in bounding box
 
