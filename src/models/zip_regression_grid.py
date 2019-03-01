@@ -5,9 +5,9 @@ import numpy as np
 import statsmodels.api as sm
 from statsmodels.discrete.count_model import ZeroInflatedPoisson, ZeroInflatedNegativeBinomialP
 
-from StringIO import StringIO
+from io import StringIO
 
-from base.model import Model
+from .base.model import Model
 from sklearn.neural_network import MLPRegressor
 
 import pandas as pd

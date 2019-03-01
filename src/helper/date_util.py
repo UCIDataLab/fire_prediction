@@ -3,6 +3,9 @@ Helper functions for dealing with calendar dates.
 """
 import math
 import datetime as dt
+import numpy as np
+import xarray as xr
+import pandas as pd
 from datetime import timedelta, datetime, tzinfo
 import pytz
 from functools import total_ordering
@@ -41,6 +44,57 @@ def daterange(start_date, end_date=None, increment=timedelta(hours=24)):
         while start_date < end_date:
             yield start_date
             start_date += increment
+
+def daterange_days(start_date, end_date):
+    for n in range(int ((end_date - start_date).days)):
+        yield start_date + dt.timedelta(n)
+
+def daterange_months(start_date, end_date):
+    """Iterate through months in date range (inclusive)."""
+
+    cur_month, cur_year = start_date.month, start_date.year
+    end_month, end_year = end_date.month, end_date.year
+
+    while (cur_month != end_month) or (cur_year != end_year):
+        yield dt.date(cur_year, cur_month, 1)
+
+        cur_year += cur_month == 12
+        cur_month = np.remainder(cur_month, 12) + 1
+
+    yield dt.date(end_year, end_month, 1)
+
+def filter_fire_season(ds, start=(5,14), end=(8,31), years=range(2007,2016+1)):
+    dates = ds.time.values
+    ind = np.zeros(dates.shape, dtype=np.bool)
+    for year in years:
+        start_date = np.datetime64(dt.date(year, start[0], start[1]))
+        end_date = np.datetime64(dt.date(year, end[0], end[1]))
+        ind = ind | ((dates>=start_date) & (dates<=end_date))
+
+    data_vars = {}
+    for k in ds.data_vars.keys():
+        data_vars[k] = (('y','x','time'), np.array(ds[k].values)[:,:,ind], ds[k].attrs)
+
+    new_ds = xr.Dataset(data_vars, coords={'time': ds.time.values[ind]}, attrs=ds.attrs)
+
+    return new_ds
+
+def create_true_dates(start_date, end_date, times, offsets):
+    """ 
+    Used to build list of datetimes and offsets for a range of dates. Returns datetime64 dates.
+
+    Inclusive of dates. 
+    """
+    dates = list(daterange_days(start_date, end_date + dt.timedelta(1)))
+    times = list(map(lambda x: dt.time(x), times))
+    offsets = list(map(lambda x: dt.timedelta(hours=x), offsets))
+
+    true_dates, true_offsets = zip(*[(dt.datetime.combine(d, t), o) for d in dates for t in times for o in offsets])
+
+    true_dates = pd.to_datetime(true_dates)
+    return true_dates, np.array(true_offsets)
+
+
 
 def round_to_nearest_multiple(x, multiple):
     return multiple * round(x/multiple)

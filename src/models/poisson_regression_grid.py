@@ -5,9 +5,9 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from StringIO import StringIO
+from io import StringIO
 
-from base.model import Model
+from .base.model import Model
 from sklearn.neural_network import MLPRegressor
 
 import pandas as pd
@@ -58,15 +58,16 @@ class PoissonRegressionGridModel(Model):
         endog = X['num_det_target'].to_dataframe().as_matrix()
         """
 
-        X_df = X.to_dataframe()
-        if self.filter_func:
-            X_df = self.filter_func(X_df)
+        try:
+            X_df = X.to_dataframe()
+            if self.filter_func:
+                X_df = self.filter_func(X_df)
 
-        #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
-        X_df = pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
-        #print(X_df)
-
-
+            #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
+            X_df = pd.read_csv(StringIO(X_df.to_csv()))
+            #print(X_df)
+        except:
+            X_df = X
 
         if self.regularizer_weight is None:
             self.fit_result = smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
@@ -75,7 +76,8 @@ class PoissonRegressionGridModel(Model):
         #self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
 
-        return self.fit_result
+        #return self.fit_result
+        return self
 
     def predict(self, X, shape=None):
 
@@ -100,14 +102,17 @@ class PoissonRegressionGridModel(Model):
         pred = self.fit_result.predict(exog)
         """
 
-        X_df = X.to_dataframe()
+        try:
+            X_df = X.to_dataframe()
+            pred = self.fit_result.predict(X_df)
 
-        pred = self.fit_result.predict(X_df)
+            if self.pred_func:
+                pred = self.pred_func(X_df, pred)
 
-        if self.pred_func:
-            pred = self.pred_func(X_df, pred)
-
-        pred = np.array(pred)
-        pred = np.reshape(pred, shape, order='F')
+            pred = np.array(pred)
+            pred = np.reshape(pred, shape, order='F')
+        except:
+            X_df = X
+            pred = self.fit_result.predict(X_df)
 
         return pred

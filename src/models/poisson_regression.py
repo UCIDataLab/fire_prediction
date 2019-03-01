@@ -5,7 +5,7 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from base.model import Model
+from .base.model import Model
 
 class PoissonRegressionModel(Model):
     def __init__(self, covariates):

@@ -5,12 +5,12 @@ import numpy as np
 
 import pandas as pd
 
-def cv_years(model, X, y, years, t_k):
+def cv_years(model, X, y, years, t_k, train=True, predict=True, predict_in_sample=True):
     results_te = []
     results_tr = []
     models = []
 
-    for test_year in years:
+    for i,test_year in enumerate(years):
         # Split X
         X_tr, X_te = X.remove_year(test_year)
 
@@ -18,19 +18,40 @@ def cv_years(model, X, y, years, t_k):
         y_tr = y.sel(time=y.time.dt.year != test_year).values
         y_te = y.sel(time=y.time.dt.year == test_year).values
 
-        fit_model = model.fit(X_tr,y_tr)
+        if train:
+            fit_model = model(t_k).fit(X_tr,y_tr)
+        else:
+            fit_model = model[i][0]
 
-        y_hat_tr = model.predict(X_tr, np.shape(y_tr))
-        y_hat_te = model.predict(X_te, np.shape(y_te))
+        if predict:
+            y_hat_tr = fit_model.predict(X_tr, np.shape(y_tr))
 
-        # Store results
-        results_tr.append((y_tr,y_hat_tr))
-        results_te.append((y_te,y_hat_te))
+            """
+            if 'filter_mask' in X_tr[0]:
+                filter_mask = X_tr[0].filter_mask.values
+                y_tr = y_tr[filter_mask]
+                y_hat_tr = y_hat_tr[filter_mask]
+            """
+
+            results_tr.append((y_tr,y_hat_tr))
+
+        if predict_in_sample:
+            y_hat_te = fit_model.predict(X_te, np.shape(y_te))
+
+            """
+            if 'filter_mask' in X_te[0]:
+                filter_mask = X_te[0].filter_mask.values
+                y_te = y_te[filter_mask]
+                y_hat_te = y_hat_te[filter_mask]
+            """
+
+            results_te.append((y_te,y_hat_te))
+
         models.append(fit_model)
 
     return (results_tr, results_te), models
 
-def evaluate_all(model, X, y, t_k):
+def evaluate_all(model, X, y, t_k, train=True, predict=True):
     results_te = []
     results_tr = []
     models = []
@@ -41,13 +62,24 @@ def evaluate_all(model, X, y, t_k):
     # Split Y
     y_tr, y_te = y.values, y.values
 
-    fit_model = model.fit(X_tr,y_tr)
+    if train:
+        fit_model = model(t_k).fit(X_tr,y_tr)
 
-    y_hat_te = model.predict(X_te, np.shape(y_te))
+    if predict:
+        y_hat_te = fit_model.predict(X_te, np.shape(y_te))
+
+        """
+        if 'filter_mask' in X_te[0]:
+            filter_mask = X_te[0].filter_mask.values
+            y_tr = y_tr[filter_mask]
+            y_te = y_te[filter_mask]
+            y_hat_te = y_hat_te[filter_mask]
+        """
+
+        results_te.append((y_te,y_hat_te))
+        results_tr.append((y_tr,y_hat_te)) # Keep this just so it matches output format for cv_years
 
     # Store results
-    results_tr.append((y_tr,y_hat_te)) # Keep this just so it matches output format for cv_years
-    results_te.append((y_te,y_hat_te))
     models.append(fit_model)
 
     return (results_tr, results_te), models

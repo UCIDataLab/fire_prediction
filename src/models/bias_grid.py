@@ -3,7 +3,7 @@ Model for fitting a bias term to each grid cell.
 """
 import numpy as np
 
-from base.model import Model
+from .base.model import Model
 
 class BiasGridModel(Model):
     def __init__(self):

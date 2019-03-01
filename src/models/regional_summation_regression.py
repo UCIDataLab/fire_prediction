@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from datetime import date
 
-from base.model import Model
+from .base.model import Model
 import helper.date_util as du
 import helper.df_util as dfu
 

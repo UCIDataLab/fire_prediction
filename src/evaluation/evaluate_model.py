@@ -8,8 +8,8 @@ import pandas as pd
 import logging
 from collections import defaultdict
 
-import metrics 
-import cross_validation as cv
+from . import metrics 
+from . import cross_validation as cv
 
 from helper import loaders as ld
 from helper import preprocessing as pp
@@ -49,12 +49,11 @@ def setup_ignition_data(ignition_cube_src, fire_cube_src):
     return X_ignition_c, Y_detections_c
 
 
-def evaluate_model(model, X, y, years, t_k):
+def evaluate_model(model_func, X, y, years, t_k, train=True, predict=True, predict_in_sample=True):
     # Cross validate over years
-    if years is not None:
-        (results_tr,results_te), models = cv.cv_years(model, X, y, years, t_k)
+    if years is not None: (results_tr,results_te), models = cv.cv_years(model_func, X, y, years, t_k, train, predict, predict_in_sample)
     else:
-        (results_tr,results_te), models = cv.evaluate_all(model, X, y, t_k)
+        (results_tr,results_te), models = cv.evaluate_all(model_func, X, y, t_k, train, predict)
 
     results_tr = np.concatenate(results_tr, axis=3)
     results_te = np.concatenate(results_te, axis=3)
@@ -68,7 +67,8 @@ def evaluate_model_grid(model, X_active_r, X_ignition_c, Y_detections_c, years, 
 
     return results
 
-def evaluate_model_params(model_func, param_dict, X, y, years, t_k_arr):
+def evaluate_model_params(model_func, param_dict, X, y, years, t_k_arr, train=True, predict=True, 
+        predict_in_sample=True):
     results_tr_all = defaultdict(list)
     results_te_all = defaultdict(list)
     models_all = defaultdict(list)
@@ -79,13 +79,36 @@ def evaluate_model_params(model_func, param_dict, X, y, years, t_k_arr):
         # Test model with different covariates
         print('T_k=%d' % t_k, end='')
         for name,params in param_dict.items():
-            (results_tr,results_te), models = evaluate_model(model_func(params), X[t_k], y[t_k], years, t_k)
+            (results_tr,results_te), models = evaluate_model(model_func(params), X[t_k], y[t_k], years, t_k,
+                    train, predict, predict_in_sample)
             results_tr_all[name].append(results_tr)
             results_te_all[name].append(results_te)
             models_all[name].append(models)
     
     print()
     return (results_tr_all,results_te_all), models_all
+
+def evaluate_model_params_nw(model_func, X, y, years, t_k_arr, train=True, predict=True, 
+        predict_in_sample=True):
+    results_tr_all = []
+    results_te_all = []
+    models_all = []
+
+    for t_k in t_k_arr:
+        results_k = {}
+
+        # Test model with different covariates
+        print('T_k=%d' % t_k, end='')
+        (results_tr,results_te), models = evaluate_model(model_func, X[t_k], y[t_k], years, t_k,
+                train, predict, predict_in_sample)
+        results_tr_all.append(results_tr)
+        results_te_all.append(results_te)
+        models_all.append(models)
+
+    print()
+    return (results_tr_all,results_te_all), models_all
+
+
 
 
 @click.command()

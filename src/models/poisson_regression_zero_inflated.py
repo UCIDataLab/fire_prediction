@@ -8,7 +8,7 @@ import statsmodels.formula.api as smf
 
 from sklearn.neural_network import MLPRegressor
 
-from base.model import Model
+from .base.model import Model
 
 # copied from discrete_model.CountModel and adjusted
 def predict(self, params, exog=None, exposure=None, offset=None,

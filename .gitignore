@@ -2,6 +2,8 @@
 nb_log.txt
 nohup.out
 
+*.out
+
 /logs
 
 # Direnv

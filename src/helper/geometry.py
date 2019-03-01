@@ -63,6 +63,7 @@ class LatLonBoundingBox(object):
         num_lats, num_lons = len(lats), len(lons)
 
         lats = np.transpose(np.tile(lats, (num_lons,1) ))
+        lats = np.array(lats, order='c') # Basemap has issues with Fortran order created by transposing
         lons = np.tile(lons, (num_lats,1) )
 
         return lats, lons
@@ -116,4 +117,18 @@ def filter_bounding_box_df(df, bb):
     """
     min_lat, max_lat, min_lon, max_lon = bb.get()
     return df[(df.lat <= max_lat) & (df.lat >= min_lat) & (df.lon <= max_lon) & (df.lon >= min_lon)]
+
+def upsample_spatial(target_shape, data):
+    target_shape = (data.shape[0],) + target_shape
+    upsampled = np.empty(target_shape, dtype=data.dtype)
+
+    # TODO: Look into this upsampling more
+    x_ratio = np.ceil(target_shape[1] / data.shape[1]).astype(np.int32)
+    y_ratio = np.ceil(target_shape[2] / data.shape[2]).astype(np.int32)
+
+    for (x,y) in [(x,y) for x in range(target_shape[1]) for y in range(target_shape[2])]:
+        upsampled[:,x,y] = data[:, x//x_ratio, y//y_ratio]
+
+    return upsampled
+
 

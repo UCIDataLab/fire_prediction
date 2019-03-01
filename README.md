@@ -55,4 +55,9 @@ Project Organization
 
 --------
 
-<p><small>Project structure based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>.</small></p>
+Known Issues
+------------
+The current version of Basemap (1.0.7) has a bug in Python 3 due to the default division operator returning a float. To
+correct the bug, you must change the line "nlats = nlons/2" to "nlats = nlons//2" in the file __init__.py aprox. line
+5125-5130 in the "site-packages/mpl_toolkits/basemap" directory.
+

@@ -3,7 +3,7 @@ Model for always predicting previous day's value.
 """
 import numpy as np
 
-from base.model import Model
+from .base.model import Model
 
 class AutoregressiveGridModel(Model):
     def __init__(self):

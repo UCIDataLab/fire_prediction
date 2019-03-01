@@ -11,3 +11,6 @@ class Model(object):
 
     def predict(self, X):
         raise NotImplementedError()
+
+    def get_model(self):
+        raise NotImplementedError()

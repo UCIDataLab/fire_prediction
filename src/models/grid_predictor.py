@@ -3,7 +3,7 @@ Converts model output to a grid.
 """
 import numpy as np
 
-from base.model import Model
+from .base.model import Model
 
 import datetime as dt
 

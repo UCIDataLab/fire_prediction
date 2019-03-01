@@ -1,3 +1,4 @@
+
 """
 Model for fitting a bias term to each grid cell and a shared weather model with a linear distribution.
 """
@@ -5,19 +6,21 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from StringIO import StringIO
+from io import StringIO
 
-from base.model import Model
+from .base.model import Model
 from sklearn.neural_network import MLPRegressor
 
 import pandas as pd
 
 class LinearRegressionGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, filter_func=None, pred_func=None):
+    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None, pred_func=None):
         super(LinearRegressionGridModel, self).__init__()
 
         self.covariates = covariates
         self.regularizer_weight = regularizer_weight
+        self.log_shift = log_shift
+        self.log_correction = log_correction
         self.filter_func = filter_func
         self.pred_func = pred_func
 
@@ -37,7 +40,12 @@ class LinearRegressionGridModel(Model):
         df = pd.DataFrame(data)
         """
 
-        formula = 'num_det_target ~ np.log(num_det+1)'
+        if self.log_correction == 'add':
+            formula = 'num_det_target ~ np.log(num_det+%f)' % self.log_shift
+        elif self.log_correction == 'max':
+            formula = 'num_det_target ~ np.log(np.maximum(%f,num_det))' % self.log_shift
+        else:
+            raise ValueError('Invalid log_correction: %s' % self.log_correction)
         if self.covariates:
             formula += ' + ' + ' + '.join(self.covariates)
 
@@ -51,24 +59,27 @@ class LinearRegressionGridModel(Model):
         endog = X['num_det_target'].to_dataframe().as_matrix()
         """
 
-        X_df = X.to_dataframe()
-        if self.filter_func:
-            X_df = self.filter_func(X_df)
+        try:
+            X_df = X.to_dataframe()
+            if self.filter_func:
+                X_df = self.filter_func(X_df)
 
-        #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
-        X_df = pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
-        #print(X_df)
+            #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
+            X_df = pd.read_csv(StringIO(X_df.to_csv()))
+            #print(X_df)
+        except:
+            X_df = X
 
 
         if self.regularizer_weight is None:
-            #self.fit_result = smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
             self.fit_result = smf.ols(formula=formula, data=X_df).fit()
         else:
             raise NotImplementedError()
         #self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
 
-        return self.fit_result
+        #return self.fit_result
+        return self
 
     def predict(self, X, shape=None):
 
@@ -89,17 +100,22 @@ class LinearRegressionGridModel(Model):
             exog = np.hstack([exog,num_det])
         else:
             exog = sm.add_constant(num_det)
- 
+
         pred = self.fit_result.predict(exog)
         """
 
-        X_df = X.to_dataframe()
+        try:
+            X_df = X.to_dataframe()
 
-        pred = self.fit_result.predict(X_df)
+            pred = self.fit_result.predict(X_df)
 
-        if self.pred_func:
-            pred = self.pred_func(X_df, pred)
+            if self.pred_func:
+                pred = self.pred_func(X_df, pred)
 
-        pred = np.reshape(pred, shape, order='F')
+            pred = np.array(pred)
+            pred = np.reshape(pred, shape, order='F')
+        except:
+            X_df = X
+            pred = self.fit_result.predict(X_df)
 
         return pred

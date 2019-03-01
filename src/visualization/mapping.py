@@ -94,14 +94,14 @@ def animate_map_latlon_all(df, clust_id, bb, dates, show_prev=True, figsize=(10,
     non_df = df[(df.cluster_id!=clust_id) & (df.date_local>=np.min(clust_df.date_local))] 
 
     if show_prev:
-	year = np.min(clust_df.date_local).year
-	prev_df = df[(df.cluster_id!=clust_id) & (df.date_local<np.min(clust_df.date_local)) & (df.date_local>=dt.date(year, 1, 1))] 
+        year = np.min(clust_df.date_local).year
+        prev_df = df[(df.cluster_id!=clust_id) & (df.date_local<np.min(clust_df.date_local)) & (df.date_local>=dt.date(year, 1, 1))] 
 
     mp = make_map(bb)
     mp.shadedrelief()
 
     if show_prev:
-	s5 = mp.scatter([], [], 10, latlon=True, marker='o', color='m', alpha=.7)
+        s5 = mp.scatter([], [], 10, latlon=True, marker='o', color='m', alpha=.7)
     s4 = mp.scatter([], [], 10, latlon=True, marker='o', color='g', alpha=.7)
     s3 = mp.scatter([], [], 10, latlon=True, marker='o', color='y', alpha=.7)
     s2 = mp.scatter([], [], 10, latlon=True, marker='o', color='b', alpha=.7)
@@ -109,38 +109,38 @@ def animate_map_latlon_all(df, clust_id, bb, dates, show_prev=True, figsize=(10,
 
 
     def init():
-	s.set_offsets([])
-	s2.set_offsets([])
-	return s, s2
+        s.set_offsets([])
+        s2.set_offsets([])
+        return s, s2
 
     def animate(i):
-	date = dates[i]
+        date = dates[i]
 
-	_ = plt.title('Date %s (day %d)' % (str(date), du.dayofyear_from_datetime(date)))
+        _ = plt.title('Date %s (day %d)' % (str(date), du.dayofyear_from_datetime(date)))
 
-	sel_df = clust_df[clust_df.date_local==date]
+        sel_df = clust_df[clust_df.date_local==date]
 
-	lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
-	s.set_offsets(zip(lons,lats))
+        lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
+        s.set_offsets(zip(lons,lats))
 
-	sel_df = clust_df[clust_df.date_local<date]
-	lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
-	s2.set_offsets(zip(lons,lats))
+        sel_df = clust_df[clust_df.date_local<date]
+        lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
+        s2.set_offsets(zip(lons,lats))
 
-	sel_df = non_df[non_df.date_local==date]
-	lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
-	s3.set_offsets(zip(lons,lats))
+        sel_df = non_df[non_df.date_local==date]
+        lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
+        s3.set_offsets(zip(lons,lats))
 
-	sel_df = non_df[non_df.date_local<date]
-	lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
-	s4.set_offsets(zip(lons,lats))
+        sel_df = non_df[non_df.date_local<date]
+        lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
+        s4.set_offsets(zip(lons,lats))
 
         if show_prev:
-	    sel_df = prev_df
-	    lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
-	    s5.set_offsets(zip(lons,lats))
+            sel_df = prev_df
+            lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
+            s5.set_offsets(zip(lons,lats))
 
-	return s, s2
+        return s, s2
 
     # call the animator. blit=True means only re-draw the parts that have changed.
     anim = animation.FuncAnimation(fig, animate, init_func=init,

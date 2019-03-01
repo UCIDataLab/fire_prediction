@@ -4,7 +4,7 @@ Model for predicting detections in a gridded region by combining an active fire 
 
 import numpy as np
 
-from base.model import Model
+from .base.model import Model
 
 class ActiveIgnitionGridModel(Model):
     def __init__(self, active_fire_model, ignition_model):
@@ -20,7 +20,8 @@ class ActiveIgnitionGridModel(Model):
         if self.igm:
             fit_model[1] = self.igm.fit(X[1])
 
-        return tuple(fit_model)
+        #return tuple(fit_model)
+        return self
 
     def predict(self, X, shape=None):
         pred = np.zeros(shape)

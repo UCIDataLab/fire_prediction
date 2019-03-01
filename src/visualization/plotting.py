@@ -48,7 +48,7 @@ def plot_results_grid(results_list, t_k_arr, metrics_):
             ax.set_title(t)
             for k,v in sorted(results.items()):     
                 x = range(1,len(results[k])+1)
-                y = map(lambda x: metric(*flat(x)), results[k])
+                y = list(map(lambda x: metric(*flat(x)), results[k]))
                 ax.plot(x, y, "s--", label=k, linewidth=2)
 
                 out[t][k][metric.__name__] = (x,y)
