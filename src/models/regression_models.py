@@ -2,45 +2,48 @@
 Regression models with different distributional assumptions.
 """
 import numpy as np
-from sklearn import preprocessing
-
 import statsmodels.api as sm
-import statsmodels.formula.api as smf
 import statsmodels.discrete.discrete_model as smd
+import statsmodels.formula.api as smf
+from sklearn import preprocessing
 
 from .base.model import Model
 from .grid_models import ActiveIgnitionGrid, SwitchingRegressionGrid
 
+
 def build_endog_exog(X, response_var, covariates, log_covariates, log_correction, log_correction_const, mean=None,
-        std=None):
+                     std=None):
     endog = np.zeros(len(X))
     endog[:] = X[response_var]
 
-    exog = np.zeros((len(X), len(covariates+log_covariates)+1))
-    for i,cov in enumerate(covariates):
-        exog[:,i] = X[cov]
+    exog = np.zeros((len(X), len(covariates + log_covariates) + 1))
+    for i, cov in enumerate(covariates):
+        exog[:, i] = X[cov]
 
-    for i,cov in enumerate(log_covariates):
+    for i, cov in enumerate(log_covariates):
         if log_correction == 'max':
-            exog[:,i+len(covariates)] = np.log(np.maximum(X[cov], log_correction_const))
+            exog[:, i + len(covariates)] = np.log(np.maximum(X[cov], log_correction_const))
         elif log_correction == 'add':
-            exog[:,i+len(covariates)] = np.log(X[cov] + log_correction_const)
+            exog[:, i + len(covariates)] = np.log(X[cov] + log_correction_const)
 
-    exog[:,-1] = 1
+    exog[:, -1] = 1
 
     if (mean is None) or (std is None):
-        mean = np.mean(exog[:,:-1], axis=0)
-        std = np.std(exog[:,:-1], axis=0)
-        std[std<1e-5] = 1
+        mean = np.mean(exog[:, :-1], axis=0)
+        std = np.std(exog[:, :-1], axis=0)
+        std[std < 1e-5] = 1
 
-    exog[:,:-1] = (exog[:,:-1] - mean) / std
+    exog[:, :-1] = (exog[:, :-1] - mean) / std
 
-    return endog, exog, (mean,std)
+    return endog, exog, (mean, std)
+
 
 class MeanModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+        super().__init__()
         self.response_var = response_var
+        self.mean = None
 
     def fit(self, X, y=None):
         self.mean = np.mean(X[self.response_var])
@@ -54,8 +57,8 @@ class MeanModel(Model):
 
 
 class RegressionBase(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
         super().__init__()
 
         self.response_var = response_var
@@ -68,6 +71,9 @@ class RegressionBase(Model):
 
         self.inputs = self.covariates + self.log_covariates
         self.variables = [self.response_var] + self.inputs
+        self.exposure = None
+        self.mean = None
+        self.std = None
 
         if self.normalize_params:
             self.scaler = preprocessing.StandardScaler()
@@ -85,14 +91,14 @@ class RegressionBase(Model):
 
         if self.log_correction == 'add':
             log_fmt = 'np.log(%s+%f)'
-        elif self.log_correction == 'max' and self.log_correction_const==0:
+        elif self.log_correction == 'max' and self.log_correction_const == 0:
             """Automatically learn value for correction"""
             # Assumes value being corrected is discrete (otherwise values under 1 are rounded up)
             y_star = 'np.maximum(%s, 1)'
             d = 'np.mod(np.minimum(%s,1)+1,2)'
-            #d = '%s==0'
+            # d = '%s==0'
             log_fmt = 'np.log(%s) + %s' % (y_star, d)
-            #log_fmt = 'np.log(%s)' % (y_star)
+            # log_fmt = 'np.log(%s)' % (y_star)
         elif self.log_correction == 'max':
             log_fmt = 'np.log(np.maximum(%s, %f))'
         else:
@@ -106,9 +112,9 @@ class RegressionBase(Model):
             formula += ' + ' + ' + '.join(self.log_covariates)
         """
 
-        if self.log_covariates and self.log_correction=='max' and self.log_correction_const==0:
+        if self.log_covariates and self.log_correction == 'max' and self.log_correction_const == 0:
             log_covs = list(map(lambda x: log_fmt % (x, x), self.log_covariates))
-            #log_covs = list(map(lambda x: log_fmt % (x), self.log_covariates))
+            # log_covs = list(map(lambda x: log_fmt % (x), self.log_covariates))
             formula += ' + ' + ' + '.join(log_covs)
 
         elif self.log_covariates:
@@ -119,26 +125,26 @@ class RegressionBase(Model):
 
         return formula
 
-
     def fit(self, X, y=None):
         """
+        :param X: covariate dataframe
         :param y: currently unused
         """
-        #X = X.filter(self.variables, axis=1)
+        # X = X.filter(self.variables, axis=1)
 
-        #self.mean = X[self.inputs].mean(numeric_only=True)
-        #self.std = X[self.inputs].std(numeric_only=True)
+        # self.mean = X[self.inputs].mean(numeric_only=True)
+        # self.std = X[self.inputs].std(numeric_only=True)
 
         # If std. dev. is too small, don't want to divide by it
-        #self.std[self.std<1e-5] = 1
+        # self.std[self.std<1e-5] = 1
 
-        #X[self.inputs] = (X[self.inputs] - self.mean) / self.std
+        # X[self.inputs] = (X[self.inputs] - self.mean) / self.std
         if self.add_exposure:
             self.exposure = X.exposure.values
         else:
             self.exposure = None
 
-        X = X[self.variables].copy() #returns a numpy array
+        X = X[self.variables].copy()  # returns a numpy array
 
         """
         if self.log_correction == 'add':
@@ -164,8 +170,8 @@ class RegressionBase(Model):
         return self
 
     def predict(self, X, choice=None):
-        #X = X.filter(self.variables, axis=1)
-        #X[self.inputs] = (X[self.inputs] - self.mean) / self.std
+        # X = X.filter(self.variables, axis=1)
+        # X[self.inputs] = (X[self.inputs] - self.mean) / self.std
 
         X = X[self.variables].copy()
 
@@ -178,7 +184,6 @@ class RegressionBase(Model):
         if self.log_covariates:
             X[self.log_covariates] = log_corr(X[self.log_covariates])
         """
-
 
         if self.normalize_params:
             X[self.inputs] = self.scaler.transform(X[self.inputs].values)
@@ -187,31 +192,35 @@ class RegressionBase(Model):
 
         if choice is None:
             return pred
-        elif choice=='all':
-            return pred, np.full_like(pred, np.nan) 
+        elif choice == 'all':
+            return pred, np.full_like(pred, np.nan)
         else:
             raise ValueError('Invalid value for choice')
 
     def get_model(self):
         return self.fit_result
 
+
 class GLMRegression(RegressionBase):
     def build_model(self, X):
         return smf.glm(self.formula, data=X, family=self.family, exposure=self.exposure)
+
 
 class LinearRegression(RegressionBase):
     def build_model(self, X):
         return smf.ols(formula=self.formula, data=X)
 
+
 class PoissonRegression(GLMRegression):
     family = sm.genmod.families.family.Poisson()
+
 
 class PoissonModeRegression(GLMRegression):
     family = sm.genmod.families.family.Poisson()
 
     def predict(self, X, choice=None):
-        #X = X.filter(self.variables, axis=1)
-        #X[self.inputs] = (X[self.inputs] - self.mean) / self.std
+        # X = X.filter(self.variables, axis=1)
+        # X[self.inputs] = (X[self.inputs] - self.mean) / self.std
 
         X = X[self.variables].copy()
 
@@ -224,7 +233,6 @@ class PoissonModeRegression(GLMRegression):
         if self.log_covariates:
             X[self.log_covariates] = log_corr(X[self.log_covariates])
         """
-
 
         if self.normalize_params:
             X[self.inputs] = self.scaler.transform(X[self.inputs].values)
@@ -234,19 +242,21 @@ class PoissonModeRegression(GLMRegression):
 
         if choice is None:
             return pred
-        elif choice=='all':
-            return pred, np.full_like(pred, np.nan) 
+        elif choice == 'all':
+            return pred, np.full_like(pred, np.nan)
         else:
             raise ValueError('Invalid value for choice')
+
 
 class NegativeBinomialRegression(GLMRegression):
     family = sm.genmod.families.family.NegativeBinomial(alpha=.01)
 
+
 class PoissonRegressionDiff(GLMRegression):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None):
         super().__init__('det_diff', covariates, log_covariates, log_correction, log_correction_const,
-                regularizer_weight, normalize_params, t_k)
+                         regularizer_weight, normalize_params, t_k)
 
         def predict(self, X, choice=None):
             pred = super().predict(X, choice=None)
@@ -255,19 +265,21 @@ class PoissonRegressionDiff(GLMRegression):
     family = sm.genmod.families.family.Poisson()
 
 
-
 class LogisticRegression(GLMRegression):
     def build_model(self, X):
         self.formula = self.build_formula('np.int32(%s)' % self.response_var)
         return smd.Logit.from_formula(formula=self.formula, data=X)
+
 
 class LogisticBinaryRegression(GLMRegression):
     def build_model(self, X):
         self.formula = self.build_formula('np.int32(%s>1)' % self.response_var)
         return smd.Logit.from_formula(formula=self.formula, data=X)
 
+
 class LogNormalRegression(GLMRegression):
     family = sm.genmod.families.family.Gaussian(link=sm.genmod.families.links.log)
+
 
 """
 class NegativeBinomialRegression(RegressionBase):
@@ -286,10 +298,11 @@ class NegativeBinomialRegression(RegressionBase):
         return self.fit_result.predict(exog=exog)
 """
 
+
 class PersistenceModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
-        pass
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+        super().__init__()
 
     def fit(self, X, y=None):
         return self
@@ -297,10 +310,11 @@ class PersistenceModel(Model):
     def predict(self, X, choice=None):
         return np.array(X['num_det'].values)
 
+
 class ZeroModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=None):
-        pass
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=None):
+        super().__init__()
 
     def fit(self, X, y=None):
         return self
@@ -308,9 +322,11 @@ class ZeroModel(Model):
     def predict(self, X, choice=None):
         return np.zeros(X['num_det'].shape)
 
+
 class PersistenceAugmented(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None):
+        super().__init__()
         self.t_k = t_k
 
     def fit(self, X, y=None):
@@ -320,22 +336,22 @@ class PersistenceAugmented(Model):
         today = X['vpd_%d' % self.t_k].values
         grad = (X['vpd'] - today) / today
 
-
         grad[np.isnan(grad)] = 0
-        grad[grad==np.inf] = 0
-        grad[grad==-np.inf] = 0
+        grad[grad == np.inf] = 0
+        grad[grad == -np.inf] = 0
 
-        grad[grad>1] = 1
+        grad[grad > 1] = 1
 
         print(np.min(grad), np.max(grad), np.mean(grad))
 
         return np.array(X['num_det'].values) * (1 + grad)
 
+
 class PersistenceAugmentedParam(LinearRegression):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None):
         super().__init__('det_diff', covariates, log_covariates, log_correction, log_correction_const,
-                regularizer_weight, normalize_params, t_k)
+                         regularizer_weight, normalize_params, t_k)
 
         self.response_var = 'det_diff'
         self.covariates = covariates
@@ -355,7 +371,7 @@ class PersistenceAugmentedParam(LinearRegression):
         self.formula = self.build_formula(self.response_var)
 
     def build_formula(self, response_var, remove_intercept=False):
-        return 'det_diff ~ vpd_grad:num_det - 1' 
+        return 'det_diff ~ vpd_grad:num_det - 1'
 
         if remove_intercept:
             formula = '%s ~ -1' % response_var
@@ -383,19 +399,20 @@ class PersistenceAugmentedParam(LinearRegression):
             return formula
 
     def predict(self, X, choice=None):
-        #X = X.filter(self.variables, axis=1)
-        #X[self.inputs] = (X[self.inputs] - self.mean) / self.std
+        # X = X.filter(self.variables, axis=1)
+        # X[self.inputs] = (X[self.inputs] - self.mean) / self.std
 
         X = X[self.variables].copy()
 
         if self.log_correction == 'add':
-            log_corr = lambda x: np.log(x+self.log_correction_const)
+            def log_corr(x):
+                return np.log(x + self.log_correction_const)
         elif self.log_correction == 'max':
-            log_corr = lambda x: np.log(np.maximum(x, self.log_correction_const))
+            def log_corr(x):
+                return np.log(np.maximum(x, self.log_correction_const))
 
         if self.log_covariates:
             X[self.log_covariates] = log_corr(X[self.log_covariates])
-
 
         if self.normalize_params:
             X[self.inputs] = self.scaler.transform(X[self.inputs].values)
@@ -404,105 +421,116 @@ class PersistenceAugmentedParam(LinearRegression):
 
         if choice is None:
             return pred
-        elif choice=='all':
-            return pred, np.full_like(pred, np.nan) 
+        elif choice == 'all':
+            return pred, np.full_like(pred, np.nan)
         else:
             raise ValueError('Invalid value for choice')
 
 
-
 DET_CUTOFF = 5
+
 
 def large_filter_func(x):
     return x[x.num_det > DET_CUTOFF]
 
+
 def small_filter_func(x):
     return x[x.num_det <= DET_CUTOFF]
+
 
 def large_pred_func(x, y):
     return y * (x.num_det > DET_CUTOFF)
 
+
 def small_pred_func(x, y):
     return y * (x.num_det <= DET_CUTOFF)
 
-class LargeSplitModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None):
 
-        self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction, 
-            log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
-        self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction, 
-                log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+class LargeSplitModel(Model):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None):
+        super().__init__()
+        self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
+                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+        self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
+                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
 
         self.model = ActiveIgnitionGrid(self.large_model, self.small_model, large_filter_func, small_filter_func,
-                large_pred_func, small_pred_func)
+                                        large_pred_func, small_pred_func)
 
     def fit(self, X, y=None):
-        self.model.fit([X,X], y)
+        self.model.fit([X, X], y)
         return self
 
     def predict(self, X, shape=None, choice=None):
-        return self.model.predict([X,X], shape, choice)
+        return self.model.predict([X, X], shape, choice)
 
 
 def cum_large_filter_func(x):
     return x[x.large_fire]
 
+
 def cum_small_filter_func(x):
     return x[~x.large_fire]
+
 
 def cum_large_pred_func(x, y):
     return y * x.large_fire
 
+
 def cum_small_pred_func(x, y):
     return y * (~x.large_fire)
 
+
 class CumulativeLargeSplitPerfectModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None):
+        super().__init__()
+        self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
+                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+        self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
+                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
 
-        self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction, 
-                log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
-        self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction, 
-                log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
-
-        self.model = ActiveIgnitionGrid(self.large_model, self.small_model, cum_large_filter_func, cum_small_filter_func,
-                cum_large_pred_func, cum_small_pred_func)
+        self.model = ActiveIgnitionGrid(self.large_model, self.small_model, cum_large_filter_func,
+                                        cum_small_filter_func,
+                                        cum_large_pred_func, cum_small_pred_func)
 
     def fit(self, X, y=None):
-        self.model.fit([X,X], y)
+        self.model.fit([X, X], y)
         return self
 
     def predict(self, X, shape=None, choice=None):
-        return self.model.predict([X,X], shape, choice)
+        return self.model.predict([X, X], shape, choice)
+
 
 class LargeFireOracleModel(Model):
     def fit(self, X, y=None):
         return self
+
     def predict(self, X, shape=None, choice=None):
         return X.large_fire
 
+
 class CumulativeLargeSplitModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None):
+        super().__init__()
+        self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
+                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+        self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
+                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
 
-        self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction, 
-                log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
-        self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction, 
-                log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
-
-        #self.mixture_model = LogisticRegression('large_fire', covariates, log_covariates, log_correction, 
+        # self.mixture_model = LogisticRegression('large_fire', covariates, log_covariates, log_correction,
         #        log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
 
         self.mixture_model = LargeFireOracleModel()
 
-        self.model = SwitchingRegressionGrid(self.large_model, self.small_model, self.mixture_model, cum_large_filter_func, cum_small_filter_func)
-
+        self.model = SwitchingRegressionGrid(self.large_model, self.small_model, self.mixture_model,
+                                             cum_large_filter_func, cum_small_filter_func)
 
     def fit(self, X, y=None):
-        self.model.fit([X,X,X], y)
+        self.model.fit([X, X, X], y)
         return self
 
     def predict(self, X, shape=None, choice=None):
-        return self.model.predict([X,X,X], shape, choice)
-
+        return self.model.predict([X, X, X], shape, choice)

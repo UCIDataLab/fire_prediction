@@ -8,6 +8,7 @@ import logging
 import pandas
 from collections import defaultdict
 
+
 def ls_grib(src_path, keys):
     keys = ['name', 'level', 'typeOfLevel'] + keys
 
@@ -15,14 +16,16 @@ def ls_grib(src_path, keys):
     with open(src_path, 'rb') as fin:
         while True:
             gid = gribapi.grib_new_from_file(fin)
-            if gid is None: break
+            if gid is None:
+                break
 
             for k in keys:
                 try:
                     val = gribapi.grib_get(gid, k)
                     messages[k].append(val)
-                except:
-                    logging.error('Failed to get key (%s). Either key is not availabe for the message or it is an array type.' % k)
+                except Exception as e:
+                    logging.error('Failed to get key (%s). Either key is not availabe for the message or it is an '
+                                  'array type.' % k)
 
     return messages, keys
 
@@ -47,6 +50,5 @@ def main(src_path, keys, log):
     print(df.to_csv())
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
-

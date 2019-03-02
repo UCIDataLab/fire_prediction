@@ -2,17 +2,14 @@
 Fetches GFS (Global Forecasting System) data.
 """
 
-import cPickle as pickle
-import click
 import logging
 import os
-import sys
 from ftplib import FTP
-import itertools
-from time import time
 
-from ftp_async import AsyncFTP
-from helper import date_util as du
+import pickle
+import click
+from .ftp_async import AsyncFTP
+from ..helper import date_util as du
 
 alaska_bb = [55, 71, -165, -138]
 
@@ -30,8 +27,9 @@ SCALE_HALF_DEG = '4'
 SCALE_ONE_DEG = '3'
 
 times = [0, 600, 1200, 1800]
-offsets = [0, 3, 6,]
-time_offset_list = [(t,o) for t in times for o in offsets]
+offsets = [0, 3, 6, ]
+time_offset_list = [(t, o) for t in times for o in offsets]
+
 
 class GfsFetch(object):
     def __init__(self, dest_dir, start_year, end_year, scale_sel, available_files_path=None, files_to_fetch_path=None):
@@ -43,9 +41,9 @@ class GfsFetch(object):
         self.files_to_fetch_path = files_to_fetch_path
 
         # Choose scale to download
-        if scale_sel==SCALE_HALF_DEG:
+        if scale_sel == SCALE_HALF_DEG:
             self.grib_file_fmt = grib_file_fmt_half_deg
-        elif scale_sel==SCALE_ONE_DEG:
+        elif scale_sel == SCALE_ONE_DEG:
             self.grib_file_fmt = grib_file_fmt_one_deg
         else:
             raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
@@ -104,14 +102,14 @@ class GfsFetch(object):
         ftp.login(username, password)
         ftp.cwd(gfs_loc)
 
-        for year in range(self.year_range[0], self.year_range[1]+1):
+        for year in range(self.year_range[0], self.year_range[1] + 1):
             for month in range(1, 13):
                 year_month = year_month_dir_fmt % (year, month)
 
                 # Get list of all days in this month on server
                 days_in_month_dir = map(lambda x: x.split("/")[-1], ftp.nlst(year_month))
 
-                for day in range(1, du.days_per_month(month, du.is_leap_year(year))+1):
+                for day in range(1, du.days_per_month(month, du.is_leap_year(year)) + 1):
 
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
@@ -124,7 +122,8 @@ class GfsFetch(object):
                     grib_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
 
                     # Retrieve each grib file from server and save in day dir
-                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
+                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in
+                                         time_offset_list]
                     for grib_file in todays_grib_files:
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
@@ -153,7 +152,7 @@ class GfsFetch(object):
         dirs = set(map(lambda x: os.path.dirname(self.src_to_dest_path(x)), files))
         for d in dirs:
             if not os.path.exists(d):
-                    os.makedirs(d)
+                os.makedirs(d)
 
 
 @click.command()
@@ -175,5 +174,5 @@ def main(dest_dir, start, end, log, avail, fetch, scale):
     logging.info('End fetch for GFS')
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()

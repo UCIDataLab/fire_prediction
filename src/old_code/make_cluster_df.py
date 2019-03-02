@@ -20,12 +20,14 @@ def compute_cluster_feat_df(modis_df, gfs_dict, clust_thresh, rain_del=0):
         cluster_df = data.load_clust_df(clust_thresh=clust_thresh)
         merge_dict = data.load_merge_dict(clust_thresh=clust_thresh)
     except IOError:
-        print "WARNING: couldn't find cluster df, creating our own clusters"
+        print
+        "WARNING: couldn't find cluster df, creating our own clusters"
         cluster_df, merge_dict = cluster_over_time_with_merging(modis_df, clust_thresh)
     gfs_vars = list(set(gfs_dict.keys()).intersection(POTENTIAL_GFS_VARS))
     if "rain" in POTENTIAL_GFS_VARS and rain_del:
         gfs_vars.append("rain_del_%d" % rain_del)
-    ret_df = pd.DataFrame(columns=["cluster", "alt_cluster", "lat_centroid", "lon_centroid", "n_det", "dayofyear", "year"] + gfs_vars)
+    ret_df = pd.DataFrame(
+        columns=["cluster", "alt_cluster", "lat_centroid", "lon_centroid", "n_det", "dayofyear", "year"] + gfs_vars)
     for cluster in cluster_df.cluster.unique():
         if np.isnan(cluster):
             continue
@@ -39,7 +41,7 @@ def compute_cluster_feat_df(modis_df, gfs_dict, clust_thresh, rain_del=0):
         if len(unique_years) != 1:
             raise ValueError("Cluster %d spans %d years, should only span 1" % (cluster, len(unique_years)))
         clust_year = clust_fires.year.unique()[0]
-        for dayofyear in xrange(np.min(clust_fires.dayofyear), np.max(clust_fires.dayofyear)+1):
+        for dayofyear in xrange(np.min(clust_fires.dayofyear), np.max(clust_fires.dayofyear) + 1):
             today_clust_fires = clust_fires[clust_fires.dayofyear == dayofyear]
             row_dict = dict()
             row_dict["cluster"] = cluster
@@ -56,9 +58,10 @@ def compute_cluster_feat_df(modis_df, gfs_dict, clust_thresh, rain_del=0):
                 try:
                     if var.startswith("rain_del"):
                         row_dict[var] = float(gfs_df[(gfs_df.year == clust_year) &
-                                                     (gfs_df.dayofyear == (dayofyear-rain_del))]["rain"])
+                                                     (gfs_df.dayofyear == (dayofyear - rain_del))]["rain"])
                     else:
-                        row_dict[var] = float(gfs_df[(gfs_df.year == clust_year) & (gfs_df.dayofyear == dayofyear)][var])
+                        row_dict[var] = float(
+                            gfs_df[(gfs_df.year == clust_year) & (gfs_df.dayofyear == dayofyear)][var])
                 except TypeError as e:
                     row_dict[var] = np.nan
 

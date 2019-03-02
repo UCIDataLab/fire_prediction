@@ -1,11 +1,11 @@
 """
 Model for poisson regression.
 """
-import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from .base.model import Model
+
 
 class PoissonRegressionModel(Model):
     def __init__(self, covariates):
@@ -16,9 +16,10 @@ class PoissonRegressionModel(Model):
         self.covariates = covariates
 
         self.fit_result = None
-        
+
     def fit(self, X, y=None):
         """
+        :param X: covariate dataframe
         :param y: currently unused
         """
         # Build formula for prediction

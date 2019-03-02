@@ -1,12 +1,12 @@
-import os
-import click
 import logging
 import multiprocessing
-import cPickle as pickle
+import os
 
+import pickle
+import click
 import grib
-from helper import date_util as du
-from ftp_async import PoolLimitedTaskQueue
+from .ftp_async import PoolLimitedTaskQueue
+from ..helper import date_util as du
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
@@ -17,8 +17,9 @@ SCALE_HALF_DEG = '4'
 SCALE_ONE_DEG = '3'
 
 times = [0, 600, 1200, 1800]
-offsets = [0, 3, 6,]
-time_offset_list = [(t,o) for t in times for o in offsets]
+offsets = [0, 3, 6, ]
+time_offset_list = [(t, o) for t in times for o in offsets]
+
 
 class Writer(object):
     def __init__(self, write_queue):
@@ -33,6 +34,7 @@ class Writer(object):
             logging.debug('Writing %s, %d items in queue' % (dest_path, self.write_queue.qsize()))
             with open(dest_path, 'wb') as fout:
                 pickle.dump(data, fout, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 def extract_thread(context, src_path, dest_path):
     logging.debug('Extracting %s' % src_path)
@@ -55,13 +57,16 @@ class GfsExtractor(object):
     def __init__(self, pool_size, queue_size):
         self.pool_size = pool_size
         self.queue_size = queue_size
+        self.write_queue = None
+        self.pool = None
+        self.writer = None
 
         self.started = False
 
     def start(self):
         self.write_queue = multiprocessing.Queue(maxsize=self.queue_size)
 
-        self.pool = PoolLimitedTaskQueue(self.pool_size, self.pool_size*2, initializer=self.init_worker)
+        self.pool = PoolLimitedTaskQueue(self.pool_size, self.pool_size * 2, initializer=self.init_worker)
 
         self.writer = multiprocessing.Process(target=Writer(self.write_queue).write)
         self.writer.start()
@@ -100,9 +105,9 @@ class GfsExtract(object):
         self.year_range = (start_year, end_year)
 
         # Choose file format based on selected scale
-        if scale_sel==SCALE_HALF_DEG:
+        if scale_sel == SCALE_HALF_DEG:
             self.grib_file_fmt = grib_file_fmt_half_deg
-        elif scale_sel==SCALE_ONE_DEG:
+        elif scale_sel == SCALE_ONE_DEG:
             self.grib_file_fmt = grib_file_fmt_one_deg
         else:
             raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
@@ -140,14 +145,13 @@ class GfsExtract(object):
 
         self.extractor.join()
 
-
     def get_available_files(self):
         """
         Get list of all available files (within year_range) in src_dir.
         """
         available_files = []
 
-        for year in range(self.year_range[0], self.year_range[1]+1):
+        for year in range(self.year_range[0], self.year_range[1] + 1):
             for month in range(1, 13):
                 year_month = year_month_dir_fmt % (year, month)
 
@@ -157,18 +161,21 @@ class GfsExtract(object):
                     logging.debug('Missing Month: year %d month %d not in source' % (year, month))
                     continue
 
-                days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if os.path.isdir(os.path.join(self.src_dir, year_month, d))]
+                days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if
+                                     os.path.isdir(os.path.join(self.src_dir, year_month, d))]
 
-                for day in range(1, du.days_per_month(month, du.is_leap_year(year))+1):
+                for day in range(1, du.days_per_month(month, du.is_leap_year(year)) + 1):
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
                     if year_month_day not in days_in_month_dir:
                         logging.debug('Missing Day: year %d month %d day %d not in source' % (year, month, day))
                         continue
 
-                    grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day)) if os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
+                    grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day)) if
+                                     os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
 
-                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
+                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in
+                                         time_offset_list]
                     for grib_file in todays_grib_files:
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
@@ -214,5 +221,6 @@ def main(src_dir, dest_dir, start, end, scale, log):
     GfsExtract(src_dir, dest_dir, start, end, scale).extract()
     logging.info('End GFS extraction')
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()

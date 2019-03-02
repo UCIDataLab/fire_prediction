@@ -6,9 +6,10 @@ Entry point for command line execution of project.
 import click
 import yaml
 
-from evaluation import evaluate
+from .evaluation import evaluate
 
 COMMAND_HANDLERS = {'eval': evaluate.evaluate}
+
 
 @click.command()
 @click.argument('command', type=click.Choice(COMMAND_HANDLERS.keys()))
@@ -19,8 +20,9 @@ def main(command, config):
         config = yaml.safe_load(fin)
 
     # Call handler
-    handler = COMMAND_HANDLERS(command)
+    handler = COMMAND_HANDLERS[command]
     handler(config)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()

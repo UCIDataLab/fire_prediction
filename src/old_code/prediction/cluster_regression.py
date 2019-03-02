@@ -13,11 +13,11 @@ def add_autoreg_and_n_det(df, autoreg_cols=1, t_k_max=1, zero_padding=True):
     """
     # Build dicts that will ultimately become new columns in our DataFrame
     ind2autoregs = []
-    for col in xrange(autoreg_cols):
+    for col in range(autoreg_cols):
         ind2autoregs.append(dict())
 
     ind2t_ks = []
-    for col in xrange(t_k_max):
+    for col in range(t_k_max):
         ind2t_ks.append(dict())
 
     # Get mapping from merged clusters mergees to mergers and when the merge happened
@@ -26,24 +26,24 @@ def add_autoreg_and_n_det(df, autoreg_cols=1, t_k_max=1, zero_padding=True):
         if np.isnan(clust):
             continue
         # Find the merger this guy is a part of
-        alt_clust = df[df.cluster==clust].alt_cluster.unique()[0]
+        alt_clust = df[df.cluster == clust].alt_cluster.unique()[0]
         if isinstance(alt_clust, tuple):
             mergee = alt_clust[0]
             day = alt_clust[1]
             if mergee not in mergee2merger:
                 mergee2merger[mergee] = set()
-            mergee2merger[mergee].add((clust,day))
+            mergee2merger[mergee].add((clust, day))
 
     for clust in df.cluster.unique():
         if np.isnan(clust):
             continue
-        clust_df = df[df.cluster==clust].sort('dayofyear')
+        clust_df = df[df.cluster == clust].sort('dayofyear')
         alt_clust = clust_df.alt_cluster.unique()[0]
         time_series = np.array(clust_df.n_det)
         days = np.array(clust_df.dayofyear)
         for i, day in enumerate(days):
-            ind = clust_df[clust_df.dayofyear==day].index[0]
-            for autoreg in xrange(autoreg_cols):
+            ind = clust_df[clust_df.dayofyear == day].index[0]
+            for autoreg in range(autoreg_cols):
                 pos = i - autoreg - 1
                 if pos < 0:
                     ind2autoregs[autoreg][ind] = 0.
@@ -51,13 +51,13 @@ def add_autoreg_and_n_det(df, autoreg_cols=1, t_k_max=1, zero_padding=True):
                     ind2autoregs[autoreg][ind] = time_series[pos]
                 daypos = pos + days[0]
                 if clust in mergee2merger:
-                    for (merger,day) in mergee2merger[clust]:
-                        merge_amt = df[(df.cluster==merger) & (df.dayofyear==daypos)]
+                    for (merger, day) in mergee2merger[clust]:
+                        merge_amt = df[(df.cluster == merger) & (df.dayofyear == daypos)]
                         if len(merge_amt):
                             ind2autoregs[autoreg][ind] += int(merge_amt.n_det)
-                ind2autoregs[autoreg][ind] = np.log(ind2autoregs[autoreg][ind]+1)
+                ind2autoregs[autoreg][ind] = np.log(ind2autoregs[autoreg][ind] + 1)
 
-            for t_k in xrange(t_k_max):
+            for t_k in range(t_k_max):
                 pos = i + t_k
                 if pos >= len(time_series) and not isinstance(alt_clust, tuple):
                     # CASE 1: we've run out of positions and don't merge
@@ -70,7 +70,7 @@ def add_autoreg_and_n_det(df, autoreg_cols=1, t_k_max=1, zero_padding=True):
                     # CASE 2: we merge into someone else. For now, just predict the merged pixels
                     mergee = alt_clust[0]
                     merger_dets = df[(df.cluster == mergee) & (df.dayofyear == pos + days[0])]
-                    if len(merger_dets):   # we have detections
+                    if len(merger_dets):  # we have detections
                         ind2t_ks[t_k][ind] = merger_dets.iloc[0].n_det
                     else:  # deal with zeros as above
                         if zero_padding:
@@ -82,8 +82,8 @@ def add_autoreg_and_n_det(df, autoreg_cols=1, t_k_max=1, zero_padding=True):
                     ind2t_ks[t_k][ind] = time_series[pos]
 
     for i, dct in enumerate(ind2autoregs):
-        df["autoreg_%d" % (i+1)] = pd.Series(dct)
-    for i,dct in enumerate(ind2t_ks):
+        df["autoreg_%d" % (i + 1)] = pd.Series(dct)
+    for i, dct in enumerate(ind2t_ks):
         df["t_k_%d" % i] = pd.Series(dct)
     return df
 
@@ -91,10 +91,10 @@ def add_autoreg_and_n_det(df, autoreg_cols=1, t_k_max=1, zero_padding=True):
 class ClusterRegression:
     """ Class for performing cluster regression for fire prediction
     """
+
     def __init__(self, clust_df, clust_thresh, grid_size, zero_padding=True):
         """ Set up cluster model--build clusters and grid cells (if desired)
-        :param modis_df: DataFrame with MODIS active fire detections
-        :param gfs_dict: Dictionary with tensors of GFS weather variables
+        :param clust_df: DataFrame with MODIS active fire detections
         :param clust_thresh: threshold (in KM) of where two detections are considered the same fire
         :param grid_size: size of grid on which to predict new nodes. If grid_size <= 0, don't have a grid component
         :return:
@@ -104,7 +104,7 @@ class ClusterRegression:
         self.grid_size = grid_size
         self.zero_padding = zero_padding
 
-    def fit(self, train_years, n_autoreg, t_k=0, weather_vars=('temp','humidity','wind','rain'),
+    def fit(self, train_years, n_autoreg, t_k=0, weather_vars=('temp', 'humidity', 'wind', 'rain'),
             standardize_covs=False, padded_beginning=True, max_t_k=None, legit_series=None):
         """ Train on the specified years
         :param train_years: Iterable containing list of years to train on
@@ -115,16 +115,17 @@ class ClusterRegression:
                                     first by subtracting the mean and dividing by standard deviation
         :return:
         """
-        #max_autoreg = n_autoreg + t_k
-        #if "autoreg_%d" % max_autoreg not in self.clust_df.columns:  # or "t_k_%d" % t_k not in self.clust_df.columns:
+        # max_autoreg = n_autoreg + t_k
+        # if "autoreg_%d" % max_autoreg not in self.clust_df.columns:  # or "t_k_%d" % t_k not in self.clust_df.columns:
         #    self.clust_df = add_autoreg_and_n_det(self.clust_df, n_autoreg, t_k+1, zero_padding=self.zero_padding)
-        train_df_unmixed = self.clust_df[np.in1d(self.clust_df.year,train_years)]  # & (~np.isnan(self.clust_df["t_k_%d" % t_k]))]
+        train_df_unmixed = self.clust_df[
+            np.in1d(self.clust_df.year, train_years)]  # & (~np.isnan(self.clust_df["t_k_%d" % t_k]))]
         # Kill beginning padding if desired
         if not padded_beginning:
             if legit_series is None:
                 legit_series = pd.Series(index=train_df_unmixed.index)
                 for clust in train_df_unmixed.cluster.unique():
-                    clust_df = train_df_unmixed[train_df_unmixed.cluster==clust]
+                    clust_df = train_df_unmixed[train_df_unmixed.cluster == clust]
                     legit_day = np.min(clust_df.dayofyear) + max_t_k
                     legit_series[clust_df[clust_df.dayofyear >= legit_day].index] = 1
             train_df_unmixed = train_df_unmixed[legit_series == 1]
@@ -132,7 +133,7 @@ class ClusterRegression:
         randperm = np.random.permutation(len(train_df_unmixed))
         train_df = train_df_unmixed.iloc[randperm]
         if standardize_covs:
-            for reg in xrange(t_k + 1, t_k + n_autoreg + 1):
+            for reg in range(t_k + 1, t_k + n_autoreg + 1):
                 col = train_df["autoreg_%d" % reg]
                 train_df["autoreg_%d_stand" % reg] = (col - np.mean(col)) / np.std(col)
             for var in weather_vars:
@@ -145,7 +146,7 @@ class ClusterRegression:
             formula += " + ".join(map(lambda x: "autoreg_%d" % x, range(t_k + 1, t_k + n_autoreg + 1)))
         if len(weather_vars):
             formula += " + " + " + ".join(weather_vars)
-        
+
         self.fit_res = smf.glm(formula, data=train_df, family=sm.genmod.families.family.Poisson()).fit()
         return self.fit_res
 
@@ -155,11 +156,14 @@ class ClusterRegression:
         :return:
         """
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     import sys
     import pickle
+
     with open(sys.argv[1]) as fin:
         df = pickle.load(fin)
 
     cr = ClusterRegression(df, 0, 0)
-    print cr.fit([2008, 2010], 1)
+    print
+    cr.fit([2008, 2010], 1)

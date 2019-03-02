@@ -1,9 +1,8 @@
-import cPickle
 import sys
 
+import cPickle
 import numpy as np
 import pandas as pd
-
 from geometry.fire_clustering import cluster_fires
 from geometry.grid_conversion import ak_bb
 from geometry.grid_conversion import get_gfs_val, get_gfs_for_region
@@ -12,8 +11,8 @@ from util.daymonth import monthday2day, day2monthday
 
 
 def add_daymonth(df):
-    days = map(lambda x,y,z: monthday2day(x,y,leapyear=(z%4)), df.month, df.day, df.year)
-    df.loc[:,'dayofyear'] = days
+    days = map(lambda x, y, z: monthday2day(x, y, leapyear=(z % 4)), df.month, df.day, df.year)
+    df.loc[:, 'dayofyear'] = days
     return df
 
 
@@ -38,8 +37,8 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
     df_dict['day_cent'] = []
     df_dict['n_det'] = []
     df_dict['n_det_cum'] = []
-    #df_dict['hull_size'] = []
-    #df_dict['hull_size_cum'] = []
+    # df_dict['hull_size'] = []
+    # df_dict['hull_size_cum'] = []
     df_dict['lat'] = []
     df_dict['lon'] = []
     df_dict['x'] = []
@@ -56,7 +55,7 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
         center_lon = np.mean(clust_dets.long)
         center_x = np.mean(clust_dets.x)
         center_y = np.mean(clust_dets.y)
-        for day in xrange(min_day, max_day+1):
+        for day in xrange(min_day, max_day + 1):
             # We'll have exactly one entry in our DataFrame for this cluster on this day
             df_dict['lat'].append(center_lat)
             df_dict['lon'].append(center_lon)
@@ -69,18 +68,18 @@ def compute_feat_df(year, fire_df, clusts, gfs_dict_dict):
             df_dict['day_cent'].append(day - min_day)
             df_dict['n_det'].append(len(day_dets))
             df_dict['n_det_cum'].append(len(cum_dets))
-            #if len(day_dets) > 2:
+            # if len(day_dets) > 2:
             #    xys = np.column_stack((day_dets.x, day_dets.y))
             #    df_dict['hull_size'].append(ConvexHull(xys).volume)
-            #else:
+            # else:
             #    df_dict['hull_size'].append(0.)
-            #if len(cum_dets) > 2:
+            # if len(cum_dets) > 2:
             #    xys_cum = np.column_stack((cum_dets.x, cum_dets.y))
             #    df_dict['hull_size_cum'].append(ConvexHull(xys_cum).volume)
-            #else:
+            # else:
             #    df_dict['hull_size_cum'].append(0.)
 
-            month, dayofmonth = day2monthday(day, leapyear=(year%4))
+            month, dayofmonth = day2monthday(day, leapyear=(year % 4))
             for name, gfs_dict in gfs_dict_dict.iteritems():
                 try:
                     gfs_val = get_gfs_val(center_lat, center_lon, dayofmonth, month, gfs_dict, year)
@@ -117,7 +116,7 @@ def compute_global_feat_df(fire_df, gfs_dict_dict, clust_thresh=10):
     annual_fires = fire_df[fire_df.year == year]
     dayofyear = np.min(annual_fires.dayofyear)
     max_day = np.max(annual_fires.dayofyear)
-    month, day = day2monthday(dayofyear, leapyear=not(year % 4))
+    month, day = day2monthday(dayofyear, leapyear=not (year % 4))
     while year <= max(years):
         df_dict['day'].append(day)
         df_dict['month'].append(month)
@@ -145,9 +144,9 @@ def compute_global_feat_df(fire_df, gfs_dict_dict, clust_thresh=10):
             annual_fires = fire_df[fire_df.year == year]
             dayofyear = np.min(annual_fires.dayofyear)
             max_day = np.max(annual_fires.dayofyear)
-            month, day = day2monthday(dayofyear, leapyear=not(year % 4))
+            month, day = day2monthday(dayofyear, leapyear=not (year % 4))
         else:
-            month,day = day2monthday(dayofyear, (year % 4) == 0)
+            month, day = day2monthday(dayofyear, (year % 4) == 0)
 
     return pd.DataFrame(df_dict)
 
@@ -176,7 +175,7 @@ def compute_gridded_feat_df(fire_df, gfs_dict_dict, grid_len=4, bb=ak_bb):
     annual_fires = fire_df[fire_df.year == year]
     dayofyear = np.min(annual_fires.dayofyear)
     max_day = np.max(annual_fires.dayofyear)
-    month, day = day2monthday(dayofyear, leapyear=not(year % 4))
+    month, day = day2monthday(dayofyear, leapyear=not (year % 4))
     while year <= max(years):
         df_dict['day'].append(day)
         df_dict['month'].append(month)
@@ -184,9 +183,9 @@ def compute_gridded_feat_df(fire_df, gfs_dict_dict, grid_len=4, bb=ak_bb):
         df_dict['dayofyear'].append(dayofyear)
         today_fires = annual_fires[(annual_fires.day == day) & (fire_df.month == month)]
         df_dict['n_det'].append(len(today_fires))
-#        else:
-#            n_clusts = 0
-#        df_dict['n_clusters'].append(n_clusts)
+        #        else:
+        #            n_clusts = 0
+        #        df_dict['n_clusters'].append(n_clusts)
         for name, gfs_dict in gfs_dict_dict.iteritems():
             try:
                 mean_gfs = np.mean(get_gfs_for_region(day, month, year, gfs_dict))  # default bb is ak_inland_bb
@@ -202,9 +201,9 @@ def compute_gridded_feat_df(fire_df, gfs_dict_dict, grid_len=4, bb=ak_bb):
             annual_fires = fire_df[fire_df.year == year]
             dayofyear = np.min(annual_fires.dayofyear)
             max_day = np.max(annual_fires.dayofyear)
-            month, day = day2monthday(dayofyear, leapyear=not(year % 4))
+            month, day = day2monthday(dayofyear, leapyear=not (year % 4))
         else:
-            month,day = day2monthday(dayofyear, (year % 4) == 0)
+            month, day = day2monthday(dayofyear, (year % 4) == 0)
 
     return pd.DataFrame(df_dict)
 
@@ -214,7 +213,7 @@ def compute_gridded_feat_df(fire_df, gfs_dict_dict, grid_len=4, bb=ak_bb):
 def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast.pkl',
                 gfs_locs=('/extra/zbutler0/data/temp_dict.pkl', '/extra/zbutler0/data/hum_dict.pkl',
                           '/extra/zbutler0/data/vpd_dict.pkl'),
-                gfs_names=('temp','humidity','vpd'), clust_thresh=20):
+                gfs_names=('temp', 'humidity', 'vpd'), clust_thresh=20):
     with open(fire_df_loc) as ffire:
         fire_df = cPickle.load(ffire)
     if "dayofyear" not in fire_df:
@@ -225,7 +224,7 @@ def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast
         fire_df = append_xy(fire_df, ak_bb)
 
     gfs_dict_dict = dict()
-    for loc,name in zip(gfs_locs, gfs_names):
+    for loc, name in zip(gfs_locs, gfs_names):
         with open(loc) as fpkl:
             gfs_dict_dict[name] = cPickle.load(fpkl)
 
@@ -233,27 +232,28 @@ def get_feat_df(year, outfile=None, fire_df_loc='/extra/zbutler0/data/west_coast
     feat_df = compute_feat_df(year, fire_df, fires, gfs_dict_dict)
 
     if outfile:
-        with open(outfile,'w') as fout:
+        with open(outfile, 'w') as fout:
             cPickle.dump(feat_df, fout, cPickle.HIGHEST_PROTOCOL)
     return feat_df
 
 
 def get_multiple_feat_dfs(first_year, last_year, base_file_name):
-    for year in xrange(first_year, last_year+1):
+    for year in xrange(first_year, last_year + 1):
         get_feat_df(year, base_file_name + "_%d.pkl" % year)
 
 
 def get_global_df(outfile=None, fire_df_loc='/extra/zbutler0/data/ak_fires.pkl',
-                gfs_locs=('/extra/zbutler0/data/temp_dict.pkl', '/extra/zbutler0/data/hum_dict.pkl',
-                          '/extra/zbutler0/data/vpd_dict.pkl'),
-                gfs_names=('temp','humidity','vpd'), clust_thresh=20):
-    print "debug 6"
+                  gfs_locs=('/extra/zbutler0/data/temp_dict.pkl', '/extra/zbutler0/data/hum_dict.pkl',
+                            '/extra/zbutler0/data/vpd_dict.pkl'),
+                  gfs_names=('temp', 'humidity', 'vpd'), clust_thresh=20):
+    print
+    "debug 6"
     with open(fire_df_loc) as ffire:
         fire_df = cPickle.load(ffire)
     if "dayofyear" not in fire_df:
         fire_df = add_daymonth(fire_df)
     gfs_dict_dict = dict()
-    for loc,name in zip(gfs_locs, gfs_names):
+    for loc, name in zip(gfs_locs, gfs_names):
         with open(loc) as fpkl:
             gfs_dict_dict[name] = cPickle.load(fpkl)
 
@@ -266,4 +266,3 @@ def get_global_df(outfile=None, fire_df_loc='/extra/zbutler0/data/ak_fires.pkl',
 
 if __name__ == "__main__":
     get_multiple_feat_dfs(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3])
-

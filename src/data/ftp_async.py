@@ -1,12 +1,12 @@
-import ftplib
-from ftplib import FTP
-from time import time
-from StringIO import StringIO
-import os
-import multiprocessing
-import logging
-from Queue import Queue
 import atexit
+import ftplib
+import logging
+import multiprocessing
+import os
+from ftplib import FTP
+
+from StringIO import StringIO
+
 
 class Writer(object):
     def __init__(self, write_queue):
@@ -29,6 +29,7 @@ class AsyncFTPFetcher(object):
         self.connection_info = connection_info
         self.write_queue = write_queue
         self.blk_size = blk_size
+        self.ftp = None
 
         self.setup_ftp()
 
@@ -59,6 +60,7 @@ def fetch_thread(context, src_path, dest_path):
     async_fetcher = context['fetcher']
     async_fetcher.fetch(src_path, dest_path)
 
+
 class PoolLimitedTaskQueue(object):
     def __init__(self, pool_size, task_queue_size, initializer=None, destructor=None):
         self.pool_size = pool_size
@@ -84,18 +86,20 @@ class PoolLimitedTaskQueue(object):
         [w.start() for w in self.workers]
 
     def run(self, context):
-        if self.initializer: self.initializer(context)
+        if self.initializer:
+            self.initializer(context)
 
         while True:
             func, args = self.task_queue.get()
             if func is None:
                 logging.debug('Pool worker (%d) stopping after reaching terminal element in task queue' % os.getpid())
-                if self.destructor: self.destructor(context)
+                if self.destructor:
+                    self.destructor(context)
                 return
-            apply(func, (context,) + args)
+            func((context,) + args)
 
     def apply_async(self, func, args):
-        self.task_queue.put((func, args)) 
+        self.task_queue.put((func, args))
 
     def close(self):
         # Put one terminal element for each worker
@@ -108,6 +112,7 @@ class PoolLimitedTaskQueue(object):
     def join(self):
         [w.join() for w in self.workers]
 
+
 class AsyncFTP(object):
     def __init__(self, server_name, username, password, pool_size, queue_size):
         self.server_name = server_name
@@ -115,14 +120,18 @@ class AsyncFTP(object):
         self.password = password
         self.pool_size = pool_size
         self.queue_size = queue_size
+        self.write_queue = None
+        self.pool = None
+        self.writer = None
 
         self.started = False
-    
+
     def start(self):
-        self.write_queue = multiprocessing.Queue(maxsize=self.queue_size) # Files to be written
+        self.write_queue = multiprocessing.Queue(maxsize=self.queue_size)  # Files to be written
 
         # Must come after initializing self.queue and self.ftp_queue because self.init_worker() uses them
-        self.pool = PoolLimitedTaskQueue(self.pool_size, self.pool_size*2, initializer=self.init_worker, destructor=self.destruct_worker) 
+        self.pool = PoolLimitedTaskQueue(self.pool_size, self.pool_size * 2, initializer=self.init_worker,
+                                         destructor=self.destruct_worker)
 
         # Async writing files to disk
         self.writer = multiprocessing.Process(target=Writer(self.write_queue).write)
@@ -154,13 +163,9 @@ class AsyncFTP(object):
 
         logging.debug('Initialized worker (%d)' % os.getpid())
 
-
-    def destruct_worker(self, context):
+    @staticmethod
+    def destruct_worker():
         async_fetcher = context['fetcher']
         async_fetcher.ftp.quit()
 
         logging.debug('Destructed worker (%d)' % os.getpid())
-
-
-
-

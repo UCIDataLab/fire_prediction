@@ -15,7 +15,7 @@ def create_dataset(df, normalize_feats=True):
         y = np.concatenate((y, np.array(annual_df.n_det[annual_df.dayofyear != min_day])))
     if normalize_feats:
         X = (X - X.mean()) / X.std()
-    return X,y
+    return X, y
 
 
 def train_test_split(df, years_in_test=1, normalize_feats=True, feat_cols=['dayofyear', 'n_det', 'vpd']):
@@ -23,8 +23,10 @@ def train_test_split(df, years_in_test=1, normalize_feats=True, feat_cols=['dayo
     perm = np.random.permutation(years)
     test_years = perm[0:years_in_test]
     train_years = perm[years_in_test:]
-    print "Train years: " + str(train_years)
-    print "Test years: " + str(test_years)
+    print
+    "Train years: " + str(train_years)
+    print
+    "Test years: " + str(test_years)
     X_train = pd.DataFrame()
     y_train = np.zeros((0))
     for year in train_years:

@@ -2,20 +2,17 @@
 Convert extracted GFS data to WeatherRegion.
 """
 
-import click
-import os
-import numpy as np
-import logging
-import cPickle as pickle
 import datetime
+import logging
+import os
+
+import pickle
+import click
+import numpy as np
 import pytz
-
-import sys
-
-from helper import date_util as du
-from helper import weather
-from base.converter import Converter
-
+from .base.converter import Converter
+from ..helper import date_util as du
+from ..helper import weather
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
@@ -26,15 +23,19 @@ SCALE_HALF_DEG = '4'
 SCALE_ONE_DEG = '3'
 
 times = [0, 600, 1200, 1800]
-offsets = [0, 3, 6,]
-time_offset_list = [(t,o) for t in times for o in offsets]
+offsets = [0, 3, 6, ]
+time_offset_list = [(t, o) for t in times for o in offsets]
 
-def_name_conversion_dict = {'Surface air relative humidity': 'humidity', '2 metre relative humidity': 'humidity', 'Relative humidity': 'humidity', '10 metre U wind component': 'U wind component', '10 metre V wind component': 'V wind component'}
+def_name_conversion_dict = {'Surface air relative humidity': 'humidity', '2 metre relative humidity': 'humidity',
+                            'Relative humidity': 'humidity', '10 metre U wind component': 'U wind component',
+                            '10 metre V wind component': 'V wind component'}
+
 
 def def_name_func(name):
     # Convert name if entry in dict
     name_dict = def_name_conversion_dict
-    if name in name_dict: name = name_dict[name]
+    if name in name_dict:
+        name = name_dict[name]
 
     return name.lower().replace(' ', '_').replace('-', '_')
 
@@ -43,14 +44,17 @@ class GFStoWeatherRegionConverter(Converter):
     """
     Combine all extracted GFS files to a single WeatherRegion.
     """
+
     def __init__(self, year_start, year_end, scale_sel, measurement_name_func=def_name_func):
         self.year_range = (year_start, year_end)
         self.measurement_name_func = measurement_name_func
+        self.src_dir = None
+        self.num_dates = None
 
         # Choose file format based on selected scale
-        if scale_sel==SCALE_HALF_DEG:
+        if scale_sel == SCALE_HALF_DEG:
             self.extracted_file_fmt = extracted_file_fmt_half_deg
-        elif scale_sel==SCALE_ONE_DEG:
+        elif scale_sel == SCALE_ONE_DEG:
             self.extracted_file_fmt = extracted_file_fmt_one_deg
         else:
             raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
@@ -62,7 +66,6 @@ class GFStoWeatherRegionConverter(Converter):
         available_files = self.get_available_files()
         logging.debug('Finished fetching available files list')
 
-        
         available_files_present = [f[0] for f in available_files]
         if not any(available_files_present):
             logging.debug('No files available from source')
@@ -73,7 +76,7 @@ class GFStoWeatherRegionConverter(Converter):
         all_data = {}
         dates = []
         for i, (is_avail, f) in enumerate(available_files):
-            logging.debug('Converting %s (is_available=%s) (%d/%d)' % (f, is_avail, i+1, self.num_dates))
+            logging.debug('Converting %s (is_available=%s) (%d/%d)' % (f, is_avail, i + 1, self.num_dates))
             # Record date
             date, offset = self.get_date_from_name(os.path.basename(f))
             dates.append(du.DatetimeMeasurement(date, offset))
@@ -91,15 +94,15 @@ class GFStoWeatherRegionConverter(Converter):
             else:
                 file_data = None
 
-
         return all_data, dates, offsets
 
-    def transform(self, data):
+    @staticmethod
+    def transform():
         all_data, dates, offsets = data
 
         # Create WeatherRegion and add WeatherCubes for each measurement
         region = weather.WeatherRegion('gfs_alaska')
-        for k,v in all_data.items():
+        for k, v in all_data.items():
             logging.debug('Building weather cube for "%s"' % k)
             measurement = all_data[k]
             values, units, bb = measurement['values'], measurement['units'], measurement['bounding_box']
@@ -108,7 +111,8 @@ class GFStoWeatherRegionConverter(Converter):
 
         return region
 
-    def save(self, dest_path, data):
+    @staticmethod
+    def save(data):
         with open(dest_path, 'wb') as fout:
             pickle.dump(data, fout, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -118,7 +122,7 @@ class GFStoWeatherRegionConverter(Converter):
         """
         available_files = []
 
-        for year in range(self.year_range[0], self.year_range[1]+1):
+        for year in range(self.year_range[0], self.year_range[1] + 1):
             for month in range(1, 13):
                 year_month = year_month_dir_fmt % (year, month)
 
@@ -128,22 +132,25 @@ class GFStoWeatherRegionConverter(Converter):
                     logging.debug('Missing Month: year %d month %d not in source' % (year, month))
 
                 try:
-                    days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if os.path.isdir(os.path.join(self.src_dir, year_month, d))]
-                except:
+                    days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if
+                                         os.path.isdir(os.path.join(self.src_dir, year_month, d))]
+                except Exception as e:
                     days_in_month_dir = []
 
-                for day in range(1, du.days_per_month(month, du.is_leap_year(year))+1):
+                for day in range(1, du.days_per_month(month, du.is_leap_year(year)) + 1):
                     year_month_day = year_month_day_dir_fmt % (year, month, day)
 
                     if year_month_day not in days_in_month_dir:
                         logging.debug('Missing Day: year %d month %d day %d not in source' % (year, month, day))
 
                     try:
-                        grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day)) if os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
-                    except:
+                        grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day))
+                                         if os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
+                    except Exception as e:
                         grib_dir_list = []
 
-                    todays_grib_files = [self.extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in time_offset_list]
+                    todays_grib_files = [self.extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in
+                                         time_offset_list]
                     for grib_file in todays_grib_files:
                         path = os.path.join(self.src_dir, year_month, year_month_day, grib_file)
 
@@ -158,8 +165,9 @@ class GFStoWeatherRegionConverter(Converter):
 
         return available_files
 
-    def get_date_from_name(self, file_name):
-        name = file_name[9:] # strip prefix
+    @staticmethod
+    def get_date_from_name():
+        name = file_name[9:]  # strip prefix
 
         year = int(name[:4])
         month = int(name[4:6])
@@ -188,10 +196,14 @@ class GFStoWeatherRegionConverter(Converter):
                 measurement['bounding_box'] = bb
 
             measurement = all_data[name]
-            measurement['values'][:,:, date_ind] = values
+            measurement['values'][:, :, date_ind] = values
 
-            if measurement['units'] != units: logging.debug('Units %s and %s don\'t match for %s' % (measurement['units'], units, name))
-            if str(measurement['bounding_box']) != str(bb): logging.debug('Bounding boxes %s and %s don\'t match for %s' % (measurement['bounding_box'], bb, name))
+            if measurement['units'] != units:
+                logging.debug(
+                    'Units %s and %s don\'t match for %s' % (measurement['units'], units, name))
+            if str(measurement['bounding_box']) != str(bb):
+                logging.debug(
+                    'Bounding boxes %s and %s don\'t match for %s' % (measurement['bounding_box'], bb, name))
 
 
 @click.command()
@@ -216,11 +228,10 @@ def main(src_dir, dest_path, start, end, scale, log):
     elif not os.path.isdir(os.path.dirname(dest_path)):
         raise Exception('Destination directory "%s" does not exist' % os.path.dirname(dest_path))
 
-
     logging.info('Starting GFS extracted to WeatherRegion conversion')
     GFStoWeatherRegionConverter(start, end, scale).convert(src_dir, dest_path)
     logging.info('Finished GFS extracted to WeatherRegion conversion')
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()

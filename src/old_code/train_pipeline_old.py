@@ -1,36 +1,34 @@
-import numpy as np
-import luigi
-import os
-import xarray as xr
-import pandas as pd
 import datetime as dt
-import pickle
 import logging
-from collections import defaultdict
-import uuid
-
+import os
+import pickle
 import time
+import uuid
+from collections import defaultdict
 
 import helper.multidata_wrapper as mdw
+import luigi
+import numpy as np
+import pandas as pd
+import xarray as xr
 from evaluation import metrics
-from helper.date_util import filter_fire_season
 from evaluation import setup_data_structs as setup_ds, evaluate_model as evm
-
+from helper.date_util import filter_fire_season
 from models import regression_models, grid_models, forecast_models, zero_inflated_models
 
-from .pipeline_params import GFS_RESOLUTIONS, REGION_BOUNDING_BOXES, WEATHER_FILL_METH
 from .dataset_pipeline import GridDatasetGeneration
+from .pipeline_params import GFS_RESOLUTIONS, REGION_BOUNDING_BOXES, WEATHER_FILL_METH
 from .weather_pipeline import WeatherGridGeneration
 
 MODEL_STRUCTURES = ['grid', 'cluster']
 MODEL_TYPES = {
-        'zero_inflated_p': zero_inflated_models.ZeroInflatedPoissonRegression,
-        'hurdle_p': zero_inflated_models.PoissonHurdleRegression, 
-        'neg_binomial': regression_models.NegativeBinomialRegression,
-        'poisson': regression_models.PoissonRegression, 
-        'log_normal': regression_models.LogNormalRegression,
-        'linear': regression_models.LinearRegression,
-        'persistence': regression_models.PersistenceModel}
+    'zero_inflated_p': zero_inflated_models.ZeroInflatedPoissonRegression,
+    'hurdle_p': zero_inflated_models.PoissonHurdleRegression,
+    'neg_binomial': regression_models.NegativeBinomialRegression,
+    'poisson': regression_models.PoissonRegression,
+    'log_normal': regression_models.LogNormalRegression,
+    'linear': regression_models.LinearRegression,
+    'persistence': regression_models.PersistenceModel}
 SEPARATED_IGNITIONS = ['unified', 'separated', 'active_only']
 MEMORY_TYPES = ['none', 'all', 'decay']
 DECAY_METHODS = ['fixed', 'learned']
@@ -39,8 +37,9 @@ LOG_CORRECTION_METHODS = ['add', 'max']
 
 logger = logging.getLogger('pipeline')
 
+
 def build_single_model(model_type, covariates, log_covariates, params, response_var='num_det_target',
-        exclude_params=None):
+                       exclude_params=None):
     if exclude_params is not None:
         covs = list(covariates)
         for exc in exclude_params:
@@ -48,10 +47,11 @@ def build_single_model(model_type, covariates, log_covariates, params, response_
             log_covariates.remove(exc)
 
     model_cls = MODEL_TYPES[model_type]
-    model = model_cls(response_var, covs, log_covariates, params['log_correction_type'], 
-            params['log_correction_constant'], params['regularization_weight'], params['normalize_params'])
+    model = model_cls(response_var, covs, log_covariates, params['log_correction_type'],
+                      params['log_correction_constant'], params['regularization_weight'], params['normalize_params'])
 
     return model
+
 
 def add_memory_all(X_ds, dates, mem_cov, memory_length, memory_start=1):
     names = []
@@ -59,15 +59,16 @@ def add_memory_all(X_ds, dates, mem_cov, memory_length, memory_start=1):
     values = np.array(X_ds[mem_cov].values)
 
     # Add autoregressive memory
-    for i in range(memory_start,memory_length+1):
+    for i in range(memory_start, memory_length + 1):
         y_mem = setup_ds.shift_in_time(values, dates, -i, np.zeros)
 
         name = mem_cov + '_' + str(i)
         names.append(name)
 
-        X_ds.update({name: (('y','x','time'), y_mem)})
+        X_ds.update({name: (('y', 'x', 'time'), y_mem)})
 
     return names
+
 
 def add_memory_decay(X_ds, mem_cov, memory_length, decay_method, decay_values=None):
     names = []
@@ -83,12 +84,13 @@ def add_memory_decay(X_ds, mem_cov, memory_length, decay_method, decay_values=No
 
     new = np.zeros(X_ds.num_det.shape)
     for i in range(0, memory_length):
-        new += X_ds[mem_cov + '_' + str(i+1)] * vals[i]
+        new += X_ds[mem_cov + '_' + str(i + 1)] * vals[i]
 
     name = mem_cov + '_expon'
-    X_ds.update({name: (('y','x','time'), new)})
+    X_ds.update({name: (('y', 'x', 'time'), new)})
 
     return [name]
+
 
 def add_memory(X_grid_dict, mem_cov, is_log_cov, params):
     memory_length = params['memory_length']
@@ -111,25 +113,27 @@ def add_memory(X_grid_dict, mem_cov, is_log_cov, params):
 
     return cov_names
 
+
 def add_active(X_grid_dict, active_check_days, params):
     for X_ds in X_grid_dict.values():
         # Active check requires memory covariates
         no_memory = params['memory_type'] == 'none'
         memory_length = params['memory_length']
-        if no_memory or ((active_check_days-1) > memory_length):
-            memory_start = 1 if no_memory else memory_length+1
+        if no_memory or ((active_check_days - 1) > memory_length):
+            memory_start = 1 if no_memory else memory_length + 1
             dates = np.array(list(map(lambda x: pd.Timestamp(x).to_pydatetime().date(), X_ds.time.values)))
-            _ = add_memory_all(X_ds, dates, 'num_det', active_check_days-1, memory_start=memory_start)
+            _ = add_memory_all(X_ds, dates, 'num_det', active_check_days - 1, memory_start=memory_start)
 
         is_active = X_ds.active.values
 
-        for i in range(1,active_check_days):
-            vals = X_ds['num_det_' + str(i)].values # Using memory covariates to avoid recomputing
+        for i in range(1, active_check_days):
+            vals = X_ds['num_det_' + str(i)].values  # Using memory covariates to avoid recomputing
             is_active = np.logical_or(is_active, vals)
 
-        #name = 'active_' + str(act)
+        # name = 'active_' + str(act)
         name = 'active'
-        X_ds.update({name: (('y','x','time'), is_active)})
+        X_ds.update({name: (('y', 'x', 'time'), is_active)})
+
 
 def build_covariates(X_grid_dict, params):
     covariates = list(params['covariates'])
@@ -148,31 +152,33 @@ def build_covariates(X_grid_dict, params):
 
     return X_grid_dict, covariates, log_covariates
 
+
 def setup_data(in_files, start_date, end_date, forecast_horizon, parameters):
     # Load data
-    X_grid_dict_nw = {k: xr.open_dataset(target) for (k,target) in in_files.items()}
+    X_grid_dict_nw = {k: xr.open_dataset(target) for (k, target) in in_files.items()}
 
     # Setup data
-    years_train = list(range(start_date.year, end_date.year+1))
+    years_train = list(range(start_date.year, end_date.year + 1))
     X_grid_dict_nw, covariates, log_covariates = build_covariates(X_grid_dict_nw, parameters)
 
     logger.debug('Cov.: %s, Log Cov.: %s' % (str(covariates), str(log_covariates)))
 
-    X_grid_dict_nw = {k: filter_fire_season(v, years=years_train) for (k,v) in X_grid_dict_nw.items()}
+    X_grid_dict_nw = {k: filter_fire_season(v, years=years_train) for (k, v) in X_grid_dict_nw.items()}
 
     # Build y targets
-    t_k_arr = list(range(1, forecast_horizon+1))
-    y_grid_dict = setup_ds.build_y_nw(X_grid_dict_nw[1]['num_det'].values, X_grid_dict_nw[1].time.values, t_k_arr, 
-            years_train)
+    t_k_arr = list(range(1, forecast_horizon + 1))
+    y_grid_dict = setup_ds.build_y_nw(X_grid_dict_nw[1]['num_det'].values, X_grid_dict_nw[1].time.values, t_k_arr,
+                                      years_train)
 
     # Setup data wrappers for corresponding model structures
     if parameters['forecast_method'] == 'recursive':
-        all_ds = [X_grid_dict_nw[k] for k in range(1, forecast_horizon+1)]
+        all_ds = [X_grid_dict_nw[k] for k in range(1, forecast_horizon + 1)]
         X_grid_dict_nw = {k: mdw.MultidataWrapper(all_ds) for k in X_grid_dict_nw}
     else:
-        X_grid_dict_nw = {k: mdw.MultidataWrapper((ds,ds)) for (k,ds) in X_grid_dict_nw.items()}
+        X_grid_dict_nw = {k: mdw.MultidataWrapper((ds, ds)) for (k, ds) in X_grid_dict_nw.items()}
 
     return X_grid_dict_nw, y_grid_dict, covariates, log_covariates, years_train
+
 
 def build_model(covariates, log_covariates, params, t_k):
     """ Select and instantiate model corresponding to params. """
@@ -188,7 +194,7 @@ def build_model(covariates, log_covariates, params, t_k):
     elif params['separated_ignitions'] == 'separated':
         active_model = build_single_model(params['active_model_type'], covariates, log_covariates, params)
         ignition_model = build_single_model(params['ignition_model_type'], covariates, log_covariates, params,
-                params['ignition_covariates_exclude'])
+                                            params['ignition_covariates_exclude'])
         model = grid_models.ActiveIgnitionGrid(active_model, ignition_model)
 
     else:
@@ -199,64 +205,69 @@ def build_model(covariates, log_covariates, params, t_k):
 
     return model
 
+
 def build_model_func(covariates, log_covariates, params):
     return lambda t_k: build_model(covariates, log_covariates, params, t_k=t_k)
+
 
 def create_job_id(train_params_dict):
     return int(uuid.uuid4())
 
+
 def flat(x):
     return map(lambda x: x.flatten(), x)
 
-def compute_summary_results(results_tr, results_te, X_grid_dict_nw, years, metrics_=[metrics.root_mean_squared_error, 
-    metrics.mean_absolute_error]):
+
+def compute_summary_results(results_tr, results_te, X_grid_dict_nw, years, metrics_=[metrics.root_mean_squared_error,
+                                                                                     metrics.mean_absolute_error]):
     summary_results = defaultdict(dict)
 
     # Compute overall error metrics
-    for i, metric in enumerate(metrics_):    
-        x = ['Avg.'] + list(range(1,len(results_tr)+1))
+    for i, metric in enumerate(metrics_):
+        x = ['Avg.'] + list(range(1, len(results_tr) + 1))
         y = list(map(lambda x: metric(*flat(x)), results_tr))
         y = [np.mean(y)] + y
-        summary_results['train'][metric.__name__] = (x,y)
+        summary_results['train'][metric.__name__] = (x, y)
 
-        x = ['Avg.'] + list(range(1,len(results_te)+1))
+        x = ['Avg.'] + list(range(1, len(results_te) + 1))
         y = list(map(lambda x: metric(*flat(x)), results_te))
         y = [np.mean(y)] + y
-        summary_results['test'][metric.__name__] = (x,y)
+        summary_results['test'][metric.__name__] = (x, y)
 
-    #ds = filter_fire_season(X_grid_dict_nw[1][0], years=years)
-    #active_inds = ds.active.values.flatten()
+    # ds = filter_fire_season(X_grid_dict_nw[1][0], years=years)
+    # active_inds = ds.active.values.flatten()
 
     # Compute active and igntion error metrics
     if years is not None:
-        active_inds = list(map(lambda i: filter_fire_season(X_grid_dict_nw[i][0], years=years).active.values.flatten(), 
-            range(1,len(X_grid_dict_nw)+1)))
+        active_inds = list(map(lambda i: filter_fire_season(X_grid_dict_nw[i][0], years=years).active.values.flatten(),
+                               range(1, len(X_grid_dict_nw) + 1)))
         ignition_inds = list(map(lambda x: ~x, active_inds))
     else:
-        active_inds = list(map(lambda i: X_grid_dict_nw[i][0].active.values.flatten(), 
-            range(1,len(X_grid_dict_nw)+1)))
+        active_inds = list(map(lambda i: X_grid_dict_nw[i][0].active.values.flatten(),
+                               range(1, len(X_grid_dict_nw) + 1)))
         ignition_inds = list(map(lambda x: ~x, active_inds))
 
     for inds_name, inds in [('active', active_inds), ('ignition', ignition_inds)]:
-        for i, metric in enumerate(metrics_):    
-            x = ['Avg.'] + list(range(1,len(results_te)+1))
-            y = list(map(lambda x: metric(*flat(x[0]), inds=x[1]), zip(results_te,inds)))
+        for i, metric in enumerate(metrics_):
+            x = ['Avg.'] + list(range(1, len(results_te) + 1))
+            y = list(map(lambda x: metric(*flat(x[0]), inds=x[1]), zip(results_te, inds)))
             y = [np.mean(y)] + y
-            summary_results['test'][metric.__name__+'_'+inds_name] = (x,y)
+            summary_results['test'][metric.__name__ + '_' + inds_name] = (x, y)
 
     return summary_results
+
 
 class TrainModel(luigi.Task):
     data_dir = luigi.parameter.Parameter()
     experiment_dir = luigi.parameter.Parameter()
 
-    start_date = luigi.parameter.DateParameter(default=dt.date(2007,1,1))
-    end_date = luigi.parameter.DateParameter(default=dt.date(2016,12,31))
+    start_date = luigi.parameter.DateParameter(default=dt.date(2007, 1, 1))
+    end_date = luigi.parameter.DateParameter(default=dt.date(2016, 12, 31))
 
     resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS, default='4')
     bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys(), default='alaska')
 
-    fire_season_start = luigi.parameter.DateParameter(default=dt.date(2007, 5,14))
+    fire_season_start = luigi.parameter.DateParameter(default=dt.date(2007, 5, 14))
     fire_season_end = luigi.parameter.DateParameter(default=dt.date(2007, 8, 31))
 
     model_structure = luigi.parameter.ChoiceParameter(choices=MODEL_STRUCTURES)
@@ -284,11 +295,13 @@ class TrainModel(luigi.Task):
     years_test = luigi.parameter.ListParameter(default=None)
 
     def requires(self):
-        self.t_k_arr = range(1, self.forecast_horizon+1)
+        self.t_k_arr = range(1, self.forecast_horizon + 1)
         if self.model_structure == 'grid':
-            tasks = {k: GridDatasetGeneration(data_dir=self.data_dir, start_date=self.start_date, end_date=self.end_date,
-                resolution=self.resolution, bounding_box_name=self.bounding_box_name, fill_method=self.fill_method,
-                forecast_horizon=k) for k in self.t_k_arr}
+            tasks = {
+            k: GridDatasetGeneration(data_dir=self.data_dir, start_date=self.start_date, end_date=self.end_date,
+                                     resolution=self.resolution, bounding_box_name=self.bounding_box_name,
+                                     fill_method=self.fill_method,
+                                     forecast_horizon=k) for k in self.t_k_arr}
         else:
             raise NotImplementedError('Training cluster models not supported yet')
 
@@ -297,9 +310,9 @@ class TrainModel(luigi.Task):
     def run(self):
         # Setup data
         X_grid_dict_nw, y_grid_dict, covariates, log_covariates, years_train = setup_data(
-                {k: v.path for (k,v) in self.input().items()}, self.start_date, self.end_date, self.forecast_horizon, 
-                self.train_parameters)
-       
+            {k: v.path for (k, v) in self.input().items()}, self.start_date, self.end_date, self.forecast_horizon,
+            self.train_parameters)
+
         # Train model
         model_func = build_model_func(covariates, log_covariates, self.train_parameters)
         if self.years_test is not None:
@@ -310,8 +323,8 @@ class TrainModel(luigi.Task):
         else:
             years_test = years_train
 
-        results, models = evm.evaluate_model_params_nw(model_func, X_grid_dict_nw, y_grid_dict, years_test, 
-                self.t_k_arr)
+        results, models = evm.evaluate_model_params_nw(model_func, X_grid_dict_nw, y_grid_dict, years_test,
+                                                       self.t_k_arr)
 
         summary_results = compute_summary_results(results[1], results[1], X_grid_dict_nw, years_test)
 
@@ -323,39 +336,38 @@ class TrainModel(luigi.Task):
                 pickle.dump(out_dict, fout)
 
         logger.info('JOB ID: %d -- %s' % (self.job_id, str(self.train_parameters)))
-        logger.debug('RESULTS: %s -- %s' % (str(summary_results),str(self.train_parameters)))
+        logger.debug('RESULTS: %s -- %s' % (str(summary_results), str(self.train_parameters)))
 
     def output(self):
         self.train_parameters = {
-                'model_structure': self.model_structure, 
-                'separated_ignitions': self.separated_ignitions, 
-                'active_model_type': self.active_model_type, 
-                'ignition_model_type': self.ignition_model_type, 
-                'covariates': self.covariates, 
-                'ignition_covariates_exclude': self.ignition_covariates_exclude, 
-                'memory_type': self.memory_type, 
-                'memory_covariates': self.memory_covariates, 
-                'memory_log_covariates': self.memory_log_covariates, 
-                'memory_length': self.memory_length,
-                'decay_method': self.decay_method,
-                'decay_values': self.decay_values,
-                'forecast_method': self.forecast_method, 
-                'active_check_days': self.active_check_days,
-                'regularization_weight': self.regularization_weight,
-                'log_correction_type': self.log_correction_type,
-                'log_correction_constant': self.log_correction_constant,
-                'log_covariates': self.log_covariates,
-                'fill_method': self.fill_method,
-                'resolution': self.resolution,
-                'region': self.bounding_box_name,
-                'forecast_horizon': self.forecast_horizon,
-                'normalize_params': self.normalize_params}
+            'model_structure': self.model_structure,
+            'separated_ignitions': self.separated_ignitions,
+            'active_model_type': self.active_model_type,
+            'ignition_model_type': self.ignition_model_type,
+            'covariates': self.covariates,
+            'ignition_covariates_exclude': self.ignition_covariates_exclude,
+            'memory_type': self.memory_type,
+            'memory_covariates': self.memory_covariates,
+            'memory_log_covariates': self.memory_log_covariates,
+            'memory_length': self.memory_length,
+            'decay_method': self.decay_method,
+            'decay_values': self.decay_values,
+            'forecast_method': self.forecast_method,
+            'active_check_days': self.active_check_days,
+            'regularization_weight': self.regularization_weight,
+            'log_correction_type': self.log_correction_type,
+            'log_correction_constant': self.log_correction_constant,
+            'log_covariates': self.log_covariates,
+            'fill_method': self.fill_method,
+            'resolution': self.resolution,
+            'region': self.bounding_box_name,
+            'forecast_horizon': self.forecast_horizon,
+            'normalize_params': self.normalize_params}
 
-        #fn = '_'.join(list(map(str, self.train_parameters))) + '.pkl'
+        # fn = '_'.join(list(map(str, self.train_parameters))) + '.pkl'
         self.job_id = create_job_id(self.train_parameters)
         fn = str(self.job_id) + '.pkl'
 
         dest_path = os.path.join(self.experiment_dir, fn)
 
         return luigi.LocalTarget(dest_path)
-        

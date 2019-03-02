@@ -1,8 +1,9 @@
-import cPickle
 import os
+
+import cPickle
 import pandas as pd
-from util.daymonth import monthday2day
 from geometry.grid_conversion import get_latlon_xy_fxns, ak_bb
+from util.daymonth import monthday2day
 
 
 def append_xy(df, bb):
@@ -17,8 +18,8 @@ def append_xy(df, bb):
     xys = map(latlon2xy, valid_fires.lat, valid_fires.long)
     xs = map(lambda x: x[0], xys)
     ys = map(lambda x: x[1], xys)
-    valid_fires.loc[:,'x'] = xs
-    valid_fires.loc[:,'y'] = ys
+    valid_fires.loc[:, 'x'] = xs
+    valid_fires.loc[:, 'y'] = ys
     return valid_fires
 
 
@@ -42,12 +43,12 @@ def convert_to_pd_batch(my_dir, outfi=None, beginning=2007, ending=2016, verbose
     frp_list = []
     satellite_list = []
     confidence_list = []
-    for i,fname in enumerate(os.listdir(my_dir)):
+    for i, fname in enumerate(os.listdir(my_dir)):
         year = int(fname.split(".")[1][0:4])
         if not beginning <= year <= ending:
             continue
-        with open(os.path.join(my_dir,fname)) as fin:
-            fin.readline()   # Ignore header
+        with open(os.path.join(my_dir, fname)) as fin:
+            fin.readline()  # Ignore header
             for line in fin:
                 yyyymmdd = line.split()[0]
                 year = int(yyyymmdd[0:4])
@@ -66,7 +67,8 @@ def convert_to_pd_batch(my_dir, outfi=None, beginning=2007, ending=2016, verbose
                 satellite_list.append(line.split()[2])
                 confidence_list.append(float(line.split()[9]) / 100.)
         if verbose:
-            print "finished reading file %d" % i
+            print
+            "finished reading file %d" % i
 
     # Now, make a dictionary that we will then cast to a DataFrame
     pd_dict = dict()
@@ -82,9 +84,10 @@ def convert_to_pd_batch(my_dir, outfi=None, beginning=2007, ending=2016, verbose
     pd_dict['confidence'] = confidence_list
     pd_dict['satellite'] = satellite_list
     df = pd.DataFrame(pd_dict)
-    print "created DataFrame of size %d" %(len(df))
+    print
+    "created DataFrame of size %d" % (len(df))
     if outfi:
-        with open(outfi,'w') as fout:
+        with open(outfi, 'w') as fout:
             cPickle.dump(df, fout, protocol=cPickle.HIGHEST_PROTOCOL)
     return df
 
@@ -106,6 +109,6 @@ def get_fire_data(year_range, bb, outfi, modis_loc=None, modis_df=None):
 
 if __name__ == "__main__":
     # Get global MODIS data
-    #convert_to_pd_batch("mcd14ml", "data/full_modis.pkl")
+    # convert_to_pd_batch("mcd14ml", "data/full_modis.pkl")
     # Just get Alaska with grid system
-    get_fire_data((2007,2016), ak_bb,  "data/ak_fires.pkl", "mcd14ml")
+    get_fire_data((2007, 2016), ak_bb, "data/ak_fires.pkl", "mcd14ml")

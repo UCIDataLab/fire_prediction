@@ -1,12 +1,11 @@
 """
 Model for linear regression.
 """
-import numpy as np
-import statsmodels.api as sm
+
 import statsmodels.formula.api as smf
 
 from .base.model import Model
-from helper import date_util as du
+
 
 class LinearRegressionModel(Model):
     def __init__(self, covariates):
@@ -17,9 +16,10 @@ class LinearRegressionModel(Model):
         self.covariates = covariates
 
         self.fit_result = None
-        
+
     def fit(self, X, y=None):
         """
+        :param X: covariate dataframe
         :param y: currently unused
         """
         # Build formula for prediction
@@ -27,9 +27,9 @@ class LinearRegressionModel(Model):
         if self.covariates:
             formula += ' + ' + ' + '.join(self.covariates)
 
-        #self.fit_result = smf.glm(formula, data=X, family=sm.genmod.families.family.Gaussian()).fit()
+        # self.fit_result = smf.glm(formula, data=X, family=sm.genmod.families.family.Gaussian()).fit()
         self.fit_result = smf.ols(formula=formula, data=X).fit()
         return self.fit_result
 
-    def predict(self, X):
+    def predict(self, X, shape=None):
         return self.fit_result.predict(X)

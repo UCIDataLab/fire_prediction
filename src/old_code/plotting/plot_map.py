@@ -1,14 +1,16 @@
+import os
+
+import cPickle
 import matplotlib.pyplot as plt
+import numpy as np
+from geometry.grid_conversion import ak_bb
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.basemap import Basemap
-import os
 from util.daymonth import day2monthday, monthday2day
-from geometry.grid_conversion import ak_bb
-import numpy as np
-import cPickle
 
 
-def draw_map_nogrid_static(bb, month=1, day=1, year=None, gfs_dict=None, latlon_df=None, marker='ro', draw_terrain=False,
+def draw_map_nogrid_static(bb, month=1, day=1, year=None, gfs_dict=None, latlon_df=None, marker='ro',
+                           draw_terrain=False,
                            title=None):
     """ Plot a map with optional points and optional overlays
     :param bb: bounding box of region to plot of the form [min_lat, max_lat, min_lon, max_lon]
@@ -40,41 +42,44 @@ def draw_map_nogrid_static(bb, month=1, day=1, year=None, gfs_dict=None, latlon_
         n_lat, n_lon = lats.shape
         gfs_min = gfs_dict['min']
         gfs_max = gfs_dict['max']
-        print "bb: " + str(bb[0])
-        print "lats: " + str(lats[:,0])
-        print "where: " + str(np.where(lats[:,0] <= bb[0]))
-        plot_bb_0 = np.where(lats[:,0] <= bb[0])[0][0]
-        plot_bb_1 = np.where(lats[:,0] <= bb[1])[0][0]
-        plot_bb_2 = np.where(lons[0,:] >= (bb[2] % (n_lon/2)))[0][0]
-        plot_bb_3 = np.where(lons[0,:] >= (bb[3] % (n_lon/2)))[0][0]
+        print
+        "bb: " + str(bb[0])
+        print
+        "lats: " + str(lats[:, 0])
+        print
+        "where: " + str(np.where(lats[:, 0] <= bb[0]))
+        plot_bb_0 = np.where(lats[:, 0] <= bb[0])[0][0]
+        plot_bb_1 = np.where(lats[:, 0] <= bb[1])[0][0]
+        plot_bb_2 = np.where(lons[0, :] >= (bb[2] % (n_lon / 2)))[0][0]
+        plot_bb_3 = np.where(lons[0, :] >= (bb[3] % (n_lon / 2)))[0][0]
         if year is not None:
             vals = gfs_dict[(year, month, day)]
         else:
             vals = gfs_dict[(month, day)]
-        mp.imshow(vals[plot_bb_0-1:plot_bb_1-1:-1, plot_bb_2:plot_bb_3], vmin=gfs_min, vmax=gfs_max)
+        mp.imshow(vals[plot_bb_0 - 1:plot_bb_1 - 1:-1, plot_bb_2:plot_bb_3], vmin=gfs_min, vmax=gfs_max)
         mp.colorbar()
     if title:
         plt.title(title)
 
 
 def make_gif(df, gfs_dict, name="Temp"):
-    ak_bb = [55,71,-165,-138]
+    ak_bb = [55, 71, -165, -138]
     lats = gfs_dict['lats']
     lons = gfs_dict['lons']
-    plot_bb_0 = np.where(lats[:,0] <= ak_bb[0])[0][0]
-    plot_bb_1 = np.where(lats[:,0] <= ak_bb[1])[0][0]
-    plot_bb_2 = np.where(lons[0,:] >= (ak_bb[2] % 360))[0][0]
-    plot_bb_3 = np.where(lons[0,:] >= (ak_bb[3] % 360))[0][0]
+    plot_bb_0 = np.where(lats[:, 0] <= ak_bb[0])[0][0]
+    plot_bb_1 = np.where(lats[:, 0] <= ak_bb[1])[0][0]
+    plot_bb_2 = np.where(lons[0, :] >= (ak_bb[2] % 360))[0][0]
+    plot_bb_3 = np.where(lons[0, :] >= (ak_bb[3] % 360))[0][0]
 
     mp = Basemap(projection="merc",
-                  lat_0=55, lon_0=-165,
-                  llcrnrlat=55,
-                  llcrnrlon=-165,
-                  urcrnrlat=71,
-                  urcrnrlon=-138,
-                  resolution='i')
-    start_day = monthday2day(6,1)
-    end_day = monthday2day(9,1)
+                 lat_0=55, lon_0=-165,
+                 llcrnrlat=55,
+                 llcrnrlon=-165,
+                 urcrnrlat=71,
+                 urcrnrlon=-138,
+                 resolution='i')
+    start_day = monthday2day(6, 1)
+    end_day = monthday2day(9, 1)
     min_temp = gfs_dict['min']
     max_temp = gfs_dict['max']
     prev_lats = []
@@ -90,7 +95,7 @@ def make_gif(df, gfs_dict, name="Temp"):
             prev_lats += list(mp_lats)
             prev_lons += list(mp_lons)
         temp_vals = gfs_dict[monthday]
-        mp.imshow(temp_vals[plot_bb_0-1:plot_bb_1-1:-1, plot_bb_2:plot_bb_3],
+        mp.imshow(temp_vals[plot_bb_0 - 1:plot_bb_1 - 1:-1, plot_bb_2:plot_bb_3],
                   vmin=min_temp, vmax=max_temp)
         plt.title("%s for %d/%d" % (name, monthday[0], monthday[1]))
         mp.drawcoastlines()
@@ -129,12 +134,12 @@ def draw_map_nogrid_animated(bb, md_range, gfs_dict=None, points=None, marker=No
         n_lat, n_lon = lats.shape
         gfs_min = gfs_dict['min']
         gfs_max = gfs_dict['max']
-        plot_bb_0 = np.where(lats[:,0] <= bb[0])[0][0]
-        plot_bb_1 = np.where(lats[:,0] <= bb[1])[0][0]
-        plot_bb_2 = np.where(lons[0,:] >= (bb[2] % (n_lon/2)))[0][0]
-        plot_bb_3 = np.where(lons[0,:] >= (bb[3] % (n_lon/2)))[0][0]
+        plot_bb_0 = np.where(lats[:, 0] <= bb[0])[0][0]
+        plot_bb_1 = np.where(lats[:, 0] <= bb[1])[0][0]
+        plot_bb_2 = np.where(lons[0, :] >= (bb[2] % (n_lon / 2)))[0][0]
+        plot_bb_3 = np.where(lons[0, :] >= (bb[3] % (n_lon / 2)))[0][0]
         vals = gfs_dict[(month, day)]
-        mp.imshow(vals[plot_bb_0-1:plot_bb_1-1:-1, plot_bb_2:plot_bb_3], vmin=gfs_min, vmax=gfs_max)
+        mp.imshow(vals[plot_bb_0 - 1:plot_bb_1 - 1:-1, plot_bb_2:plot_bb_3], vmin=gfs_min, vmax=gfs_max)
         mp.colorbar()
 
     FuncAnimation(fig, update, frames=np.arange(0, 10), interval=200)
@@ -143,20 +148,20 @@ def draw_map_nogrid_animated(bb, md_range, gfs_dict=None, points=None, marker=No
 if __name__ == "__main__":
     with open('data/gfs/temp_dict.pkl') as ftmp:
         temp = cPickle.load(ftmp)
-    draw_map_nogrid_static(ak_bb,month=7, day=15, gfs_dict=temp)
+    draw_map_nogrid_static(ak_bb, month=7, day=15, gfs_dict=temp)
     plt.title("Temperature 07/15/13")
     plt.savefig("pics/temp_ak_071513.png", bbox_inches='tight')
     plt.close()
 
     with open('data/gfs/hum_dict.pkl') as fhum:
         hum = cPickle.load(fhum)
-    draw_map_nogrid_static(ak_bb,month=7, day=15, gfs_dict=hum)
+    draw_map_nogrid_static(ak_bb, month=7, day=15, gfs_dict=hum)
     plt.title("Humidity 07/15/13")
     plt.savefig("pics/hum_ak_071513.png", bbox_inches='tight')
     plt.close()
 
     with open('data/gfs/vpd_dict.pkl') as fvpd:
         vpd = cPickle.load(fvpd)
-    draw_map_nogrid_static(ak_bb,month=7, day=15, gfs_dict=vpd)
+    draw_map_nogrid_static(ak_bb, month=7, day=15, gfs_dict=vpd)
     plt.title("VPD 07/15/13")
     plt.savefig("pics/vpd_ak_071513.png", bbox_inches='tight')

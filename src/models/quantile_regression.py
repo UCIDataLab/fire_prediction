@@ -1,11 +1,10 @@
 """
 Model for quantile regression.
 """
-import numpy as np
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from .base.model import Model
+
 
 class QuantileRegressionModel(Model):
     def __init__(self, quantile, covariates):
@@ -17,9 +16,10 @@ class QuantileRegressionModel(Model):
         self.covariates = covariates
 
         self.fit_result = None
-        
+
     def fit(self, X, y=None):
         """
+        :param X: covariate dataframe
         :param y: currently unused
         """
         # Build formula for prediction
@@ -31,5 +31,5 @@ class QuantileRegressionModel(Model):
 
         return self.fit_result
 
-    def predict(self, X):
+    def predict(self, X, shape=None):
         return self.fit_result.predict(X)

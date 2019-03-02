@@ -1,17 +1,14 @@
-import numpy as np
-import luigi
-import os
-import xarray as xr
-import pandas as pd
 import logging
-import itertools
-
+import os
 import time
 
+import luigi
+import numpy as np
+import xarray as xr
 from helper.geometry import upsample_spatial
 
-from .pipeline_params import REGION_BOUNDING_BOXES, GFS_RESOLUTIONS, WEATHER_FILL_METH, GFS_OFFSETS, ERA_OFFSETS
 from .gfs_pipeline import GfsFilterRegion
+from .pipeline_params import REGION_BOUNDING_BOXES, GFS_RESOLUTIONS, WEATHER_FILL_METH, GFS_OFFSETS
 
 # 48 timesteps (aprox. 4 days)
 INTERP_FILL_LIM = None
@@ -19,12 +16,14 @@ NUM_TIMES_PER_DAY = 12
 
 logger = logging.getLogger('pipeline')
 
+
 def repeat_spatially(arr, shape):
-    arr_new = arr[:,None,None]
+    arr_new = arr[:, None, None]
     arr_new = np.repeat(arr_new, shape[0], axis=1)
     arr_new = np.repeat(arr_new, shape[1], axis=2)
 
     return arr_new
+
 
 def grid_interpolate_nan_days(data, nan_inds):
     """ Interpolate regular grid data at sample points nan_inds. """
@@ -35,18 +34,18 @@ def grid_interpolate_nan_days(data, nan_inds):
     lons = np.arange(data.shape[2])
     points = (days, lats, lons)
 
-    #sample = np.array(list(itertools.product(days, lats, lons)))
-    #interp_values = interp.interpn(points, data[~nan_inds], sample) 
+    # sample = np.array(list(itertools.product(days, lats, lons)))
+    # interp_values = interp.interpn(points, data[~nan_inds], sample)
 
     interp_values = np.empty((np.sum(nan_inds), data.shape[1], data.shape[2]), dtype=data.dtype)
     interp_values.fill(np.nan)
     for y in lats:
         for x in lons:
-            interp_values[:,y,x] = np.interp(nan_days, days, data[~nan_inds,y,x])
+            interp_values[:, y, x] = np.interp(nan_days, days, data[~nan_inds, y, x])
 
-
-    #return np.reshape(interp_values, (len(sample), data.shape[1], data.shape[2]))
+    # return np.reshape(interp_values, (len(sample), data.shape[1], data.shape[2]))
     return interp_values
+
 
 class WeatherFillMissingValues(luigi.Task):
     """ 
@@ -70,21 +69,23 @@ class WeatherFillMissingValues(luigi.Task):
     def requires(self):
         if self.use_era:
             tasks = {'4': GfsFilterRegion(data_dir=self.data_dir, resolution='4', start_date=self.start_date,
-                end_date=self.end_date, bounding_box_name=self.bounding_box_name, use_era=self.use_era)}
+                                          end_date=self.end_date, bounding_box_name=self.bounding_box_name,
+                                          use_era=self.use_era)}
 
             return {'4': tasks[self.resolution]}
 
         else:
             tasks = {res: GfsFilterRegion(data_dir=self.data_dir, resolution=res, start_date=self.start_date,
-                    end_date=self.end_date, bounding_box_name=self.bounding_box_name) for res in GFS_RESOLUTIONS}
+                                          end_date=self.end_date, bounding_box_name=self.bounding_box_name) for res in
+                     GFS_RESOLUTIONS}
 
-            if (self.fill_method == 'integrate_mean') or (self.fill_method == 'integrate_interp'): 
+            if (self.fill_method == 'integrate_mean') or (self.fill_method == 'integrate_interp'):
                 return tasks
             else:
                 return {self.resolution: tasks[self.resolution]}
 
     def run(self):
-        data_in = {k: xr.open_dataset(v.path) for k,v in self.input().items()}
+        data_in = {k: xr.open_dataset(v.path) for k, v in self.input().items()}
 
         data_filled = self.fill_data(data_in)
 
@@ -111,12 +112,12 @@ class WeatherFillMissingValues(luigi.Task):
             if self.fill_method == 'drop':
                 raise NotImplementedError()
 
-            if (self.fill_method == 'integrate_mean') or (self.fill_method == 'integrate_interp'): 
+            if (self.fill_method == 'integrate_mean') or (self.fill_method == 'integrate_interp'):
                 other_resolution = '3' if self.resolution == '4' else '4'
                 data_filler = data_in[other_resolution]
 
-                nan_days = np.any(data_filled[measurement].isnull(), axis=(1,2))
-                non_nan_days_filler = np.all(data_filler[measurement].notnull(), axis=(1,2))
+                nan_days = np.any(data_filled[measurement].isnull(), axis=(1, 2))
+                non_nan_days_filler = np.all(data_filler[measurement].notnull(), axis=(1, 2))
 
                 fill_days = nan_days & non_nan_days_filler
 
@@ -133,31 +134,31 @@ class WeatherFillMissingValues(luigi.Task):
 
             if (self.fill_method == 'interpolate') or (self.fill_method == 'integrate_interp'):
                 # Fill remaining nans with linear interp
-                unfilled_days = np.any(data_filled[measurement].isnull(), axis=(1,2))
-                logger.debug('%s -- to fill by lin. interpolation -- %d' % (measurement, np.sum(unfilled_days)))
+                unfilled_days = np.any(data_filled[measurement].isnull(), axis=(1, 2))
+                logger.debug('{} -- to fill by lin. interpolation -- {:d}'.format(measurement, np.sum(unfilled_days)))
 
                 if measurement in ['temperature', 'humidity', 'u_wind_component', 'v_wind_component']:
                     print(unfilled_days[:10])
-                    print('b2',np.sum(interpolated))
+                    print('b2', np.sum(interpolated))
                     interpolated |= unfilled_days
-                    print('a2',np.sum(interpolated))
+                    print('a2', np.sum(interpolated))
 
                 # Interpolate each time of day (and offset) separately
                 for i in range(NUM_TIMES_PER_DAY):
-                    #data_filled[measurement] = data_filled[measurement].interpolate_na(dim='time', 
+                    # data_filled[measurement] = data_filled[measurement].interpolate_na(dim='time',
                     #        use_coordinate=False, limit=INTERP_FILL_LIM)
 
-                    nan_days = np.any(np.isnan(data_filled[measurement][i::12]), axis=(1,2))
+                    nan_days = np.any(np.isnan(data_filled[measurement][i::12]), axis=(1, 2))
 
                     # If no points or all points are none, do not perform interp
                     if (not np.all(nan_days)) and (not np.all(~nan_days)):
                         data_filled[measurement][i::12][nan_days] = grid_interpolate_nan_days(
-                                data_filled[measurement][i::12], nan_days)
+                            data_filled[measurement][i::12], nan_days)
 
             # Fill any remaining nans with the cell mean 
             if np.any(np.isnan(data_filled[measurement])):
-                unfilled_days = np.any(data_filled[measurement].isnull(), axis=(1,2))
-                logger.debug('%s -- to fill by mean -- %d' % (measurement, np.sum(unfilled_days)))
+                unfilled_days = np.any(data_filled[measurement].isnull(), axis=(1, 2))
+                logger.debug('{} -- to fill by mean -- {:d}'.format(measurement, np.sum(unfilled_days)))
 
                 if measurement in ['temperature', 'humidity', 'u_wind_component', 'v_wind_component']:
                     mean_filled |= unfilled_days
@@ -166,15 +167,15 @@ class WeatherFillMissingValues(luigi.Task):
                 data_filled[measurement][unfilled_days] = measurement_mean
 
             if np.any(np.isnan(data_filled[measurement])):
-                logger.warn('%s -- NaNs still present' % measurement)
+                logger.warning('%s -- NaNs still present' % measurement)
 
-            
             spatial_shape = data_filled['temperature'].values.shape[1:]
-            data_filled.update({'in_filled': (('time', 'y','x'), repeat_spatially(in_filled, spatial_shape))})
-            data_filled.update({'interpolated': (('time', 'y','x'), repeat_spatially(interpolated, spatial_shape))})
-            data_filled.update({'mean_filled': (('time', 'y','x'), repeat_spatially(mean_filled, spatial_shape))})
+            data_filled.update({'in_filled': (('time', 'y', 'x'), repeat_spatially(in_filled, spatial_shape))})
+            data_filled.update({'interpolated': (('time', 'y', 'x'), repeat_spatially(interpolated, spatial_shape))})
+            data_filled.update({'mean_filled': (('time', 'y', 'x'), repeat_spatially(mean_filled, spatial_shape))})
 
         return data_filled
+
 
 class WeatherGridGeneration(luigi.Task):
     """
@@ -200,8 +201,9 @@ class WeatherGridGeneration(luigi.Task):
 
     def requires(self):
         return WeatherFillMissingValues(data_dir=self.data_dir, start_date=self.start_date, end_date=self.end_date,
-                resolution=self.resolution, bounding_box_name=self.bounding_box_name, fill_method=self.fill_method,
-                use_era=self.use_era)
+                                        resolution=self.resolution, bounding_box_name=self.bounding_box_name,
+                                        fill_method=self.fill_method,
+                                        use_era=self.use_era)
 
     def run(self):
         data = xr.open_dataset(self.input().path)
@@ -230,7 +232,8 @@ class WeatherGridGeneration(luigi.Task):
 
         return luigi.LocalTarget(dest_path)
 
-    def compute_vpd(self, data):
+    @staticmethod
+    def compute_vpd(data):
         temp_k = data['temperature']
         rel_humid = data['humidity']
 
@@ -252,14 +255,14 @@ class WeatherGridGeneration(luigi.Task):
         print('vpd size:', vpd.size)
         """
 
-        vpsat = 0.611*10**((7.5*temp_k-2048.6)/(temp_k-35.85))
+        vpsat = 0.611 * 10 ** ((7.5 * temp_k - 2048.6) / (temp_k - 35.85))
         vp = rel_humid / 100 * vpsat
         vpd = vpsat - vp
 
         # Ensure it is non-negative
-        vpd[vpd<0] = 0
+        vpd[vpd < 0] = 0
 
-        data.update({'vpd': (('time', 'y','x'), vpd)})
+        data.update({'vpd': (('time', 'y', 'x'), vpd)})
 
         return data
 
@@ -271,42 +274,42 @@ class WeatherGridGeneration(luigi.Task):
         if self.use_era:
             length = 2
             num_offsets = 2
-            upper_off = (lag*num_offsets)+1
-            lower_off = ((length+lag)*num_offsets)
+            upper_off = (lag * num_offsets) + 1
+            lower_off = ((length + lag) * num_offsets)
         else:
             length = 4
             num_offsets = len(GFS_OFFSETS)
-            upper_off = (lag*num_offsets)
-            lower_off = ((length+lag-1)*num_offsets) + 1
+            upper_off = (lag * num_offsets)
+            lower_off = ((length + lag - 1) * num_offsets) + 1
 
-        startup_length = (length+lag)*num_offsets
+        startup_length = (length + lag) * num_offsets
 
         integrated_rain = np.empty(rain_vals.shape, dtype=rain_vals.dtype)
         start = time.time()
-        for i in range(0,rain_vals.shape[0], num_offsets):
+        for i in range(0, rain_vals.shape[0], num_offsets):
             if i <= upper_off:
                 if self.use_era:
                     integrated_rain[i] = np.sum(rain_vals[0], axis=0)
                 else:
-                    integrated_rain[i] = np.sum(rain_vals[num_offsets-1], axis=0)
+                    integrated_rain[i] = np.sum(rain_vals[num_offsets - 1], axis=0)
             elif i < startup_length:
                 if self.use_era:
-                    integrated_rain[i] = np.sum(rain_vals[:i-upper_off:num_offsets], axis=0)
+                    integrated_rain[i] = np.sum(rain_vals[:i - upper_off:num_offsets], axis=0)
                 else:
-                    integrated_rain[i] = np.sum(rain_vals[num_offsets-1:i-upper_off:num_offsets], axis=0)
+                    integrated_rain[i] = np.sum(rain_vals[num_offsets - 1:i - upper_off:num_offsets], axis=0)
             else:
-                integrated_rain[i] = np.sum(rain_vals[i-lower_off:i-upper_off:num_offsets], axis=0)
+                integrated_rain[i] = np.sum(rain_vals[i - lower_off:i - upper_off:num_offsets], axis=0)
 
-                if (i % (num_offsets*1000)) == 0:
+                if (i % (num_offsets * 1000)) == 0:
                     logger.debug('Current rain ind: %d' % i)
-                    logger.debug('Val: %f, Range: %s, Start: %d, End: %d' % (integrated_rain[i,0,0], 
-                        str(rain_vals[i-lower_off:i-upper_off:num_offsets,0,0]), i-lower_off, i-upper_off))
+                    logger.debug('Val: {:f}, Range: {}, Start: {:d}, End: {:d}'.format(integrated_rain[i, 0, 0], str(
+                        rain_vals[i - lower_off:i - upper_off:num_offsets, 0, 0]), i - lower_off, i - upper_off))
         if self.use_era:
-            for i in range(0,rain_vals.shape[0]-1, num_offsets):
-                if i+2 >= rain_vals.shape[0]:
-                    integrated_rain[i+1] = integrated_rain[i]
+            for i in range(0, rain_vals.shape[0] - 1, num_offsets):
+                if i + 2 >= rain_vals.shape[0]:
+                    integrated_rain[i + 1] = integrated_rain[i]
                 else:
-                    integrated_rain[i+1] = (integrated_rain[i] + integrated_rain[i+2])/2
+                    integrated_rain[i + 1] = (integrated_rain[i] + integrated_rain[i + 2]) / 2
         logger.debug('Time: %f' % (time.time() - start))
 
         rain_da[:] = integrated_rain
@@ -315,9 +318,10 @@ class WeatherGridGeneration(luigi.Task):
 
         return data
 
-    def discard_offset_measurments(self, data):
-        #offset = pd.to_timedelta(data.offset)
-        #non_offset_inds = offset.seconds == 0
+    @staticmethod
+    def discard_offset_measurments(data):
+        # offset = pd.to_timedelta(data.offset)
+        # non_offset_inds = offset.seconds == 0
 
         # Every third time step is non-offset measurement
         non_offset_slice = slice(0, None, 3)
@@ -327,7 +331,7 @@ class WeatherGridGeneration(luigi.Task):
         encodings = {}
         for measurement in data.data_vars.keys():
             data_arrays[measurement] = (['time', 'y', 'x'], np.array(data[measurement])[non_offset_slice],
-                    data[measurement].attrs)
+                                        data[measurement].attrs)
             encodings[measurement] = data[measurement].encoding
 
         logger.debug('Building coords')
@@ -337,14 +341,15 @@ class WeatherGridGeneration(luigi.Task):
 
         logger.debug('Building dataset')
         ds_new = xr.Dataset(data_arrays, coords={'lat': (['y'], lat), 'lon': (['x'], lon),
-            'time': time}, attrs=data.attrs)
+                                                 'time': time}, attrs=data.attrs)
 
         for measurement in ds_new.data_vars.keys():
             ds_new[measurement].encoding = encodings[measurement]
 
         return ds_new
 
-    def compute_wind_speed(self, data):
+    @staticmethod
+    def compute_wind_speed(data):
         u_wind = data['u_wind_component']
         v_wind = data['v_wind_component']
 
@@ -355,7 +360,7 @@ class WeatherGridGeneration(luigi.Task):
         logger.debug('Computing wind magnitude')
         squared_vals = np.square(u_wind_speed) + np.square(v_wind_speed)
 
-        #for v in squared_vals:
+        # for v in squared_vals:
         #    t = np.sqrt(v)
         #    """
         #    try:
@@ -376,4 +381,3 @@ class WeatherGridGeneration(luigi.Task):
         data = data.rename({'u_wind_component': 'wind_speed'})
 
         return data
-

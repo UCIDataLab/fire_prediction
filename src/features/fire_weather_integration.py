@@ -2,21 +2,23 @@
 Integrating clustered fire data and weather data.
 """
 
-import click
-import logging
-import pandas as pd
 import datetime as dt
+import logging
 from datetime import datetime
+
+import pickle
+import click
+from ..helper import date_util as du
+from ..helper import preprocessing as pp
 import numpy as np
-import cPickle as pickle
+import pandas as pd
 
-import pytz
-
-import helper.date_util as du
-import helper.preprocessing as pp
 
 class FireWeatherIntegration(object):
-    def __init__(self, k_days, time, fill_missing, fill_n_days, rain_offset, weather_vars_labels=['temperature', 'humidity', 'wind', 'rain']):
+    def __init__(self, k_days, time, fill_missing, fill_n_days, rain_offset,
+                 weather_vars_labels=None):
+        if weather_vars_labels is None:
+            weather_vars_labels = ['temperature', 'humidity', 'wind', 'rain']
         self.k_days = k_days
         self.time = time
         self.fill_missing = fill_missing
@@ -37,7 +39,7 @@ class FireWeatherIntegration(object):
 
         weather_vars = []
         for i, row in enumerate(fire_df.itertuples()):
-            logging.debug('Starting integration for row %d/%d' % (i+1, fire_df.shape[0]))
+            logging.debug('Starting integration for row %d/%d' % (i + 1, fire_df.shape[0]))
             num_det = row.num_det
 
             # Don't update lat/lon if no detections
@@ -46,8 +48,9 @@ class FireWeatherIntegration(object):
             else:
                 date, lat, lon = row.date_local, row.lat_centroid, row.lon_centroid
 
-            date += du.INC_ONE_DAY * self.k_days # For row t, store weather(t+k)
-            target_datetime = datetime.combine(date, dt.time(self.time, 0, 0, tzinfo=du.TrulyLocalTzInfo(lon, du.round_to_nearest_quarter_hour)))
+            date += du.INC_ONE_DAY * self.k_days  # For row t, store weather(t+k)
+            tzinfo = du.TrulyLocalTzInfo(lon, du.round_to_nearest_quarter_hour)
+            target_datetime = datetime.combine(date, dt.time(self.time, 0, 0, tzinfo=tzinfo))
 
             var = self.get_weather_variables(weather_region, target_datetime, lat, lon)
             weather_vars.append(var)
@@ -58,14 +61,16 @@ class FireWeatherIntegration(object):
 
         self.integrated_data = pp.add_autoregressive_col(self.integrated_data, self.k_days)
 
-    def load_fire(self, src_path):
+    @staticmethod
+    def load_fire():
         logging.info('Loading file from %s' % src_path)
         with open(src_path, 'rb') as fin:
             data = pickle.load(fin)
 
         return data
 
-    def load_weather(self, src_path):
+    @staticmethod
+    def load_weather():
         logging.info('Loading file from %s' % src_path)
         with open(src_path, 'rb') as fin:
             data = pickle.load(fin)
@@ -88,14 +93,13 @@ class FireWeatherIntegration(object):
         vals = []
         for key in self.weather_vars_labels:
             data = weather_data[key].values
-            if key=='rain':
+            if key == 'rain':
                 try:
-                    val = data[lat_ind, lon_ind, date_ind+self.rain_offset]
-                except:
+                    val = data[lat_ind, lon_ind, date_ind + self.rain_offset]
+                except Exception as e:
                     val = np.nan
             else:
                 val = data[lat_ind, lon_ind, date_ind]
-
 
             if np.isnan(val) and self.fill_missing:
                 val = self.fill_missing_value(data, lat_ind, lon_ind, date_ind)
@@ -110,7 +114,7 @@ class FireWeatherIntegration(object):
 
         If no non-nan value is found, replaces with mean of all values at the given lat/lon.
         """
-        for day_offset in range(1,self.fill_n_days+1):
+        for day_offset in range(1, self.fill_n_days + 1):
             new_date_ind = date_ind - day_offset
 
             if new_date_ind < 0:
@@ -123,9 +127,9 @@ class FireWeatherIntegration(object):
 
         return np.nanmean(data[lat_ind, lon_ind, :])
 
-    def get_latlon_index(self, weather_data, lat, lon):
+    @staticmethod
+    def get_latlon_index(lat, lon):
         bb = weather_data.bounding_box
-
 
         lat_res, lon_res = bb.get_latlon_resolution(weather_data.shape[:2])
         lat_min, lat_max, lon_min, lon_max = bb.get()
@@ -138,12 +142,13 @@ class FireWeatherIntegration(object):
 
         return lat_ind, lon_ind
 
-    def get_date_index(self, weather_data, target_datetime):
+    @staticmethod
+    def get_date_index(target_datetime):
         date_ind = np.searchsorted(weather_data.dates, target_datetime, side='left')
 
         # Check if left or right element is closer
         if date_ind != 0:
-            date_ind_left, date_ind_curr = date_ind-1, date_ind
+            date_ind_left, date_ind_curr = date_ind - 1, date_ind
 
             dist_left = abs((weather_data.dates[date_ind_left] - target_datetime).total_seconds())
             dist_curr = abs((weather_data.dates[date_ind_curr] - target_datetime).total_seconds())

@@ -2,10 +2,10 @@
 Fetches MODIS (Moderate Resolution Imaging Spectroradiometer) data.
 """
 
-import click
 import logging
-import os
-import sys
+
+import click
+
 
 class ModisFetch(object):
     def __init__(self, data_dir):
@@ -24,7 +24,8 @@ def main(data_dir):
 
     ModisFetch(data_dir).fetch()
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
 

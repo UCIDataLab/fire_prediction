@@ -1,21 +1,21 @@
-import numpy as np
-import luigi
-import datetime as dt
-import pandas as pd
-import os
 import gzip
+import os
 
-from helper.geometry import filter_bounding_box_df
+import luigi
+import pandas as pd
 from helper.date_util import daterange_months
+from helper.geometry import filter_bounding_box_df
 
-from .pipeline_params import (REGION_BOUNDING_BOXES, 
-        MODIS_RAW_DATA_DIR, MODIS_AGGREGATED_DATA_DIR, MODIS_REGION_DATA_DIR,
-        MODIS_SERVER_NAME, MODIS_SERVER_USERNAME, MODIS_SERVER_PASSWORD, MODIS_SERVER_DATA_DIR)
 from .pipeline_helper import FtpFile, change_data_dir_path
+from .pipeline_params import (REGION_BOUNDING_BOXES,
+                              MODIS_RAW_DATA_DIR, MODIS_AGGREGATED_DATA_DIR, MODIS_REGION_DATA_DIR,
+                              MODIS_SERVER_NAME, MODIS_SERVER_USERNAME, MODIS_SERVER_PASSWORD, MODIS_SERVER_DATA_DIR)
+
 
 def build_modis_server_file_path(data_dir, date):
     fn = 'MCD14ML.%s.006.01.txt.gz' % date.strftime('%Y%m')
     return os.path.join(data_dir, fn)
+
 
 class ModisFtpFileDownload(luigi.Task):
     data_dir = luigi.parameter.Parameter()
@@ -33,7 +33,7 @@ class ModisFtpFileDownload(luigi.Task):
     def requires(self):
         file_path = build_modis_server_file_path(self.server_data_dir, self.month_sel)
         return FtpFile(server_name=self.server_name, server_username=self.server_username,
-                server_password=self.server_password, file_path=file_path)
+                       server_password=self.server_password, file_path=file_path)
 
     def run(self):
         # Copy ftp file from server to local dest
@@ -41,9 +41,10 @@ class ModisFtpFileDownload(luigi.Task):
             self.input().get(temp_output_path)
 
     def output(self):
-        dest_path = change_data_dir_path(self.server_data_dir, 
-                os.path.join(self.data_dir, self.dest_data_dir), self.input().path)
+        dest_path = change_data_dir_path(self.server_data_dir,
+                                         os.path.join(self.data_dir, self.dest_data_dir), self.input().path)
         return luigi.LocalTarget(dest_path)
+
 
 class ModisAggregate(luigi.Task):
     data_dir = luigi.parameter.Parameter()
@@ -61,13 +62,13 @@ class ModisAggregate(luigi.Task):
 
         for file_path in [in_f.path for in_f in self.input()]:
             with gzip.open(file_path, 'rb') as fin:
-                df = pd.read_csv(fin, sep=' ', skipinitialspace=True, index_col=None, 
-                        parse_dates=[['YYYYMMDD', 'HHMM']], infer_datetime_format=True)
+                df = pd.read_csv(fin, sep=' ', skipinitialspace=True, index_col=None,
+                                 parse_dates=[['YYYYMMDD', 'HHMM']], infer_datetime_format=True)
 
                 # Rename datetime column
-                df.rename(columns = {'YYYYMMDD_HHMM': 'datetime_utc'}, inplace=True)
+                df.rename(columns={'YYYYMMDD_HHMM': 'datetime_utc'}, inplace=True)
 
-                #df.index.names = ['datetime_utc'] # Make index the UTC datetime
+                # df.index.names = ['datetime_utc'] # Make index the UTC datetime
                 frames.append(df)
 
         df = pd.concat(frames)
@@ -86,6 +87,7 @@ class ModisAggregate(luigi.Task):
 
         return luigi.LocalTarget(dest_path)
 
+
 class ModisFilterRegion(luigi.Task):
     data_dir = luigi.parameter.Parameter()
     dest_data_dir = luigi.parameter.Parameter(default=MODIS_REGION_DATA_DIR)
@@ -96,15 +98,16 @@ class ModisFilterRegion(luigi.Task):
     bounding_box_sel_name = luigi.parameter.Parameter(default='alaska')
 
     def requires(self):
-        return ModisAggregate(data_dir=self.data_dir, start_month_sel=self.start_month_sel, end_month_sel=self.end_month_sel)
+        return ModisAggregate(data_dir=self.data_dir, start_month_sel=self.start_month_sel,
+                              end_month_sel=self.end_month_sel)
 
     def run(self):
         df = pd.read_pickle(self.input().path)
 
-        df = df[df['type']==0] # Include only vegetation fires
+        df = df[df['type'] == 0]  # Include only vegetation fires
 
         bounding_box = REGION_BOUNDING_BOXES[self.bounding_box_sel_name]
-        df = filter_bounding_box_df(df, bounding_box) # Only use fires in bounding box
+        df = filter_bounding_box_df(df, bounding_box)  # Only use fires in bounding box
 
         # Localize datetime to UTC
         df.datetime_utc = df.datetime_utc.dt.tz_localize('utc')
@@ -122,4 +125,3 @@ class ModisFilterRegion(luigi.Task):
         dest_path = os.path.join(self.data_dir, self.dest_data_dir, fn)
 
         return luigi.LocalTarget(dest_path)
-

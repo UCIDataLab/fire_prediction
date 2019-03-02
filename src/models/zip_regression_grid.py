@@ -1,19 +1,18 @@
 """
 Model for fitting a bias term to each grid cell and a shared weather model with a zero-inflated poisson distribution.
 """
-import numpy as np
-import statsmodels.api as sm
-from statsmodels.discrete.count_model import ZeroInflatedPoisson, ZeroInflatedNegativeBinomialP
-
 from io import StringIO
 
-from .base.model import Model
-from sklearn.neural_network import MLPRegressor
-
+import numpy as np
 import pandas as pd
+from statsmodels.discrete.count_model import ZeroInflatedPoisson
+
+from .base.model import Model
+
 
 class ZIPRegressionGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None, pred_func=None):
+    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None,
+                 pred_func=None):
         super(ZIPRegressionGridModel, self).__init__()
 
         self.covariates = covariates
@@ -24,9 +23,12 @@ class ZIPRegressionGridModel(Model):
         self.pred_func = pred_func
 
         self.fit_result = None
+        self.mean = None
+        self.std = None
 
     def fit(self, X, y=None):
         """
+        :param X: covariate dataframe
         :param y: currently unused
         """
         """
@@ -62,35 +64,35 @@ class ZIPRegressionGridModel(Model):
         if self.filter_func:
             X_df = self.filter_func(X_df)
 
-        #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
+        # print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
         X_df = pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
-        #print(X_df)
+        # print(X_df)
 
         if self.regularizer_weight is None:
-            #self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit()
+            # self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit()
             formula = 'num_det_target ~ np.log(num_det+%f)' % self.log_shift
 
             y = np.zeros(len(X_df))
             y[:] = X_df['num_det_target']
 
             data = np.zeros((len(X_df), 2 + len(self.covariates)))
-            data[:,1] = np.log(X_df['num_det'] + 1)
-            for i,cov in enumerate(self.covariates):
-                data[:,i+2] = X_df[cov]
+            data[:, 1] = np.log(X_df['num_det'] + 1)
+            for i, cov in enumerate(self.covariates):
+                data[:, i + 2] = X_df[cov]
 
             self.mean = np.mean(data, axis=0)
-            self.std = np.ones(len(self.covariates)+2)#np.std(data, axis=0)
-            data = (data-self.mean)/self.std
+            self.std = np.ones(len(self.covariates) + 2)  # np.std(data, axis=0)
+            data = (data - self.mean) / self.std
 
-            data[:,0] = 1
+            data[:, 0] = 1
 
-            self.fit_result = ZeroInflatedPoisson(y, exog=data,exog_infl=data).fit()
-            #smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
+            self.fit_result = ZeroInflatedPoisson(y, exog=data, exog_infl=data).fit()
+            # smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
         else:
-            #self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit_regularized(alpha=self.regularizer_weight)
+            # self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit_regularized(
+            # alpha=self.regularizer_weight)
             raise NotImplementedError()
-        #self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
-
+        # self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
         return self.fit_result
 
@@ -120,12 +122,12 @@ class ZIPRegressionGridModel(Model):
         X_df = X.to_dataframe()
 
         data = np.zeros((len(X_df), 2 + len(self.covariates)))
-        data[:,1] = np.log(X_df['num_det'] + 1)
-        for i,cov in enumerate(self.covariates):
-            data[:,i+2] = X_df[cov]
+        data[:, 1] = np.log(X_df['num_det'] + 1)
+        for i, cov in enumerate(self.covariates):
+            data[:, i + 2] = X_df[cov]
 
-        data = (data-self.mean)/self.std
-        data[:,0] = 1
+        data = (data - self.mean) / self.std
+        data[:, 0] = 1
 
         pred = self.fit_result.predict(exog=data, exog_infl=data)
 

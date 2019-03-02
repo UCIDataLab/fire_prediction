@@ -1,22 +1,24 @@
 """
 Helper functions for dealing with calendar dates.
 """
-import math
 import datetime as dt
-import numpy as np
-import xarray as xr
-import pandas as pd
-from datetime import timedelta, datetime, tzinfo
-import pytz
+from datetime import timedelta, tzinfo
 from functools import total_ordering
 
+import numpy as np
+import pandas as pd
+import pytz
+import xarray as xr
+
 INC_ONE_DAY = timedelta(hours=24)
+
 
 def is_leap_year(year):
     """
     Is the given year a leap year.
     """
     return year % 4 == 0
+
 
 def days_per_month(month, is_leap):
     """
@@ -28,7 +30,8 @@ def days_per_month(month, is_leap):
         month_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     else:
         month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    return month_arr[month-1]
+    return month_arr[month - 1]
+
 
 def daterange(start_date, end_date=None, increment=timedelta(hours=24)):
     """
@@ -45,9 +48,11 @@ def daterange(start_date, end_date=None, increment=timedelta(hours=24)):
             yield start_date
             start_date += increment
 
+
 def daterange_days(start_date, end_date):
-    for n in range(int ((end_date - start_date).days)):
+    for n in range(int((end_date - start_date).days)):
         yield start_date + dt.timedelta(n)
+
 
 def daterange_months(start_date, end_date):
     """Iterate through months in date range (inclusive)."""
@@ -63,21 +68,23 @@ def daterange_months(start_date, end_date):
 
     yield dt.date(end_year, end_month, 1)
 
-def filter_fire_season(ds, start=(5,14), end=(8,31), years=range(2007,2016+1)):
+
+def filter_fire_season(ds, start=(5, 14), end=(8, 31), years=range(2007, 2016 + 1)):
     dates = ds.time.values
     ind = np.zeros(dates.shape, dtype=np.bool)
     for year in years:
         start_date = np.datetime64(dt.date(year, start[0], start[1]))
         end_date = np.datetime64(dt.date(year, end[0], end[1]))
-        ind = ind | ((dates>=start_date) & (dates<=end_date))
+        ind = ind | ((dates >= start_date) & (dates <= end_date))
 
     data_vars = {}
     for k in ds.data_vars.keys():
-        data_vars[k] = (('y','x','time'), np.array(ds[k].values)[:,:,ind], ds[k].attrs)
+        data_vars[k] = (('y', 'x', 'time'), np.array(ds[k].values)[:, :, ind], ds[k].attrs)
 
     new_ds = xr.Dataset(data_vars, coords={'time': ds.time.values[ind]}, attrs=ds.attrs)
 
     return new_ds
+
 
 def create_true_dates(start_date, end_date, times, offsets):
     """ 
@@ -95,12 +102,13 @@ def create_true_dates(start_date, end_date, times, offsets):
     return true_dates, np.array(true_offsets)
 
 
-
 def round_to_nearest_multiple(x, multiple):
-    return multiple * round(x/multiple)
+    return multiple * round(x / multiple)
+
 
 def round_to_nearest_quarter_hour(x):
     return round_to_nearest_multiple(x, .25)
+
 
 def utc_to_local_time_offset(lon, round_func=round_to_nearest_quarter_hour):
     """
@@ -115,6 +123,7 @@ def utc_to_local_time_offset(lon, round_func=round_to_nearest_quarter_hour):
 
     return timedelta(hours=offset)
 
+
 def utc_to_local_time(datetime_utc, lon, round_func=None):
     """ 
     Calculate local time based on longitude and utc time.
@@ -124,49 +133,6 @@ def utc_to_local_time(datetime_utc, lon, round_func=None):
     tz = TrulyLocalTzInfo(lon, round_func)
 
     return datetime_utc.astimezone(tz)
-
-def day2monthday(my_day, leapyear=False):
-    if leapyear:
-        month_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    else:
-        month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    month = 1
-    days_left = my_day
-    while days_left >= month_arr[month-1]:
-        days_left -= month_arr[month-1]
-        month += 1
-    day = days_left + 1
-    return month,day
-
-def monthday2day(month, day, leapyear=False):
-    """Convert month/day into days since Jan 1"""
-    if leapyear:
-        month_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    else:
-        month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    days = 0
-    for mon in xrange(1, month):
-        days += month_arr[mon - 1]
-    days += day - 1
-    return days
-
-
-def increment_day(year, month, day):
-    if year % 4:  # not leap year
-        days_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
-    else:  # leap year
-        days_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
-
-    if day == days_arr[month-1]:
-        day = 1
-        month += 1
-        if month == 13:
-            month = 1
-            year += 1
-    else:
-        day += 1
-
-    return year, month, day
 
 
 class TrulyLocalTzInfo(tzinfo):
@@ -189,10 +155,12 @@ class TrulyLocalTzInfo(tzinfo):
 @total_ordering
 class DatetimeMeasurement(object):
     """
-    Tracks a datetime with an offset (usually used for integrated measurements) and supports conversion to truly local time.
+    Tracks a datetime with an offset (usually used for integrated measurements) and supports conversion to truly local
+    time.
 
     Stores all datetimes in UTC local. Supports using lon for a truly localized offset
     """
+
     def __init__(self, dt, td_offset=timedelta(0)):
         # Check that datetime dt is timezone aware
         if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
@@ -235,11 +203,11 @@ def day2monthday(my_day, leapyear=False):
         month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     month = 1
     days_left = my_day
-    while days_left >= month_arr[month-1]:
-        days_left -= month_arr[month-1]
+    while days_left >= month_arr[month - 1]:
+        days_left -= month_arr[month - 1]
         month += 1
     day = days_left + 1
-    return month,day
+    return month, day
 
 
 def monthday2day(month, day, leapyear=False):
@@ -261,7 +229,7 @@ def increment_day(year, month, day):
     else:  # leap year
         days_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
 
-    if day == days_arr[month-1]:
+    if day == days_arr[month - 1]:
         day = 1
         month += 1
         if month == 13:
@@ -271,6 +239,7 @@ def increment_day(year, month, day):
         day += 1
 
     return year, month, day
+
 
 def dayofyear_from_datetime(dt_):
     return dt_.timetuple().tm_yday

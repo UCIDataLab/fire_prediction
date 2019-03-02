@@ -2,6 +2,7 @@
 Base class for data converters.
 """
 
+
 class Converter(object):
     def __init__(self):
         pass
@@ -14,13 +15,12 @@ class Converter(object):
         Else uses 'data_dir' and 'dest' explicitly.
         """
         # Choose which file selection mode is used
-        #if dest:
+        # if dest:
         src = data_dir
-        #else:
+        # else:
         #    src = self.INPUT_FMT.run(data_dir)
         #    dest = self.INPUT_FMT.run(data_dir)
 
         data = self.load(src)
         converted_data = self.transform(data)
         self.save(dest, converted_data)
-

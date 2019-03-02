@@ -2,21 +2,25 @@
 Models designed to wrap simpler models to allow predictions onto a grid.
 """
 
+from io import StringIO
+
 import numpy as np
 import pandas as pd
-from io import StringIO
 
 from .base.model import Model
 
 large_diffs = []
 large_diffs2 = []
-#count = 0
+
+
+# count = 0
 
 def convert_pred_to_grid(pred, shape):
     pred = np.array(pred)
     pred = np.reshape(pred, shape, order='F')
 
     return pred
+
 
 def prep_df_for_model(X, filter_func):
     if not isinstance(X, pd.DataFrame):
@@ -33,6 +37,7 @@ def prep_df_for_model(X, filter_func):
     X_df = pd.read_csv(StringIO(X_df.to_csv()))
 
     return X_df
+
 
 class GridComponent(Model):
     def __init__(self, model, filter_func=None, pred_func=None):
@@ -52,14 +57,14 @@ class GridComponent(Model):
         # If passing xarray, convert to dataframe
         try:
             X_df = X.to_dataframe()
-        except:
+        except Exception as e:
             X_df = X
 
         if choice is not None:
             ret = self.model.predict(X_df, choice)
             pred = ret[0]
             rem = ret[1:]
-            print('g',np.shape(rem))
+            print('g', np.shape(rem))
         else:
             pred = self.model.predict(X_df, choice)
 
@@ -77,6 +82,7 @@ class GridComponent(Model):
     def get_model(self):
         return self.model.get_model()
 
+
 class UnifiedGrid(GridComponent):
     def fit(self, X, y=None):
         return super().fit(X[0], y)
@@ -84,25 +90,31 @@ class UnifiedGrid(GridComponent):
     def predict(self, X, shape=None, choice=None):
         return super().predict(X[0], shape)
 
+
 def filter_mask_func(x):
     return x[x.filter_mask]
+
 
 def active_filter_func(x):
     return x[x.active]
 
+
 def ignition_filter_func(x):
     return x[~x.active]
+
 
 def active_pred_func(x, y):
     return y * x.active
 
+
 def ignition_pred_func(x, y):
     return y * (~x.active)
 
+
 class ActiveIgnitionGrid(Model):
-    def __init__(self, active_fire_model, ignition_model, active_filter_func=active_filter_func, 
-            ignition_filter_func=ignition_filter_func, active_pred_func=active_pred_func, 
-            ignition_pred_func=ignition_pred_func):
+    def __init__(self, active_fire_model, ignition_model, active_filter_func=active_filter_func,
+                 ignition_filter_func=ignition_filter_func, active_pred_func=active_pred_func,
+                 ignition_pred_func=ignition_pred_func):
         super().__init__()
 
         afm_filter_func = active_filter_func
@@ -148,8 +160,8 @@ class ActiveIgnitionGrid(Model):
                 pred_afm = ret_afm[0]
                 pred += pred_afm
 
-                #rem_afm = ret_afm[1:]
-                print('ai',np.shape(ret_afm[1]))
+                # rem_afm = ret_afm[1:]
+                print('ai', np.shape(ret_afm[1]))
                 rem.append(ret_afm[1])
             else:
                 pred += self.afm.predict(X[0], shape, choice)
@@ -162,7 +174,7 @@ class ActiveIgnitionGrid(Model):
                 pred_igm = ret_igm[0]
                 pred += pred_igm
 
-                #rem_igm = ret_igm[1:]
+                # rem_igm = ret_igm[1:]
                 rem.append(ret_igm[1])
             else:
                 pred += self.igm.predict(X[1], shape, choice)
@@ -181,9 +193,10 @@ class ActiveIgnitionGrid(Model):
 
         return models
 
+
 class SwitchingRegressionGrid(Model):
-    def __init__(self, active_fire_model, ignition_model, mixture_model, active_filter_func=active_filter_func, 
-            ignition_filter_func=ignition_filter_func):
+    def __init__(self, active_fire_model, ignition_model, mixture_model, active_filter_func=active_filter_func,
+                 ignition_filter_func=ignition_filter_func):
         super().__init__()
 
         afm_filter_func = active_filter_func
@@ -201,7 +214,6 @@ class SwitchingRegressionGrid(Model):
 
         self.mixture_model = GridComponent(mixture_model, None, None)
 
-   
     def fit(self, X, y=None):
         # Train active fire component
         if self.afm:
@@ -211,7 +223,7 @@ class SwitchingRegressionGrid(Model):
         if self.igm:
             self.igm = self.igm.fit(X[1], y)
 
-        print('z',X[2].large_fire.shape)
+        print('z', X[2].large_fire.shape)
         self.mixture_model.fit(X[2], y)
 
         return self
@@ -227,11 +239,11 @@ class SwitchingRegressionGrid(Model):
         mixture_pred = self.mixture_model.predict(X[2], shape, choice)
 
         large = X[2].large_fire.values[X[2].active]
-        large_pred = (mixture_pred.values>.5).astype(np.int)[X[2].active]
+        large_pred = (mixture_pred.values > .5).astype(np.int)[X[2].active]
         large_pred2 = mixture_pred.values[X[2].active]
         print(large.shape, large_pred.shape)
-        large_diff = np.mean(np.absolute(large-large_pred))
-        large_diff2 = np.mean(np.absolute(large-large_pred2))
+        large_diff = np.mean(np.absolute(large - large_pred))
+        large_diff2 = np.mean(np.absolute(large - large_pred2))
         large_diffs.append(large_diff)
         large_diffs2.append(large_diff2)
         print('dif', large_diffs)
@@ -239,7 +251,7 @@ class SwitchingRegressionGrid(Model):
         print('mix mean', np.mean(large_pred))
         print('mix mean 2', np.mean(mixture_pred.values[X[2].active]))
         print('large mean', np.mean(large))
-        large2 = X[2].large_fire.values[X[2].num_det>0]
+        large2 = X[2].large_fire.values[X[2].num_det > 0]
         print('large mean', np.mean(large2))
 
         """
@@ -261,10 +273,9 @@ class SwitchingRegressionGrid(Model):
         plt.gcf().clear()
         count += 1
         """
-        
 
         # Toggle if prob of large > .5
-        #mixture_pred = (mixture_pred.values>.5).astype(np.int)
+        # mixture_pred = (mixture_pred.values>.5).astype(np.int)
 
         # Predict with active fire component
         if self.afm:
@@ -274,8 +285,8 @@ class SwitchingRegressionGrid(Model):
                 pred_afm = ret_afm[0]
                 pred += mixture_pred * pred_afm
 
-                #rem_afm = ret_afm[1:]
-                print('ai',np.shape(ret_afm[1]))
+                # rem_afm = ret_afm[1:]
+                print('ai', np.shape(ret_afm[1]))
                 rem.append(ret_afm[1])
             else:
                 pred_afm = self.afm.predict(X[0], shape, choice)
@@ -289,15 +300,15 @@ class SwitchingRegressionGrid(Model):
                 ret_igm = self.igm.predict(X[1], shape, choice)
 
                 pred_igm = ret_igm[0]
-                pred += (1-mixture_pred) * pred_igm
+                pred += (1 - mixture_pred) * pred_igm
 
-                #rem_igm = ret_igm[1:]
+                # rem_igm = ret_igm[1:]
                 rem.append(ret_igm[1])
             else:
                 pred_igm = self.igm.predict(X[1], shape, choice)
                 print('sss', pred_igm.shape)
 
-                pred += (1-mixture_pred) * pred_igm
+                pred += (1 - mixture_pred) * pred_igm
 
         rem.append(mixture_pred)
 

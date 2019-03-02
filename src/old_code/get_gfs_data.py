@@ -1,13 +1,13 @@
-import pandas as pd
-import numpy as np
-import cPickle
 import pygrib
 import sys
-from geometry.grid_conversion import ak_bb
 from ftplib import FTP
 from glob import glob
-from helper.daymonth import *
 
+import cPickle
+import numpy as np
+import pandas as pd
+from geometry.grid_conversion import ak_bb
+from helper.daymonth import *
 
 server_name = "nomads.ncdc.noaa.gov"  # Server from which to pull the data
 gfs_loc = "GFS/analysis_only/"  # location on server of GFS data
@@ -55,20 +55,22 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
 
         # Check if today even exists on the server
         if ymd_str not in map(lambda x: x.split("/")[-1], ftp.nlst(ym_str)):
-            print "month %d day %d not on server" % (month, day)
+            print
+            "month %d day %d not on server" % (month, day)
             bad_days += 1
             year, month, day = increment_day(year, month, day)
             continue
         dir_list_with_fluff = ftp.nlst('/'.join([ym_str, ymd_str]))
         dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
-        #dir_list_with_fluff = ftp.nlst('/'.join([ym_tom_str, ymd_tom_str]))
-        #tom_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
+        # dir_list_with_fluff = ftp.nlst('/'.join([ym_tom_str, ymd_tom_str]))
+        # tom_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
 
         # INSTANTANEOUS VARIABLES
         today_grbs_file = "gfsanl_4_%s_1800_003.grb2" % ymd_str
         if today_grbs_file not in dir_list:
             bad_days += 1
-            print "No grib file %d/%d/%d" %(month, day, year)
+            print
+            "No grib file %d/%d/%d" % (month, day, year)
             year, month, day = increment_day(year, month, day)
             continue
         with open(tmpfi, 'w') as ftmp:
@@ -93,9 +95,9 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                 elif field == "wind":
                     u_layer = today_grbs.select(name='10 metre U wind component')[0].values
                     v_layer = today_grbs.select(name='10 metre V wind component')[0].values
-                    layer = np.sqrt(u_layer**2 + v_layer**2)
+                    layer = np.sqrt(u_layer ** 2 + v_layer ** 2)
                 elif field == "vpd":
-                    temp_layer = today_grbs.select(name='Temperature',typeOfLevel='surface')[0]
+                    temp_layer = today_grbs.select(name='Temperature', typeOfLevel='surface')[0]
                     temp_vals = temp_layer.values - 273.15  # Convert to celsius
                     if surfaceair:
                         hum_vals = today_grbs.select(name='Surface air relative humidity')[0].values
@@ -109,17 +111,18 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
                 elif field == "rain":
                     continue
             except ValueError:
-                print "Bad grib value %d/%d/%d" %(month, day, year)
+                print
+                "Bad grib value %d/%d/%d" % (month, day, year)
                 bad_days += 1
                 year, month, day = increment_day(year, month, day)
                 break
 
             if first_time:
                 lats, lons = today_grbs.select(name='Temperature', typeOfLevel='surface')[0].latlons()
-                gfs_bb_0 = np.where(lats[:,0] < bb[1])[0][0]
-                gfs_bb_1 = np.where(lats[:,0] > bb[0])[0][-1]
-                gfs_bb_2 = np.where(lons[0,:] > (bb[2] % 360))[0][0]
-                gfs_bb_3 = np.where(lons[0,:] < (bb[3] % 360))[0][-1]
+                gfs_bb_0 = np.where(lats[:, 0] < bb[1])[0][0]
+                gfs_bb_1 = np.where(lats[:, 0] > bb[0])[0][-1]
+                gfs_bb_2 = np.where(lons[0, :] > (bb[2] % 360))[0][0]
+                gfs_bb_3 = np.where(lons[0, :] < (bb[3] % 360))[0][-1]
                 ret_dict['lats'] = lats[gfs_bb_0:gfs_bb_1, gfs_bb_2:gfs_bb_3]
                 ret_dict['lons'] = lons[gfs_bb_0:gfs_bb_1, gfs_bb_2:gfs_bb_3]
                 first_time = 0
@@ -130,8 +133,8 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
         # CUMULATIVE VALUES (i.e., rain)
         tuples_list = [(ym_str, ymd_str, '1200'), (ym_str, ymd_str, '1800'),
                        (ym_tom_str, ymd_tom_str, '0000'), (ym_tom_str, ymd_tom_str, '0600')]
-        filenames = map(lambda x: "%s/%s/gfsanl_4_%s_%s_006.grb2" %(x[0],x[1],x[1],x[2]), tuples_list)
-        valid_bits = [0,0,0,0]
+        filenames = map(lambda x: "%s/%s/gfsanl_4_%s_%s_006.grb2" % (x[0], x[1], x[1], x[2]), tuples_list)
+        valid_bits = [0, 0, 0, 0]
         total_rain_layer = np.zeros(ret_dict['lats'].shape)
         for fnum, filename in enumerate(filenames):
             # pull the file from the FTP server
@@ -147,11 +150,13 @@ def get_gfs_region(year_range, bb, fields, outfi, tmpfi, timezone='ak'):
         ret_dict['days'].append((year, month, day))
         ret_dict['valid_bits'].append(valid_bits)
         ret_dict['rain'].append(total_rain_layer)
-        print "Finished with %d/%d/%d" % (month, day, year)
+        print
+        "Finished with %d/%d/%d" % (month, day, year)
         year, month, day = increment_day(year, month, day)
 
-    print "%d bad days" % bad_days
-    with open(outfi,'w') as fout:
+    print
+    "%d bad days" % bad_days
+    with open(outfi, 'w') as fout:
         cPickle.dump(ret_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
@@ -183,17 +188,17 @@ def just_valid_bits(year_range, outfi, timezone='ak'):
 
         # Check if today even exists on the server
         if ymd_str not in map(lambda x: x.split("/")[-1], ftp.nlst(ym_str)):
-            print "month %d day %d not on server" % (month, day)
+            print
+            "month %d day %d not on server" % (month, day)
             bad_days += 1
             year, month, day = increment_day(year, month, day)
             continue
 
-
         # CUMULATIVE VALUES (i.e., rain)
         tuples_list = [(ym_str, ymd_str, '1200'), (ym_str, ymd_str, '1800'),
                        (ym_tom_str, ymd_tom_str, '0000'), (ym_tom_str, ymd_tom_str, '0600')]
-        filenames = map(lambda x: "%s/%s/gfsanl_4_%s_%s_006.grb2" %(x[0],x[1],x[1],x[2]), tuples_list)
-        valid_bits = [0,0,0,0]
+        filenames = map(lambda x: "%s/%s/gfsanl_4_%s_%s_006.grb2" % (x[0], x[1], x[1], x[2]), tuples_list)
+        valid_bits = [0, 0, 0, 0]
         for fnum, filename in enumerate(filenames):
             # pull the file from the FTP server
             my_dir = '/'.join(filename.split('/')[0:-1])
@@ -202,11 +207,13 @@ def just_valid_bits(year_range, outfi, timezone='ak'):
 
         ret_dict['days'].append((year, month, day))
         ret_dict['valid_bits'].append(valid_bits)
-        print "Finished with %d/%d/%d" % (month, day, year)
+        print
+        "Finished with %d/%d/%d" % (month, day, year)
         year, month, day = increment_day(year, month, day)
 
-    print "%d bad days" % bad_days
-    with open(outfi,'w') as fout:
+    print
+    "%d bad days" % bad_days
+    with open(outfi, 'w') as fout:
         cPickle.dump(ret_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
@@ -237,7 +244,7 @@ def clean_gfs_dicts(dict_file_starter, outfi):
         else:
             res_dict[field] = np.dstack(field_arr)
     if outfi:
-        with open(outfi,'w') as fout:
+        with open(outfi, 'w') as fout:
             cPickle.dump(res_dict, fout, protocol=cPickle.HIGHEST_PROTOCOL)
     return res_dict
 
@@ -254,13 +261,13 @@ def gfs_to_loc_df(gfs_dict, lat, lon, outfi=None):
     lats = gfs_dict['lats']
     lons = gfs_dict['lons']
     shp = lats.shape
-    lat_res = lats[0,0] - lats[1,0]
-    lon_res = lons[0,1] - lons[0,0]
-    row = int(float(lats[0,0] - lat) / lat_res)
-    row = max(min(row, shp[0]-1), 0)
-    positive_lon = lon % 360   # convert longitude to a positive value, which is what GFS uses
-    col = int(float(positive_lon - lons[0,0]) / lon_res)
-    col = max(min(col, shp[1]-1), 0)
+    lat_res = lats[0, 0] - lats[1, 0]
+    lon_res = lons[0, 1] - lons[0, 0]
+    row = int(float(lats[0, 0] - lat) / lat_res)
+    row = max(min(row, shp[0] - 1), 0)
+    positive_lon = lon % 360  # convert longitude to a positive value, which is what GFS uses
+    col = int(float(positive_lon - lons[0, 0]) / lon_res)
+    col = max(min(col, shp[1] - 1), 0)
 
     # Now, build our DataFrame
     pd_dict = dict()
@@ -285,13 +292,13 @@ def gfs_to_loc_df(gfs_dict, lat, lon, outfi=None):
                 pd_dict[key].append(gfs_dict[key][row, col, i])
     df = pd.DataFrame(pd_dict)
     if outfi:
-        with open(outfi,'w') as fout:
+        with open(outfi, 'w') as fout:
             cPickle.dump(df, fout, protocol=cPickle.HIGHEST_PROTOCOL)
     return df
 
 
 if __name__ == "__main__":
     year_range = [int(sys.argv[1]), int(sys.argv[2])]
-    #get_fire_data(year_range, ak_bb, 'data/ak_fires.pkl', 'mcd14ml/', modis)
+    # get_fire_data(year_range, ak_bb, 'data/ak_fires.pkl', 'mcd14ml/', modis)
     get_gfs_region(year_range, ak_bb, ['temp', 'humidity', 'vpd', 'wind', 'rain'],
                    sys.argv[3], sys.argv[4])

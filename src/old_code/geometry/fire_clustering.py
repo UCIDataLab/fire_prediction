@@ -1,10 +1,12 @@
 import random
+
 import cPickle
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 from scipy.spatial import KDTree
-FIRE_SEASON = (133,242)
+
+FIRE_SEASON = (133, 242)
 
 
 # DEPRECATED
@@ -18,16 +20,16 @@ def cluster_fires(df, thresh, return_df=False):
     max_year = int(np.max(df.year))
     df['cluster'] = 0
     n_fires = 0
-    for year in xrange(min_year, max_year+1):
-        year_df = df[df.year==year]
-        xy_mat = np.transpose(np.array((np.array(year_df.y),np.array(year_df.x))))
+    for year in xrange(min_year, max_year + 1):
+        year_df = df[df.year == year]
+        xy_mat = np.transpose(np.array((np.array(year_df.y), np.array(year_df.x))))
         N = len(df)
-        thresh_graph = sp.lil_matrix((N,N))
+        thresh_graph = sp.lil_matrix((N, N))
         for i in xrange(N):
             p_i = np.array([year_df.iloc[i].y, year_df.iloc[i].x])
             dist_arr = np.linalg.norm(xy_mat - p_i, axis=1)
             thresh_arr = dist_arr < thresh
-            thresh_graph[i,:] = thresh_arr
+            thresh_graph[i, :] = thresh_arr
         n_fires_annual, fires = sp.csgraph.connected_components(thresh_graph, directed=False)
         big_fires = fires + n_fires
         df.loc[year_df.index, 'cluster'] = big_fires
@@ -104,17 +106,18 @@ def cluster_over_time_with_merging(df, thresh, outfi=None):
     min_year = int(np.min(df.year))
     max_year = int(np.max(df.year))
     clust_dict = dict()
-    #merge_dict_dict = dict()
+    # merge_dict_dict = dict()
     clust2nodes, nodes2clust, merge_dict = (None, None, None)
 
-    for year in xrange(min_year, max_year+1):
+    for year in xrange(min_year, max_year + 1):
         # Build up dictionary of nearest neighbors to make the building process easier
         annual_fires = df[df.year == year]
         annual_kd = KDTree(np.column_stack((annual_fires.x, annual_fires.y)))
         pairs_list = annual_kd.query_pairs(thresh)
-        print "len of pairs list: " + str(len(pairs_list))
+        print
+        "len of pairs list: " + str(len(pairs_list))
         neighbors_dict = dict()
-        for i,j in pairs_list:
+        for i, j in pairs_list:
             i_name, j_name = (annual_fires.index[i], annual_fires.index[j])
             if i_name not in neighbors_dict:
                 neighbors_dict[i_name] = set()
@@ -122,7 +125,8 @@ def cluster_over_time_with_merging(df, thresh, outfi=None):
             if j_name not in neighbors_dict:
                 neighbors_dict[j_name] = set()
             neighbors_dict[j_name].add(i_name)
-        print "done building dict"
+        print
+        "done building dict"
         # Get initial clusters on day 1
         first_day = max(FIRE_SEASON[0], np.min(annual_fires.dayofyear))
         last_day = min(FIRE_SEASON[1], np.max(annual_fires.dayofyear))
@@ -132,12 +136,13 @@ def cluster_over_time_with_merging(df, thresh, outfi=None):
             clust2nodes, nodes2clust, merge_dict = find_daily_clusters(daily_fires, neighbors_dict,
                                                                        clust2nodes=clust2nodes, nodes2clust=nodes2clust,
                                                                        merge_dict=merge_dict)
-            for node,clust in nodes2clust.iteritems():
+            for node, clust in nodes2clust.iteritems():
                 if node not in clust_dict:
                     clust_dict[node] = clust
 
-        #merge_dict_dict[year] = merge_dict
-        print "%d merges in year %d" % (len(merge_dict), year)
+        # merge_dict_dict[year] = merge_dict
+        print
+        "%d merges in year %d" % (len(merge_dict), year)
     df['cluster'] = pd.Series(clust_dict, dtype=int)
 
     if outfi:

@@ -3,11 +3,12 @@ Wraps multiple datasets (e.g. one for active fire and one for ignitions) so they
 by the cross-validation easily.
 """
 
+
 class MultidataWrapper(object):
     def __init__(self, datasets):
         self.datasets = datasets
 
-    def __getitem__(self,key):
+    def __getitem__(self, key):
         return self.datasets[key]
 
     def remove_year(self, year):
@@ -24,4 +25,3 @@ class MultidataWrapper(object):
             datasets_incl.append(ds_incl)
 
         return MultidataWrapper(datasets_excl), MultidataWrapper(datasets_incl)
-            

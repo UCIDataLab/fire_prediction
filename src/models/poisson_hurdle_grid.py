@@ -1,22 +1,21 @@
 """
 Model for fitting a bias term to each grid cell and a shared weather model with a poisson distribution.
 """
+from io import StringIO
+
 import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 import statsmodels.discrete.discrete_model as sd
 import statsmodels.formula.api as smf
 
-from io import StringIO
-
 from .base.model import Model
-from sklearn.neural_network import MLPRegressor
 
-import pandas as pd
 
 class PoissonRegressionHurdleGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None, pred_func=None):
-        super(PoissonRegressionGridModel, self).__init__()
-
+    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None,
+                 pred_func=None):
+        super().__init__()
         self.covariates = covariates
         self.regularizer_weight = regularizer_weight
         self.log_shift = log_shift
@@ -29,6 +28,7 @@ class PoissonRegressionHurdleGridModel(Model):
 
     def fit(self, X, y=None):
         """
+        :param X: covariate dataframe
         :param y: currently unused
         """
         """
@@ -67,18 +67,20 @@ class PoissonRegressionHurdleGridModel(Model):
         if self.filter_func:
             X_df = self.filter_func(X_df)
 
-        #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
+        # print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
         X_df = pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
-        #print(X_df)
+        # print(X_df)
 
         self.fit_ignition = sd.Logit.from_formula(formula, data=X_df).fit()
 
         if self.regularizer_weight is None:
-            self.fit_result = smf.glm(formula, data=X_df[X_df.num_det_target!=0], family=sm.genmod.families.family.Poisson()).fit()
+            self.fit_result = smf.glm(formula, data=X_df[X_df.num_det_target != 0],
+                                      family=sm.genmod.families.family.Poisson()).fit()
         else:
-            self.fit_result = smf.glm(formula, data=X_df[X_df.num_det_target!=0], family=sm.genmod.families.family.Poisson()).fit_regularized(alpha=self.regularizer_weight)
-        #self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
-
+            self.fit_result = smf.glm(formula, data=X_df[X_df.num_det_target != 0],
+                                      family=sm.genmod.families.family.Poisson()).fit_regularized(
+                alpha=self.regularizer_weight)
+        # self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
         return self.fit_result
 

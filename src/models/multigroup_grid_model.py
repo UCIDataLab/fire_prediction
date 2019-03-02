@@ -6,6 +6,7 @@ import numpy as np
 
 from .base.model import Model
 
+
 class MultiGroupGridModel(Model):
     def __init__(self, col_name, val_model_dict):
         super(MultiGroupGridModel, self).__init__()
@@ -15,7 +16,7 @@ class MultiGroupGridModel(Model):
 
     def fit(self, X, y=None):
         fit_model = {}
-        for val,model in self.val_model_dict.items():
+        for val, model in self.val_model_dict.items():
             X_group = self.filter_data(X, val)
             fit_model[val] = model.fit(X_group)
 
@@ -24,11 +25,12 @@ class MultiGroupGridModel(Model):
     def predict(self, X, shape=None):
         pred = np.zeros(shape)
 
-        for val,model in self.val_model_dict.items():
+        for val, model in self.val_model_dict.items():
             X_group = self.filter_data(X, val)
             pred += model.predict(X_group, shape)
 
         return pred
 
+    @staticmethod
     def filter_data(X, val):
-        pass
+        return X

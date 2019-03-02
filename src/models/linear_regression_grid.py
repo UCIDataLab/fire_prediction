@@ -1,20 +1,18 @@
-
 """
 Model for fitting a bias term to each grid cell and a shared weather model with a linear distribution.
 """
-import numpy as np
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
-
 from io import StringIO
 
-from .base.model import Model
-from sklearn.neural_network import MLPRegressor
-
+import numpy as np
 import pandas as pd
+import statsmodels.formula.api as smf
+
+from .base.model import Model
+
 
 class LinearRegressionGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None, pred_func=None):
+    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None,
+                 pred_func=None):
         super(LinearRegressionGridModel, self).__init__()
 
         self.covariates = covariates
@@ -28,6 +26,7 @@ class LinearRegressionGridModel(Model):
 
     def fit(self, X, y=None):
         """
+        :param X: covariate dataframe
         :param y: currently unused
         """
         """
@@ -64,21 +63,19 @@ class LinearRegressionGridModel(Model):
             if self.filter_func:
                 X_df = self.filter_func(X_df)
 
-            #print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
+            # print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
             X_df = pd.read_csv(StringIO(X_df.to_csv()))
-            #print(X_df)
-        except:
+            # print(X_df)
+        except Exception as e:
             X_df = X
-
 
         if self.regularizer_weight is None:
             self.fit_result = smf.ols(formula=formula, data=X_df).fit()
         else:
             raise NotImplementedError()
-        #self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
+        # self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
-
-        #return self.fit_result
+        # return self.fit_result
         return self
 
     def predict(self, X, shape=None):
@@ -114,7 +111,7 @@ class LinearRegressionGridModel(Model):
 
             pred = np.array(pred)
             pred = np.reshape(pred, shape, order='F')
-        except:
+        except Exception as e:
             X_df = X
             pred = self.fit_result.predict(X_df)
 

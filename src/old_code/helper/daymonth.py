@@ -1,11 +1,13 @@
 import datetime
 
+
 def utc_to_local_time(datetime_utc, longitude):
     """ 
     Calculate local time based on longitude and utc time. Rounded to nearest second.
     """
     timedelta_offset = datetime.timedelta(0, round(longitude * 4 * 60))
     return datetime_utc + timedelta_offset
+
 
 def day2monthday(my_day, leapyear=False):
     if leapyear:
@@ -14,11 +16,11 @@ def day2monthday(my_day, leapyear=False):
         month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     month = 1
     days_left = my_day
-    while days_left >= month_arr[month-1]:
-        days_left -= month_arr[month-1]
+    while days_left >= month_arr[month - 1]:
+        days_left -= month_arr[month - 1]
         month += 1
     day = days_left + 1
-    return month,day
+    return month, day
 
 
 def monthday2day(month, day, leapyear=False):
@@ -40,7 +42,7 @@ def increment_day(year, month, day):
     else:  # leap year
         days_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Days in a month
 
-    if day == days_arr[month-1]:
+    if day == days_arr[month - 1]:
         day = 1
         month += 1
         if month == 13:

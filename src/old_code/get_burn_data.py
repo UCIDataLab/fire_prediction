@@ -1,9 +1,10 @@
-from ftplib import FTP
-from util.tile2latlon import tile2latlon
 import ftplib
 import os
 import sys
+from ftplib import FTP
+
 import pandas as pd
+from util.tile2latlon import tile2latlon
 
 server_name = "fuoco.geog.umd.edu"
 base_server_dir = "db/MCD64A1/"
@@ -27,14 +28,16 @@ def get_burn_data(h_range, v_range, out_dir=out_dir):
             try:
                 filenames = ftp.nlst(dir_str)
             except ftplib.error_perm:
-                print "no dir " + dir_str
+                print
+                "no dir " + dir_str
                 continue
             if not os.path.exists(out_dir + dir_str):
                 os.mkdir(out_dir + dir_str)
             for filename in filenames:
                 with open(out_dir + dir_str + ".".join(filename.split(".")[1:]), 'w') as fout:
                     ftp.retrbinary("RETR %s" % (dir_str + filename), fout.write)
-            print "Finished h %d v %d" % (h, v)
+            print
+            "Finished h %d v %d" % (h, v)
     ftp.quit()
 
 

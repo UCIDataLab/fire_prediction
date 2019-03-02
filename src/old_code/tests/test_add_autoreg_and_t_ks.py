@@ -1,5 +1,5 @@
-from prediction.cluster_regression import add_autoreg_and_n_det
 from data import data
+from prediction.cluster_regression import add_autoreg_and_n_det
 
 
 def test_add_autoreg_and_t_k():

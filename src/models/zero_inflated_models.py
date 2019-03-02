@@ -1,21 +1,22 @@
 import numpy as np
+import statsmodels.api as sm
+import statsmodels.discrete.count_model as smc
+import statsmodels.discrete.discrete_model as smd
+import statsmodels.formula.api as smf
 from scipy.misc import factorial
 from sklearn import preprocessing
-
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
-import statsmodels.discrete.discrete_model as smd
-import statsmodels.discrete.count_model as smc
 from statsmodels.base.model import GenericLikelihoodModel
 
-from .base.model import Model
 from .regression_models import RegressionBase, build_endog_exog
 
-class HurdleBase(RegressionBase):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, regularizer_weight=None,
-            normalize_params=False, t_k=None, add_exposure=False):
-        #super().__init__()
 
+class HurdleBase(RegressionBase):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+        # super().__init__()
+
+        super().__init__(response_var, covariates, log_covariates, log_correction, log_correction_const,
+                         regularizer_weight, normalize_params, t_k, add_exposure)
         self.response_var = response_var
         self.covariates = covariates
         self.log_covariates = log_covariates
@@ -40,7 +41,7 @@ class HurdleBase(RegressionBase):
         self.positive_formula = self.build_formula(self.response_var)
 
     def fit(self, X, y=None):
-        X = X[self.variables].copy() #returns a numpy array
+        X = X[self.variables].copy()  # returns a numpy array
 
         """
         if self.log_correction == 'add':
@@ -75,9 +76,11 @@ class HurdleBase(RegressionBase):
         X = X[self.variables].copy()
 
         if self.log_correction == 'add':
-            log_corr = lambda x: np.log(x+self.log_correction_const)
+            def log_corr(x):
+                return np.log(x + self.log_correction_const)
         elif self.log_correction == 'max':
-            log_corr = lambda x: np.log(np.maximum(x, self.log_correction_const))
+            def log_corr(x):
+                return np.log(np.maximum(x, self.log_correction_const))
 
         if self.log_covariates:
             X[self.log_covariates] = log_corr(X[self.log_covariates])
@@ -85,30 +88,37 @@ class HurdleBase(RegressionBase):
         if self.normalize_params:
             X[self.inputs] = self.scaler.transform(X[self.inputs].values)
 
-        pi = (1 - self.fit_result_inflated.predict(X)) 
+        pi = (1 - self.fit_result_inflated.predict(X))
         lam = self.fit_result_positive.predict(X)
 
         if choice is None:
             return pi * lam
 
-        elif choice=='all':
+        elif choice == 'all':
             return pi * lam, pi, lam
         else:
             return ValueError('Invalid value for choice')
 
+
 class TruncatedPoisson(GenericLikelihoodModel):
+    def hessian_factor(self, params, scale=None, observed=True):
+        pass
+
+    def information(self, params):
+        pass
+
     def nloglikeobs(self, params):
         XB = np.dot(self.exog, params)
         endog = self.endog
-        return -endog*XB + np.log(np.exp(np.exp(XB)) - 1) + np.log(factorial(endog))
+        return -endog * XB + np.log(np.exp(np.exp(XB)) - 1) + np.log(factorial(endog))
 
     def predict(self, params, exog=None, *args, **kwargs):
         if exog is None:
             exog = self.exog
 
         fitted = np.dot(exog, params[:exog.shape[1]])
-        return np.exp(fitted) # not cdf
-       
+        return np.exp(fitted)  # not cdf
+
 
 """
 class PoissonHurdleRegression(HurdleBase):
@@ -134,13 +144,15 @@ class PoissonHurdleRegression(HurdleBase):
 
         return (1 - self.fit_result_inflated.predict(X)) * self.fit_result_positive.predict(exog=exog)
 """
+
+
 class PoissonHurdleRegression(HurdleBase):
     def build_inflated_model(self, X):
         return smd.Logit.from_formula(formula=self.inflated_formula, data=X)
 
     def build_positive_model(self, X):
         X = X[self.variables].copy()
-        X = X[X[self.response_var]>0]
+        X = X[X[self.response_var] > 0]
         X[self.response_var][:] -= 1
 
         return smf.glm(self.positive_formula, data=X, family=sm.genmod.families.family.Poisson())
@@ -158,19 +170,20 @@ class PoissonHurdleRegression(HurdleBase):
             X[self.log_covariates] = log_corr(X[self.log_covariates])
         """
 
-        #if self.normalize_params:
+        # if self.normalize_params:
         #    X[self.inputs] = self.scaler.transform(X[self.inputs].values)
 
-        pi = (1 - self.fit_result_inflated.predict(X)) 
-        lam = self.fit_result_positive.predict(X)+1
+        pi = (1 - self.fit_result_inflated.predict(X))
+        lam = self.fit_result_positive.predict(X) + 1
 
         if choice is None:
             return pi * lam
 
-        elif choice=='all':
+        elif choice == 'all':
             return pi * lam, pi, lam
         else:
             raise ValueError('Invalid value for choice')
+
 
 class PoissonHurdleFloorRegression(PoissonHurdleRegression):
     def predict(self, X, choice=None):
@@ -178,40 +191,41 @@ class PoissonHurdleFloorRegression(PoissonHurdleRegression):
 
         return np.floor(pred)
 
+
 class NegativeBinomialHurdleRegression(PoissonHurdleRegression):
     def build_positive_model(self, X):
         X = X[self.variables].copy()
-        X = X[X[self.response_var]>0]
+        X = X[X[self.response_var] > 0]
         X[self.response_var][:] -= 1
 
         alpha = 2
-        print('Alpha=%f'%alpha)
+        print('Alpha=%f' % alpha)
         return smf.glm(self.positive_formula, data=X, family=sm.genmod.families.family.NegativeBinomial(alpha=alpha))
+
 
 class NegativeBinomialHurdleRegression2(PoissonHurdleRegression):
     def build_positive_model(self, X):
         X = X[self.variables].copy()
-        X = X[X[self.response_var]>0]
+        X = X[X[self.response_var] > 0]
         X[self.response_var][:] -= 1
 
-        loglike = 'nb1'
-        print('Loglike=%s'%loglike)
-        return smd.NegativeBinomial.from_formula(self.positive_formula, data=X, loglike_method=loglike)
-        #return smf.glm(self.positive_formula, data=X, family=sm.genmod.families.family.NegativeBinomial(alpha=alpha))
-
+        log_likelihood = 'nb1'
+        print('log_likelihood=%s' % log_likelihood)
+        return smd.NegativeBinomial.from_formula(self.positive_formula, data=X, loglike_method=log_likelihood)
+        # return smf.glm(self.positive_formula, data=X, family=sm.genmod.families.family.NegativeBinomial(alpha=alpha))
 
 
 class ZeroInflatedPoissonRegression(RegressionBase):
     def build_model(self, X):
-        endog, exog, (mean, std)= build_endog_exog(X, self.response_var, self.covariates, self.log_covariates, 
-                self.log_correction, self.log_correction_const)
+        endog, exog, (mean, std) = build_endog_exog(X, self.response_var, self.covariates, self.log_covariates,
+                                                    self.log_correction, self.log_correction_const)
 
         self.mean = mean
         self.std = std
 
         return smc.ZeroInflatedPoisson(endog, exog=exog, exog_infl=exog)
 
-    def predict(self, X):
+    def predict(self, X, shape=None):
         _, exog, (mean, std) = build_endog_exog(X, self.response_var, self.covariates, self.log_covariates,
-                self.log_correction, self.log_correction_const, self.mean, self.std)
+                                                self.log_correction, self.log_correction_const, self.mean, self.std)
         return self.fit_result.predict(exog=exog, exog_infl=exog)

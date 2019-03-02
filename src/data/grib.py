@@ -1,18 +1,18 @@
-import numpy as np
-#import gribapi
-import pygrib
-import json
-
 import logging
 
+import numpy as np
 from helper.geometry import LatLonBoundingBox
 
+# import gribapi
+
 GRIB_ARRAY_TOO_SMALL = -6
+
 
 class GribMessage(object):
     """
     Interface for getting values from a grib message.
     """
+
     def __init__(self, gid, lon_offset):
         """
         :param lon_offset: indicates grib file uses 0 to 360 for longitude (instead of -180 to 180)
@@ -40,27 +40,27 @@ class GribMessage(object):
         """
         Get the "value" key from message. Optionally applies a bounding-box to lat/lon of values.
         """
-        dlat, dlon = gribapi.grib_get_array(self.gid, 'distinctLatitudes'), gribapi.grib_get_array(self.gid, 'distinctLongitudes')
+        dlat, dlon = gribapi.grib_get_array(self.gid, 'distinctLatitudes'), gribapi.grib_get_array(self.gid,
+                                                                                                   'distinctLongitudes')
 
         if self.lon_offset:
-            dlon = np.remainder((dlon+180),360)-180 # Convert from 0 to 360 longitude notation to -180 to 180
+            dlon = np.remainder((dlon + 180), 360) - 180  # Convert from 0 to 360 longitude notation to -180 to 180
             self.lon_rot = -np.argmin(dlon)
-            dlon = np.roll(dlon, self.lon_rot) # Rotate so min lon comes first
+            dlon = np.roll(dlon, self.lon_rot)  # Rotate so min lon comes first
 
         values = gribapi.grib_get_values(self.gid)
-        values =  np.reshape(values, newshape=(len(dlat),len(dlon)))
+        values = np.reshape(values, newshape=(len(dlat), len(dlon)))
 
         # If needed, roll values along longitude axis to match rolled dlon values
         if self.lon_rot != 0:
             values = np.roll(values, self.lon_rot, axis=1)
 
-
         if bounding_box:
             lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = bounding_box.get_min_max_indexes(dlat, dlon)
 
-
             # Lat is typically ordered from highest to lowest
-            return values[lat_max_ind:lat_min_ind+1, lon_min_ind:lon_max_ind+1], LatLonBoundingBox(dlat[lat_min_ind], dlat[lat_max_ind], dlon[lon_min_ind], dlon[lon_max_ind])
+            return values[lat_max_ind:lat_min_ind + 1, lon_min_ind:lon_max_ind + 1], LatLonBoundingBox(
+                dlat[lat_min_ind], dlat[lat_max_ind], dlon[lon_min_ind], dlon[lon_max_ind])
 
     def release(self):
         """
@@ -73,6 +73,7 @@ class GribFile(object):
     """
     Interface for selecting message(s) from grib files using key/value matching.
     """
+
     def __init__(self, file_object, multi_field=True, lon_offset=True):
         """
         :param lon_offset: indicates grib file uses 0 to 360 for longitude (instead of -180 to 180)
@@ -84,7 +85,6 @@ class GribFile(object):
             gribapi.grib_multi_support_on()
         else:
             gribapi.grib_multi_support_off()
-
 
     def select(self, **key_val_dict):
         """
@@ -99,7 +99,8 @@ class GribFile(object):
                 logging.error('GRIB API Error: "%s" on file "%s"' % (str(e), self.file_object.name))
                 raise e
 
-            if gid is None: break
+            if gid is None:
+                break
 
             message = GribMessage(gid, self.lon_offset)
 
@@ -110,11 +111,12 @@ class GribFile(object):
 
         return selected
 
-    def grib_message_is_match(self, message, key_val_dict):
+    @staticmethod
+    def grib_message_is_match(key_val_dict):
         """
         Check if grib message matches on all key/value pairs.
         """
-        for k,v in key_val_dict.items():
+        for k, v in key_val_dict.items():
             mval = message.get(k)
             if message.get(k) != v:
                 return False
@@ -127,6 +129,7 @@ class GribSelection(object):
 
     Supports "backup" selections if primary cannot be found in file.
     """
+
     def __init__(self, name, dtype=np.float64):
         self.name = name
         self.dtype = dtype
@@ -144,13 +147,16 @@ class GribSelection(object):
     def __str__(self):
         return str((self.primary, self.backups))
 
+
 class GribSelector(object):
     """
     Extracts data from grib_file that matches list of GribSelection.
     """
+
     def __init__(self, grib_selections, bounding_box):
         self.selections = grib_selections
         self.bounding_box = bounding_box
+        self.lon_rot = None
 
     def select(self, grib_file):
         """
@@ -170,33 +176,39 @@ class GribSelector(object):
                 continue
 
             if len(selected_messages) > 1:
-                logging.debug('More than one gribmessage matched selection for %s. Found %d.' % (s, len(selected_messages)))
+                logging.debug(
+                    'More than one gribmessage matched selection for %s. Found %d.' % (s, len(selected_messages)))
 
             message = selected_messages[0]
 
-            #values, bb = message.get_values(self.bounding_box)
+            # values, bb = message.get_values(self.bounding_box)
 
-            dlat,dlon = message.latlons()
-            dlon = np.remainder((dlon+180),360)-180 # Convert from 0 to 360 longitude notation to -180 to 180
-            self.lon_rot = -np.argmin(dlon)
-            dlon = np.roll(dlon, self.lon_rot) # Rotate so min lon comes first
+            diff_lat, diff_lon = message.latlons()
+
+            # Convert from 0 to 360 longitude to -180 to 180
+            diff_lon = np.remainder((diff_lon + 180), 360) - 180
+
+            self.lon_rot = -np.argmin(diff_lon)
+            diff_lon = np.roll(diff_lon, self.lon_rot)  # Rotate so min lon comes first
 
             values = message.values.astype(s.dtype)
-            values = np.roll(values, self.lon_rot, axis=1) # Rotate values to match rotated lons
+            values = np.roll(values, self.lon_rot, axis=1)  # Rotate values to match rotated lons
 
-            lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = self.bounding_box.get_min_max_indexes(dlat, dlon)
+            lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = \
+                self.bounding_box.get_min_max_indexes(diff_lat, diff_lon)
 
-            values = values[lat_max_ind:lat_min_ind+1, lon_min_ind:lon_max_ind+1]
+            values = values[lat_max_ind:lat_min_ind + 1, lon_min_ind:lon_max_ind + 1]
 
             units = message['units']
 
-            #[m.release() for m in selected_messages]
+            # [m.release() for m in selected_messages]
 
             data[s.name] = {'values': values, 'bounding_box': self.bounding_box, 'units': units}
 
         return data
 
-    def select_message(self, grib_file, selection):
+    @staticmethod
+    def select_message(selection):
         """
         Return message from grib_file that matches selection.
 
@@ -214,10 +226,9 @@ class GribSelector(object):
 
         return name, selected
 
+
 def grib_file_select_handle_exception(grib_file, sel):
     try:
         return grib_file.select(**sel)
     except ValueError:
         return None
-
-

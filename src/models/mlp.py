@@ -2,10 +2,11 @@ import sklearn.neural_network as sknn
 
 from .base.model import Model
 
-class MutlilayerPerceptron(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const, 
-            regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
 
+class MultilayerPerceptron(Model):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+        super().__init__()
         self.response_var = response_var
         self.covariates = covariates
         self.log_covariates = log_covariates
