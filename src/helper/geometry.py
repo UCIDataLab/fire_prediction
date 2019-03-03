@@ -25,22 +25,22 @@ class LatLonBoundingBox(object):
     def get(self):
         return self.lat_min, self.lat_max, self.lon_min, self.lon_max
 
-    def get_min_max_indexes(self, dlat, dlon):
+    def get_min_max_indexes(self, diff_lat, diff_lon):
         """
-        Get indices for dlat and dlon where min/max lon/lat can be found.
+        Get indices for diff_lat and diff_lon where min/max lon/lat can be found.
         """
-        lat_min_ind = self.get_index(dlat, self.lat_min, np.argmin)
-        lat_max_ind = self.get_index(dlat, self.lat_max, np.argmax)
-        lon_min_ind = self.get_index(dlon, self.lon_min, np.argmin)
-        lon_max_ind = self.get_index(dlon, self.lon_max, np.argmax)
+        lat_min_ind = self.get_index(diff_lat, self.lat_min, np.argmin)
+        lat_max_ind = self.get_index(diff_lat, self.lat_max, np.argmax)
+        lon_min_ind = self.get_index(diff_lon, self.lon_min, np.argmin)
+        lon_max_ind = self.get_index(diff_lon, self.lon_max, np.argmax)
 
         return lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind
 
     @staticmethod
-    def get_index(val, default_func):
+    def get_index(distinct, val, default_func):
         try:
             ind = np.where(distinct == val)[0][0]
-        except Exception as e:
+        except IndexError:
             ind = default_func(distinct)
 
         return int(ind)
@@ -96,7 +96,7 @@ class LatLonBoundingBox(object):
         return hash(self.get())
 
 
-def latlonrange(bounding_box, inc_lat=1., inc_lon=1.):
+def latlon_range(bounding_box, inc_lat=1., inc_lon=1.):
     lat_min, lat_max, lon_min, lon_max = bounding_box.get()
 
     lat_min -= inc_lat

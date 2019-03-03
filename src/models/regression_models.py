@@ -5,6 +5,7 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.discrete.discrete_model as smd
 import statsmodels.formula.api as smf
+import statsmodels.genmod.families.links
 from sklearn import preprocessing
 
 from .base.model import Model
@@ -38,11 +39,32 @@ def build_endog_exog(X, response_var, covariates, log_covariates, log_correction
     return endog, exog, (mean, std)
 
 
-class MeanModel(Model):
+class BasicModelBase(Model):
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+                 regularization_weight=None, normalize_params=False, t_k=None, add_exposure=False):
         super().__init__()
         self.response_var = response_var
+        self.covariates = covariates
+        self.log_covariates = log_covariates
+        self.log_correction = log_correction
+        self.log_correction_const = log_correction_const
+        self.regularization_weight = regularization_weight
+        self.normalize_params = normalize_params
+        self.t_k = t_k
+        self.add_exposure = add_exposure
+
+    def predict(self, X, shape=None):
+        pass
+
+    def fit(self, X, y):
+        pass
+
+
+class MeanModel(BasicModelBase):
+    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
+                 regularization_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+        super().__init__(response_var, covariates, log_covariates, log_correction, log_correction_const,
+                         regularization_weight, normalize_params, t_k, add_exposure)
         self.mean = None
 
     def fit(self, X, y=None):
@@ -56,18 +78,11 @@ class MeanModel(Model):
         return np.full(X['num_det'].shape, self.mean)
 
 
-class RegressionBase(Model):
+class RegressionBase(BasicModelBase):
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
-        super().__init__()
-
-        self.response_var = response_var
-        self.covariates = covariates
-        self.log_covariates = log_covariates
-        self.log_correction = log_correction
-        self.log_correction_const = log_correction_const
-        self.regularizer_weight = regularizer_weight
-        self.normalize_params = normalize_params
+                 regularization_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+        super().__init__(response_var, covariates, log_covariates, log_correction, log_correction_const,
+                         regularization_weight, normalize_params, t_k, add_exposure)
 
         self.inputs = self.covariates + self.log_covariates
         self.variables = [self.response_var] + self.inputs
@@ -78,10 +93,11 @@ class RegressionBase(Model):
         if self.normalize_params:
             self.scaler = preprocessing.StandardScaler()
 
-        self.add_exposure = add_exposure
-
         self.fit_result = None
         self.formula = self.build_formula(self.response_var)
+
+    def build_model(self, X):
+        raise NotImplementedError()
 
     def build_formula(self, response_var, remove_intercept=False):
         if remove_intercept:
@@ -113,13 +129,13 @@ class RegressionBase(Model):
         """
 
         if self.log_covariates and self.log_correction == 'max' and self.log_correction_const == 0:
-            log_covs = list(map(lambda x: log_fmt % (x, x), self.log_covariates))
-            # log_covs = list(map(lambda x: log_fmt % (x), self.log_covariates))
-            formula += ' + ' + ' + '.join(log_covs)
+            log_covariates = list(map(lambda x: log_fmt % (x, x), self.log_covariates))
+            # log_covariates = list(map(lambda x: log_fmt % (x), self.log_covariates))
+            formula += ' + ' + ' + '.join(log_covariates)
 
         elif self.log_covariates:
-            log_covs = list(map(lambda x: log_fmt % (x, self.log_correction_const), self.log_covariates))
-            formula += ' + ' + ' + '.join(log_covs)
+            log_covariates = list(map(lambda x: log_fmt % (x, self.log_correction_const), self.log_covariates))
+            formula += ' + ' + ' + '.join(log_covariates)
 
         print(formula)
 
@@ -162,10 +178,10 @@ class RegressionBase(Model):
         model = self.build_model(X)
 
         # TODO: Does fit_regularized() with alpha=0 behave the same as fit()?
-        if self.regularizer_weight is None:
+        if self.regularization_weight is None:
             self.fit_result = model.fit()
         else:
-            self.fit_result = model.fit_regularized(alpha=self.regularizer_weight)
+            self.fit_result = model.fit_regularized(alpha=self.regularization_weight)
 
         return self
 
@@ -202,6 +218,10 @@ class RegressionBase(Model):
 
 
 class GLMRegression(RegressionBase):
+    @property
+    def family(self):
+        raise NotImplementedError()
+
     def build_model(self, X):
         return smf.glm(self.formula, data=X, family=self.family, exposure=self.exposure)
 
@@ -253,14 +273,15 @@ class NegativeBinomialRegression(GLMRegression):
 
 
 class PoissonRegressionDiff(GLMRegression):
+    # noinspection PyUnusedLocal
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None):
+                 regularization_weight=None, normalize_params=False, t_k=None):
         super().__init__('det_diff', covariates, log_covariates, log_correction, log_correction_const,
-                         regularizer_weight, normalize_params, t_k)
+                         regularization_weight, normalize_params, t_k)
 
-        def predict(self, X, choice=None):
-            pred = super().predict(X, choice=None)
-            return pred + X['num_det']
+    def predict(self, X, choice=None):
+        pred = super().predict(X, choice=None)
+        return pred + X['num_det']
 
     family = sm.genmod.families.family.Poisson()
 
@@ -270,11 +291,19 @@ class LogisticRegression(GLMRegression):
         self.formula = self.build_formula('np.int32(%s)' % self.response_var)
         return smd.Logit.from_formula(formula=self.formula, data=X)
 
+    @property
+    def family(self):
+        raise NotImplementedError()
+
 
 class LogisticBinaryRegression(GLMRegression):
     def build_model(self, X):
         self.formula = self.build_formula('np.int32(%s>1)' % self.response_var)
         return smd.Logit.from_formula(formula=self.formula, data=X)
+
+    @property
+    def family(self):
+        raise NotImplementedError()
 
 
 class LogNormalRegression(GLMRegression):
@@ -299,11 +328,7 @@ class NegativeBinomialRegression(RegressionBase):
 """
 
 
-class PersistenceModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
-        super().__init__()
-
+class PersistenceModel(BasicModelBase):
     def fit(self, X, y=None):
         return self
 
@@ -311,11 +336,7 @@ class PersistenceModel(Model):
         return np.array(X['num_det'].values)
 
 
-class ZeroModel(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=None):
-        super().__init__()
-
+class ZeroModel(BasicModelBase):
     def fit(self, X, y=None):
         return self
 
@@ -323,12 +344,7 @@ class ZeroModel(Model):
         return np.zeros(X['num_det'].shape)
 
 
-class PersistenceAugmented(Model):
-    def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None):
-        super().__init__()
-        self.t_k = t_k
-
+class PersistenceAugmented(BasicModelBase):
     def fit(self, X, y=None):
         return self
 
@@ -348,18 +364,11 @@ class PersistenceAugmented(Model):
 
 
 class PersistenceAugmentedParam(LinearRegression):
+    # noinspection PyUnusedLocal
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None):
+                 regularization_weight=None, normalize_params=False, t_k=None):
         super().__init__('det_diff', covariates, log_covariates, log_correction, log_correction_const,
-                         regularizer_weight, normalize_params, t_k)
-
-        self.response_var = 'det_diff'
-        self.covariates = covariates
-        self.log_covariates = log_covariates
-        self.log_correction = log_correction
-        self.log_correction_const = log_correction_const
-        self.regularizer_weight = regularizer_weight
-        self.normalize_params = normalize_params
+                         regularization_weight, normalize_params, t_k)
 
         self.inputs = self.covariates + self.log_covariates
         self.variables = [self.response_var] + self.inputs
@@ -371,8 +380,9 @@ class PersistenceAugmentedParam(LinearRegression):
         self.formula = self.build_formula(self.response_var)
 
     def build_formula(self, response_var, remove_intercept=False):
-        return 'det_diff ~ vpd_grad:num_det - 1'
+        # TODO: Determine which to use
 
+        """
         if remove_intercept:
             formula = '%s ~ -1' % response_var
         else:
@@ -390,13 +400,14 @@ class PersistenceAugmentedParam(LinearRegression):
 
             if self.log_covariates:
                 formula += ' + ' + ' + '.join(self.log_covariates)
-            """
             if self.log_covariates:
-                log_covs = list(map(lambda x: log_fmt % (x, self.log_correction_const), self.log_covariates))
-                formula += ' + ' + ' + '.join(log_covs)
-            """
+                log_covariates = list(map(lambda x: log_fmt % (x, self.log_correction_const), self.log_covariates))
+                formula += ' + ' + ' + '.join(log_covariates)
 
             return formula
+        """
+
+        return 'det_diff ~ vpd_grad:num_det - 1'
 
     def predict(self, X, choice=None):
         # X = X.filter(self.variables, axis=1)
@@ -410,6 +421,8 @@ class PersistenceAugmentedParam(LinearRegression):
         elif self.log_correction == 'max':
             def log_corr(x):
                 return np.log(np.maximum(x, self.log_correction_const))
+        else:
+            raise ValueError("Log Correction value '%s' is invalid." % self.log_correction)
 
         if self.log_covariates:
             X[self.log_covariates] = log_corr(X[self.log_covariates])
@@ -448,12 +461,12 @@ def small_pred_func(x, y):
 
 class LargeSplitModel(Model):
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None):
+                 regularization_weight=None, normalize_params=False, t_k=None):
         super().__init__()
         self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
-                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+                                             log_correction_const, regularization_weight, normalize_params, t_k=t_k)
         self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
-                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+                                             log_correction_const, regularization_weight, normalize_params, t_k=t_k)
 
         self.model = ActiveIgnitionGrid(self.large_model, self.small_model, large_filter_func, small_filter_func,
                                         large_pred_func, small_pred_func)
@@ -484,12 +497,12 @@ def cum_small_pred_func(x, y):
 
 class CumulativeLargeSplitPerfectModel(Model):
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None):
+                 regularization_weight=None, normalize_params=False, t_k=None):
         super().__init__()
         self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
-                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+                                             log_correction_const, regularization_weight, normalize_params, t_k=t_k)
         self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
-                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+                                             log_correction_const, regularization_weight, normalize_params, t_k=t_k)
 
         self.model = ActiveIgnitionGrid(self.large_model, self.small_model, cum_large_filter_func,
                                         cum_small_filter_func,
@@ -513,15 +526,15 @@ class LargeFireOracleModel(Model):
 
 class CumulativeLargeSplitModel(Model):
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None):
+                 regularization_weight=None, normalize_params=False, t_k=None):
         super().__init__()
         self.large_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
-                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+                                             log_correction_const, regularization_weight, normalize_params, t_k=t_k)
         self.small_model = PoissonRegression(response_var, covariates, log_covariates, log_correction,
-                                             log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+                                             log_correction_const, regularization_weight, normalize_params, t_k=t_k)
 
         # self.mixture_model = LogisticRegression('large_fire', covariates, log_covariates, log_correction,
-        #        log_correction_const, regularizer_weight, normalize_params, t_k=t_k)
+        #        log_correction_const, regularization_weight, normalize_params, t_k=t_k)
 
         self.mixture_model = LargeFireOracleModel()
 

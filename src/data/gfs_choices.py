@@ -2,8 +2,8 @@
 Define the different options for measurement selection.
 """
 import numpy as np
-from helper.geometry import LatLonBoundingBox
 
+from src.helper.geometry import LatLonBoundingBox
 from .grib import GribSelection
 
 

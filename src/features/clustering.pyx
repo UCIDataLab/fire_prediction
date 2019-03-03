@@ -2,22 +2,23 @@
 Algorithms for clustering data.
 """
 
-import numpy as np
 import datetime as dt
 import logging
-import scipy.spatial.distance as sd
-import scipy.sparse as sp
 
-from ..helper import date_util as du
-from ..helper import df_util as dfu
-from ..helper import distance as dist
-
+import numpy as np
 import pyximport
+import scipy.sparse as sp
+import scipy.spatial.distance as sd
+
+from src.helper import date_util as du
+from src.helper import df_util as dfu
+from src.helper import distance as dist
+
 pyximport.install()
 
-CLUST_TYPE_SPATIAL = 'spatial'
-CLUST_TYPE_SPATIAL_TEMPORAL = 'spatial_temporal'
-CLUST_TYPE_SPATIAL_TEMPORAL_FORWARDS = 'spatial_temporal_forwards'
+CLUSTER_TYPE_SPATIAL = 'spatial'
+CLUSTER_TYPE_SPATIAL_TEMPORAL = 'spatial_temporal'
+CLUSTER_TYPE_SPATIAL_TEMPORAL_FORWARDS = 'spatial_temporal_forwards'
 
 def cluster_spatial(data, max_thresh_km):
     n_fires_total = 0
@@ -111,7 +112,7 @@ def cluster_spatial_temporal_forwards(data, max_thresh_km, max_thresh_days):
         n_clusters_year = 0
         logging.debug('Clustering for year %d' % year)
 
-        for day in du.daterange(dt.date(year, 1, 1), dt.date(year + 1, 1, 1)):
+        for day in du.date_range(dt.date(year, 1, 1), dt.date(year + 1, 1, 1)):
             df_day = data[data.date_local == day]
 
             # Iterate over each detection for the day

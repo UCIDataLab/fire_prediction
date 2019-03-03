@@ -7,6 +7,18 @@ class Converter(object):
     def __init__(self):
         pass
 
+    @staticmethod
+    def load(src):
+        raise NotImplementedError()
+
+    @staticmethod
+    def transform(data):
+        raise NotImplementedError()
+
+    @staticmethod
+    def save(data, dest):
+        raise NotImplementedError()
+
     def convert(self, data_dir, dest=None):
         """
         Converts data using self.transform. 

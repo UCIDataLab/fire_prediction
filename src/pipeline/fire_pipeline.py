@@ -1,20 +1,21 @@
+import datetime as dtime
 import os
 
 import luigi
 import pandas as pd
-from features.generate_fire_cube import GridGenerator
 
+from src.features.generate_fire_cube import GridGenerator
 from .modis_pipeline import ModisFilterRegion
 from .pipeline_params import REGION_BOUNDING_BOXES
 
 
 class FireGridGeneration(luigi.Task):
     """ Generate detection or ignition fire grid from detections. """
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default='interim/modis/fire_grid')
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default='interim/modis/fire_grid')
 
-    start_date = luigi.parameter.MonthParameter()
-    end_date = luigi.parameter.MonthParameter()
+    start_date: dtime.date = luigi.parameter.MonthParameter()
+    end_date: dtime.date = luigi.parameter.MonthParameter()
 
     bounding_box_sel_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys())
 

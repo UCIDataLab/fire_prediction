@@ -2,7 +2,8 @@ import datetime as dt
 import logging
 
 import luigi
-from gfs_pipeline import GfsFilterRegion
+
+from src.pipeline.gfs_pipeline import GfsFilterRegion
 
 # date = dt.date(2007, 1, 1)
 # luigi.build([GfsFileFilterMeasurements(src_data_dir='./temp', dest_data_dir='./temp2',  resolution_sel='4',

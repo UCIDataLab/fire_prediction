@@ -5,11 +5,12 @@ Generates a dense grid of MODIS detections (with time axis).
 import datetime as dt
 import logging
 
-import helper.date_util as du
-import helper.df_util as dfu
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+from src.helper import date_util as du
+from src.helper import df_util as dfu
 
 
 class GridGenerator(object):
@@ -21,7 +22,7 @@ class GridGenerator(object):
     def transform(self, data):
         logging.debug('Applying transforms to data')
 
-        # Add local datetime col to determine the day the fire occured in
+        # Add local datetime col to determine the day the fire occurred in
         df = data.assign(date_local=list(
             map(lambda x: du.utc_to_local_time(x[0], x[1], du.round_to_nearest_quarter_hour).date(),
                 zip(data.datetime_utc, data.lon))))
@@ -32,7 +33,7 @@ class GridGenerator(object):
         spatial_size = np.shape(lats)
 
         year_range = dfu.get_year_range(df, 'datetime_utc')
-        dates = list(du.daterange(dt.date(year_range[0], 1, 1), dt.date(year_range[1] + 1, 1, 1)))
+        dates = list(du.date_range(dt.date(year_range[0], 1, 1), dt.date(year_range[1] + 1, 1, 1)))
         grid = np.zeros(spatial_size + (len(dates),))
 
         # Assign each detection to a cell in time and space

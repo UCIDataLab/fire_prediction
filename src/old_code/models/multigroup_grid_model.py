@@ -4,7 +4,7 @@ Model for predicting detections in a gridded region by combining multiple models
 
 import numpy as np
 
-from .base.model import Model
+from src.models.base.model import Model
 
 
 class MultiGroupGridModel(Model):

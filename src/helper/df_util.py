@@ -4,7 +4,7 @@ Helper functions for dealing with Pandas data frames.
 
 import numpy as np
 
-from helper import date_util as du
+from src.helper import date_util as du
 
 
 def get_year_range(df, col_name):
@@ -12,8 +12,8 @@ def get_year_range(df, col_name):
     """
     try:
         return int(np.min(df[col_name].dt.year)), int(np.max(df[col_name].dt.year))
-    except Exception as e:
-        return int(np.min(df[col_name]).year), int(np.max(df[col_name]).year)
+    except AttributeError:
+        return int(np.min(df[col_name].year)), int(np.max(df[col_name].year))
 
 
 def add_date_local(df):

@@ -2,12 +2,13 @@
 Processing the weather data for integration.
 """
 import logging
-
 import pickle
+
 import click
 import numpy as np
+
+from src.helper import weather
 from .base.converter import Converter
-from ..helper import weather
 
 
 class WeatherRegionProcessing(Converter):
@@ -30,8 +31,8 @@ class WeatherRegionProcessing(Converter):
     def save(dest_path, data):
         logging.info('Saving data frame to %s' % dest_path)
 
-        with open(dest_path, 'wb') as fout:
-            pickle.dump(data, fout, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(dest_path, 'wb') as f_out:
+            pickle.dump(data, f_out, protocol=pickle.HIGHEST_PROTOCOL)
 
     def transform(self, data):
         logging.debug('Applying transforms to data frame')
@@ -65,7 +66,7 @@ class WeatherRegionProcessing(Converter):
         integrated_rain_values.fill(np.nan)
 
         for i in range(12, rain_cube.shape[2], 3):
-            val = rain_cube.values[:, :, i - 10] + rain_cube.values[:, :, i - 7] +\
+            val = rain_cube.values[:, :, i - 10] + rain_cube.values[:, :, i - 7] + \
                   rain_cube.values[:, :, i - 4] + rain_cube.values[:, :, i - 1]
             integrated_rain_values[:, :, i] = val
 
@@ -78,7 +79,7 @@ class WeatherRegionProcessing(Converter):
 
     def remove_offset_measurements(self, data):
         """
-        Remove all entries for non-zero offsets. Also replaces DatetimeMeasurements with just the datetime componenet.
+        Remove all entries for non-zero offsets. Also replaces DatetimeMeasurements with just the datetime component.
         """
         logging.debug('Removing offset measurements')
         new_region = weather.WeatherRegion(data.name)

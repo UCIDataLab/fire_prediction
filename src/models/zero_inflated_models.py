@@ -12,17 +12,17 @@ from .regression_models import RegressionBase, build_endog_exog
 
 class HurdleBase(RegressionBase):
     def __init__(self, response_var, covariates, log_covariates, log_correction, log_correction_const,
-                 regularizer_weight=None, normalize_params=False, t_k=None, add_exposure=False):
+                 regularization_weight=None, normalize_params=False, t_k=None, add_exposure=False):
         # super().__init__()
 
         super().__init__(response_var, covariates, log_covariates, log_correction, log_correction_const,
-                         regularizer_weight, normalize_params, t_k, add_exposure)
+                         regularization_weight, normalize_params, t_k, add_exposure)
         self.response_var = response_var
         self.covariates = covariates
         self.log_covariates = log_covariates
         self.log_correction = log_correction
         self.log_correction_const = log_correction_const
-        self.regularizer_weight = regularizer_weight
+        self.regularization_weight = regularization_weight
         self.normalize_params = normalize_params
 
         self.inputs = self.covariates + self.log_covariates
@@ -39,6 +39,15 @@ class HurdleBase(RegressionBase):
 
         self.inflated_formula = self.build_formula('np.int32(%s==0)' % self.response_var)
         self.positive_formula = self.build_formula(self.response_var)
+
+    def build_model(self, X):
+        raise NotImplementedError()
+
+    def build_inflated_model(self, X):
+        raise NotImplementedError()
+
+    def build_positive_model(self, X):
+        raise NotImplementedError()
 
     def fit(self, X, y=None):
         X = X[self.variables].copy()  # returns a numpy array
@@ -58,17 +67,17 @@ class HurdleBase(RegressionBase):
 
         inflated_model = self.build_inflated_model(X)
 
-        if self.regularizer_weight is None:
+        if self.regularization_weight is None:
             self.fit_result_inflated = inflated_model.fit()
         else:
-            self.fit_result_inflated = inflated_model.fit_regularized(alpha=self.regularizer_weight)
+            self.fit_result_inflated = inflated_model.fit_regularized(alpha=self.regularization_weight)
 
         positive_model = self.build_positive_model(X)
 
-        if self.regularizer_weight is None:
+        if self.regularization_weight is None:
             self.fit_result_positive = positive_model.fit()
         else:
-            self.fit_result_positive = positive_model.fit_regularized(alpha=self.regularizer_weight)
+            self.fit_result_positive = positive_model.fit_regularized(alpha=self.regularization_weight)
 
         return self
 
@@ -81,6 +90,8 @@ class HurdleBase(RegressionBase):
         elif self.log_correction == 'max':
             def log_corr(x):
                 return np.log(np.maximum(x, self.log_correction_const))
+        else:
+            raise ValueError("Log Correction value '%s' is invalid." % self.log_correction)
 
         if self.log_covariates:
             X[self.log_covariates] = log_corr(X[self.log_covariates])
@@ -147,6 +158,9 @@ class PoissonHurdleRegression(HurdleBase):
 
 
 class PoissonHurdleRegression(HurdleBase):
+    def build_model(self, X):
+        raise NotImplementedError()
+
     def build_inflated_model(self, X):
         return smd.Logit.from_formula(formula=self.inflated_formula, data=X)
 
@@ -186,6 +200,9 @@ class PoissonHurdleRegression(HurdleBase):
 
 
 class PoissonHurdleFloorRegression(PoissonHurdleRegression):
+    def build_model(self, X):
+        raise NotImplementedError()
+
     def predict(self, X, choice=None):
         pred = super().predict(X, choice)
 
@@ -193,6 +210,9 @@ class PoissonHurdleFloorRegression(PoissonHurdleRegression):
 
 
 class NegativeBinomialHurdleRegression(PoissonHurdleRegression):
+    def build_model(self, X):
+        raise NotImplementedError()
+
     def build_positive_model(self, X):
         X = X[self.variables].copy()
         X = X[X[self.response_var] > 0]
@@ -204,6 +224,9 @@ class NegativeBinomialHurdleRegression(PoissonHurdleRegression):
 
 
 class NegativeBinomialHurdleRegression2(PoissonHurdleRegression):
+    def build_model(self, X):
+        raise NotImplementedError()
+
     def build_positive_model(self, X):
         X = X[self.variables].copy()
         X = X[X[self.response_var] > 0]
@@ -226,6 +249,6 @@ class ZeroInflatedPoissonRegression(RegressionBase):
         return smc.ZeroInflatedPoisson(endog, exog=exog, exog_infl=exog)
 
     def predict(self, X, shape=None):
-        _, exog, (mean, std) = build_endog_exog(X, self.response_var, self.covariates, self.log_covariates,
-                                                self.log_correction, self.log_correction_const, self.mean, self.std)
+        _, exog, (_, _) = build_endog_exog(X, self.response_var, self.covariates, self.log_covariates,
+                                           self.log_correction, self.log_correction_const, self.mean, self.std)
         return self.fit_result.predict(exog=exog, exog_infl=exog)

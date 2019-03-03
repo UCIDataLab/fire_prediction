@@ -6,7 +6,7 @@ general:
     data:
         data_dir: '../data/'
         data_sources:
-            detections: 'interim/modies/fire_cube/fire_detection_cube_modis_alaska_2007-2016.pkl'
+            detections: 'interim/modis/fire_cube/fire_detection_cube_modis_alaska_2007-2016.pkl'
             land_cover: 'interim/land_cover/land_cover_alaska.pkl'
             weather: 'interim/gfs/weather_proc/4/weather_proc_gfs_4_alaska_2007-2016.pkl'
     model:

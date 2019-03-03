@@ -2,11 +2,12 @@
 Print each message contained in a grib file.
 """
 
-import gribapi
-import click
 import logging
-import pandas
 from collections import defaultdict
+
+import click
+import gribapi
+import pandas
 
 
 def ls_grib(src_path, keys):
@@ -24,7 +25,7 @@ def ls_grib(src_path, keys):
                     val = gribapi.grib_get(gid, k)
                     messages[k].append(val)
                 except Exception as e:
-                    logging.error('Failed to get key (%s). Either key is not availabe for the message or it is an '
+                    logging.error('Failed to get key (%s). Either key is not available for the message or it is an '
                                   'array type.' % k)
 
     return messages, keys

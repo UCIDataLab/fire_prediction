@@ -4,12 +4,13 @@ Fetches GFS (Global Forecasting System) data.
 
 import logging
 import os
+import pickle
 from ftplib import FTP
 
-import pickle
 import click
+
+from src.helper import date_util as du
 from .ftp_async import AsyncFTP
-from ..helper import date_util as du
 
 alaska_bb = [55, 71, -165, -138]
 
@@ -35,7 +36,7 @@ class GfsFetch(object):
     def __init__(self, dest_dir, start_year, end_year, scale_sel, available_files_path=None, files_to_fetch_path=None):
         self.dest_dir = dest_dir
         self.year_range = (start_year, end_year)
-        self.aftp = AsyncFTP(server_name, username, password, pool_size=4, queue_size=50)
+        self.async_ftp = AsyncFTP(server_name, username, password, pool_size=4, queue_size=50)
 
         self.available_files_path = available_files_path
         self.files_to_fetch_path = files_to_fetch_path
@@ -46,7 +47,7 @@ class GfsFetch(object):
         elif scale_sel == SCALE_ONE_DEG:
             self.grib_file_fmt = grib_file_fmt_one_deg
         else:
-            raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
+            raise ValueError('Scale selection "%s" is invalid.' % scale_sel)
 
     def src_to_dest_path(self, path):
         path = path.split(gfs_loc)[1]
@@ -57,12 +58,13 @@ class GfsFetch(object):
         Fetch raw GFS data within year range.
         """
         # Find all available files with year range
+        available_files = []
         if not self.available_files_path and not self.files_to_fetch_path:
             logging.debug('Fetching available files')
 
             available_files = self.fetch_available_files()
-            with open(os.path.join(self.dest_dir, 'available_files.pkl'), 'wb') as fout:
-                pickle.dump(available_files, fout, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(os.path.join(self.dest_dir, 'available_files.pkl'), 'wb') as f_out:
+                pickle.dump(available_files, f_out, protocol=pickle.HIGHEST_PROTOCOL)
 
             logging.debug('Finished fetching available files list')
 
@@ -73,8 +75,8 @@ class GfsFetch(object):
         # Filter out already downloaded files
         if not self.files_to_fetch_path:
             files_to_fetch = self.filter_existing_files(available_files)
-            with open(os.path.join(self.dest_dir, 'files_to_fetch.pkl'), 'wb') as fout:
-                pickle.dump(files_to_fetch, fout, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(os.path.join(self.dest_dir, 'files_to_fetch.pkl'), 'wb') as f_out:
+                pickle.dump(files_to_fetch, f_out, protocol=pickle.HIGHEST_PROTOCOL)
             logging.debug('Finished filtering downloaded files')
         else:
             with open(self.files_to_fetch_path, 'rb') as fin:
@@ -86,11 +88,11 @@ class GfsFetch(object):
 
         self.make_dirs(files_to_fetch)
 
-        self.aftp.start()
+        self.async_ftp.start()
         for f in files_to_fetch:
-            self.aftp.fetch(f, self.src_to_dest_path(f))
+            self.async_ftp.fetch(f, self.src_to_dest_path(f))
 
-        self.aftp.join()
+        self.async_ftp.join()
 
     def fetch_available_files(self):
         """
@@ -122,9 +124,9 @@ class GfsFetch(object):
                     grib_dir_list = map(lambda x: x.split('/')[-1], dir_list_with_fluff)
 
                     # Retrieve each grib file from server and save in day dir
-                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in
-                                         time_offset_list]
-                    for grib_file in todays_grib_files:
+                    today_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in
+                                        time_offset_list]
+                    for grib_file in today_grib_files:
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
                             logging.debug('Missing Grib: grib %s not on server' % grib_file)

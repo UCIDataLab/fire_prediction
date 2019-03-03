@@ -11,12 +11,12 @@ from .base.model import Model
 
 
 class LinearRegressionGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None,
+    def __init__(self, covariates, regularization_weight=None, log_shift=1, log_correction='add', filter_func=None,
                  pred_func=None):
         super(LinearRegressionGridModel, self).__init__()
 
         self.covariates = covariates
-        self.regularizer_weight = regularizer_weight
+        self.regularization_weight = regularization_weight
         self.log_shift = log_shift
         self.log_correction = log_correction
         self.filter_func = filter_func
@@ -66,10 +66,10 @@ class LinearRegressionGridModel(Model):
             # print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
             X_df = pd.read_csv(StringIO(X_df.to_csv()))
             # print(X_df)
-        except Exception as e:
+        except AttributeError:
             X_df = X
 
-        if self.regularizer_weight is None:
+        if self.regularization_weight is None:
             self.fit_result = smf.ols(formula=formula, data=X_df).fit()
         else:
             raise NotImplementedError()
@@ -111,7 +111,7 @@ class LinearRegressionGridModel(Model):
 
             pred = np.array(pred)
             pred = np.reshape(pred, shape, order='F')
-        except Exception as e:
+        except AttributeError:
             X_df = X
             pred = self.fit_result.predict(X_df)
 

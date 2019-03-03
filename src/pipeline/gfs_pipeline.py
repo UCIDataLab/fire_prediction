@@ -2,7 +2,8 @@
 Creates the project workflow pipeline from data ingestion to model execution.
 """
 
-import datetime as dt
+import datetime as dtime
+import ftplib
 import os
 import pickle
 import pygrib
@@ -15,9 +16,9 @@ import numpy as np
 import pandas as pd
 import parse  # For latlon param type
 import xarray as xr
-from data import grib
-from helper.date_util import daterange_days
 
+from src.data import grib
+from src.helper.date_util import date_range_days
 from .pipeline_helper import (logger, check_spanning_file, check_date_str_spanning, change_data_dir_path, FtpFile,
                               build_dates_and_latlon_coords, build_data_arrays)
 from .pipeline_params import (REGION_BOUNDING_BOXES, GFS_MEASUREMENT_SEL, GFS_TIMES, GFS_OFFSETS, GFS_RESOLUTIONS,
@@ -41,7 +42,7 @@ def_name_conversion_dict = {'Surface air relative humidity': 'humidity', '2 metr
 
 def build_gfs_server_file_path(data_dir, resolution, date, time=None, offset=None):
     year_month = year_month_dir_fmt % (date.year, date.month)
-    year_month_day = year_month_day = year_month_day_dir_fmt % (date.year, date.month, date.day)
+    year_month_day = year_month_day_dir_fmt % (date.year, date.month, date.day)
 
     # If time and offset are not specified, return day directory
     if time is None or offset is None:
@@ -59,16 +60,16 @@ def build_gfs_server_file_path(data_dir, resolution, date, time=None, offset=Non
 
 
 class GfsFtpFileDownload(luigi.Task):
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=GFS_RAW_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=GFS_RAW_DATA_DIR)
 
     server_name = luigi.parameter.Parameter(default=GFS_SERVER_NAME)
     server_username = luigi.parameter.Parameter(default=GFS_SERVER_USERNAME, significant=False)
     server_password = luigi.parameter.Parameter(default=GFS_SERVER_PASSWORD, significant=False)
     server_data_dir = luigi.parameter.Parameter(default=GFS_SERVER_DATA_DIR)
 
-    resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
-    date = luigi.parameter.DateParameter()
+    resolution: str = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
+    date: dtime.date = luigi.parameter.DateParameter()
     time = luigi.parameter.ChoiceParameter(choices=GFS_TIMES, var_type=int)
     offset = luigi.parameter.ChoiceParameter(choices=GFS_OFFSETS, var_type=int)
 
@@ -93,14 +94,14 @@ class GfsFtpFileDownload(luigi.Task):
 
 
 class GfsFilterMeasurements(luigi.Task):
-    data_dir = luigi.parameter.Parameter()
-    src_data_dir = luigi.parameter.Parameter(default=GFS_RAW_DATA_DIR)
-    dest_data_dir = luigi.parameter.Parameter(default=GFS_FILTERED_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    src_data_dir: str = luigi.parameter.Parameter(default=GFS_RAW_DATA_DIR)
+    dest_data_dir: str = luigi.parameter.Parameter(default=GFS_FILTERED_DATA_DIR)
 
-    resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
-    date = luigi.parameter.DateParameter()
-    time = luigi.parameter.ChoiceParameter(choices=GFS_TIMES, var_type=int)
-    offset = luigi.parameter.ChoiceParameter(choices=GFS_OFFSETS, var_type=int)
+    resolution: str = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS, var_type=str)
+    date: dtime.date = luigi.parameter.DateParameter()
+    time: int = luigi.parameter.ChoiceParameter(choices=GFS_TIMES, var_type=int)
+    offset: int = luigi.parameter.ChoiceParameter(choices=GFS_OFFSETS, var_type=int)
 
     measurement_sel_name = luigi.parameter.ChoiceParameter(choices=GFS_MEASUREMENT_SEL.keys())
     bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys())
@@ -121,11 +122,12 @@ class GfsFilterMeasurements(luigi.Task):
         with self.output().temporary_path() as temp_output_path:
             with h5py.File(temp_output_path, 'w') as f:
                 # Write each measurement as a separate dataset
+                v = None
                 for k, v in extracted.items():
-                    dset = f.create_dataset(k, data=v['values'], compression='lzf')
-                    dset.attrs['units'] = v['units']
+                    dataset = f.create_dataset(k, data=v['values'], compression='lzf')
+                    dataset.attrs['units'] = v['units']
 
-                # Set bouding box for entire file (all datasets share the same bounding box)
+                # Set bounding box for entire file (all datasets share the same bounding box)
                 if len(extracted) > 0:
                     f.attrs['bounding_box'] = v['bounding_box'].get()
 
@@ -140,17 +142,17 @@ class GfsFilterMeasurements(luigi.Task):
 
 
 class GfsGetAvailableFilesList(luigi.Task):
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=GFS_RAW_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=GFS_RAW_DATA_DIR)
 
     server_name = luigi.parameter.Parameter(default=GFS_SERVER_NAME)
     server_username = luigi.parameter.Parameter(default=GFS_SERVER_USERNAME, significant=False)
     server_password = luigi.parameter.Parameter(default=GFS_SERVER_PASSWORD, significant=False)
     server_data_dir = luigi.parameter.Parameter(default=GFS_SERVER_DATA_DIR)
 
-    resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
-    start_date = luigi.parameter.DateParameter()
-    end_date = luigi.parameter.DateParameter()
+    resolution: str = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS, var_type=str)
+    start_date: dtime.date = luigi.parameter.DateParameter()
+    end_date: dtime.date = luigi.parameter.DateParameter()
 
     resources = {'ftp': 1}
 
@@ -160,11 +162,11 @@ class GfsGetAvailableFilesList(luigi.Task):
 
         available_files = []
 
-        for date in daterange_days(self.start_date, self.end_date + dt.timedelta(1)):
+        for date in date_range_days(self.start_date, self.end_date + dtime.timedelta(1)):
             day_dir_path = build_gfs_server_file_path(self.server_data_dir, self.resolution, date)
             try:
                 files = ftp.nlst(day_dir_path)
-            except Exception as e:
+            except ftplib.all_errors:
                 logger.debug('Missing Day: resolution %s year %d month %d day %d' % (
                     self.resolution, date.year, date.month, date.day))
                 continue
@@ -183,8 +185,8 @@ class GfsGetAvailableFilesList(luigi.Task):
         ftp.quit()
 
         with self.output().temporary_path() as temp_output_path:
-            with open(temp_output_path, 'wb') as fout:
-                pickle.dump(available_files, fout, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(temp_output_path, 'wb') as f_out:
+                pickle.dump(available_files, f_out, protocol=pickle.HIGHEST_PROTOCOL)
 
     def output(self):
         date_fmt = '%m%d%Y'
@@ -205,7 +207,7 @@ def create_filter_task_from_file_name(fn, data_dir, measurement_sel_name, boundi
     year, month, day = int(p['date'][:4]), int(p['date'][4:6]), int(p['date'][6:8])
 
     resolution = p['resolution']
-    date = dt.date(year, month, day)
+    date = dtime.date(year, month, day)
     time = p['time'] // 100
     offset = p['offset']
 
@@ -216,15 +218,14 @@ def create_filter_task_from_file_name(fn, data_dir, measurement_sel_name, boundi
 
 
 def get_date_ind(true_dates, true_offsets, date_ind, datetime, offset):
-    """ Iterate throught list of dates/offsets to find first match of given date/offset starting at date_ind. """
+    """ Iterate through list of dates/offsets to find first match of given date/offset starting at date_ind. """
 
     skipped = []
-    while True:
+    for date_ind in range(date_ind, len(true_dates)):
         if (true_dates[date_ind] == datetime) and (true_offsets[date_ind] == offset):
             return date_ind, skipped
 
         skipped.append(date_ind)
-        date_ind += 1
 
     raise ValueError('Unable to find matching date and offset for "%s", "%s".' % (str(datetime), str(offset)))
 
@@ -232,13 +233,13 @@ def get_date_ind(true_dates, true_offsets, date_ind, datetime, offset):
 class GfsAggregateYear(luigi.Task):
     resources = {'memory': 60}
 
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=GFS_AGGREGATED_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=GFS_AGGREGATED_DATA_DIR)
 
-    resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
+    resolution: str = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS, var_type=str)
 
-    start_date = luigi.parameter.DateParameter()
-    end_date = luigi.parameter.DateParameter()
+    start_date: dtime.date = luigi.parameter.DateParameter()
+    end_date: dtime.date = luigi.parameter.DateParameter()
 
     measurement_sel_name = luigi.parameter.ChoiceParameter(choices=GFS_MEASUREMENT_SEL.keys(), default='default_v1')
     bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys(), default='global')
@@ -246,8 +247,8 @@ class GfsAggregateYear(luigi.Task):
     def requires(self):
         assert (self.start_date.year == self.end_date.year)
 
-        self.start_date = self.start_date if self.start_date else dt.date(self.start_date.year, 1, 1)
-        self.end_date = self.end_date if self.end_date else dt.date(self.start_date.year, 12, 31)
+        self.start_date = self.start_date if self.start_date else dtime.date(self.start_date.year, 1, 1)
+        self.end_date = self.end_date if self.end_date else dtime.date(self.start_date.year, 12, 31)
 
         return GfsGetAvailableFilesList(data_dir=self.data_dir, resolution=self.resolution,
                                         start_date=self.start_date, end_date=self.end_date)
@@ -285,8 +286,8 @@ class GfsAggregateYear(luigi.Task):
 
             logger.debug(file_path)
 
-            datetime = dt.datetime.combine(date, dt.time(time))
-            offset = dt.timedelta(hours=offset)
+            datetime = dtime.datetime.combine(date, dtime.time(time))
+            offset = dtime.timedelta(hours=offset)
 
             date_ind, _ = get_date_ind(true_dates, true_offsets, date_ind, datetime, offset)
 
@@ -330,13 +331,13 @@ class GfsAggregateYear(luigi.Task):
 
 
 def filter_region_span_check_func(test_fn, cur_fn):
-    fmt = 'gfs_{resolution}_{bb_name}_{start_date}_{end_date}.nc'
+    fmt = '{weather_model}_{resolution}_{bb_name}_{start_date}_{end_date}.nc'
     test_p = parse.parse(fmt, test_fn)
     cur_p = parse.parse(fmt, cur_fn)
 
-    check = True
-    check = check and (test_p['resolution'] == cur_p['resolution'])
-    check = check and (test_p['bb_name'] == cur_p['bb_name'])
+    check = ((test_p['weather_model'] == cur_p['weather_model']) and
+             (test_p['resolution'] == cur_p['resolution']) and
+             (test_p['bb_name'] == cur_p['bb_name']))
 
     # Exit early if files don't match
     if not check:
@@ -353,13 +354,13 @@ def filter_region_span_check_func(test_fn, cur_fn):
 class EraAggregateYear(luigi.ExternalTask):
     resources = {'memory': 60}
 
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=GFS_AGGREGATED_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=GFS_AGGREGATED_DATA_DIR)
 
     resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
 
-    start_date = luigi.parameter.DateParameter()
-    end_date = luigi.parameter.DateParameter()
+    start_date: dtime.date = luigi.parameter.DateParameter()
+    end_date: dtime.date = luigi.parameter.DateParameter()
 
     measurement_sel_name = luigi.parameter.ChoiceParameter(choices=GFS_MEASUREMENT_SEL.keys(), default='default_v1')
     bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys(), default='global')
@@ -371,14 +372,14 @@ class EraAggregateYear(luigi.ExternalTask):
 
 
 class GfsFilterRegion(luigi.Task):
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=GFS_REGION_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=GFS_REGION_DATA_DIR)
 
     measurement_sel_name = luigi.parameter.ChoiceParameter(choices=GFS_MEASUREMENT_SEL.keys(), default='default_v1')
-    resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
+    resolution: str = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS, var_type=str)
 
-    start_date = luigi.parameter.DateParameter()
-    end_date = luigi.parameter.DateParameter()
+    start_date: dtime.date = luigi.parameter.DateParameter()
+    end_date: dtime.date = luigi.parameter.DateParameter()
 
     bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys())
 
@@ -390,14 +391,14 @@ class GfsFilterRegion(luigi.Task):
 
         tasks = []
         for year in years:
-            start_date = dt.date(year, 1, 1)
-            end_date = dt.date(year, 12, 31)
+            start_date = dtime.date(year, 1, 1)
+            end_date = dtime.date(year, 12, 31)
 
             if year == start_year:
-                start_date = dt.date(year, self.start_date.month, self.start_date.day)
+                start_date = dtime.date(year, self.start_date.month, self.start_date.day)
 
             if year == end_year:
-                end_date = dt.date(year, self.end_date.month, self.end_date.day)
+                end_date = dtime.date(year, self.end_date.month, self.end_date.day)
 
             if self.use_era:
                 tasks.append(EraAggregateYear(data_dir=self.data_dir, resolution=self.resolution,
@@ -444,16 +445,16 @@ class GfsFilterRegion(luigi.Task):
                     time_in = pd.to_datetime(np.array(ds_in['time']))
                 else:
                     time_in = pd.to_datetime([t.decode('utf-8') for t in np.array(ds_in['time'])])
-                offset_in = [dt.timedelta(hours=int(o)) for o in ds_in['offset']]
+                # offset_in = [dt.timedelta(hours=int(o)) for o in ds_in['offset']]
                 lats_in, lons_in = np.array(ds_in['lat']), np.array(ds_in['lon'])
 
                 year = time_in[0].year
-                cur_start_date, cur_end_date = dt.date(year, 1, 1), dt.date(year, 12, 31)
+                cur_start_date, cur_end_date = dtime.date(year, 1, 1), dtime.date(year, 12, 31)
 
                 cur_start_date = cur_start_date if cur_start_date >= self.start_date else self.start_date
                 cur_end_date = cur_end_date if cur_end_date <= self.end_date else self.end_date
 
-                cur_start_date, cur_end_date = pd.to_datetime([cur_start_date, cur_end_date + dt.timedelta(days=1)])
+                cur_start_date, cur_end_date = pd.to_datetime([cur_start_date, cur_end_date + dtime.timedelta(days=1)])
 
                 # Select lat/lon and date range from input
                 time_ind = (time_in >= cur_start_date) & (time_in < cur_end_date)
@@ -479,16 +480,17 @@ class GfsFilterRegion(luigi.Task):
             else:
                 with h5py.File(path) as ds_in:
                     time_in = pd.to_datetime([t.decode('utf-8') for t in ds_in['time'][:]])
-                    offset_in = [dt.timedelta(hours=int(o)) for o in ds_in['offset']]
+                    # offset_in = [dt.timedelta(hours=int(o)) for o in ds_in['offset']]
                     lats_in, lons_in = ds_in['lat'][:], ds_in['lon'][:]
 
                     year = time_in[0].year
-                    cur_start_date, cur_end_date = dt.date(year, 1, 1), dt.date(year, 12, 31)
+                    cur_start_date, cur_end_date = dtime.date(year, 1, 1), dtime.date(year, 12, 31)
 
                     cur_start_date = cur_start_date if cur_start_date >= self.start_date else self.start_date
                     cur_end_date = cur_end_date if cur_end_date <= self.end_date else self.end_date
 
-                    cur_start_date, cur_end_date = pd.to_datetime([cur_start_date, cur_end_date + dt.timedelta(days=1)])
+                    cur_start_date, cur_end_date = pd.to_datetime([cur_start_date,
+                                                                   cur_end_date + dtime.timedelta(days=1)])
 
                     # Select lat/lon and date range from input
                     time_ind = (time_in >= cur_start_date) & (time_in < cur_end_date)

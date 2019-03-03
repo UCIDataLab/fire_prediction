@@ -2,7 +2,8 @@ import datetime as dt
 import logging
 
 import luigi
-from pipeline.train_pipeline import TrainModel
+
+from src.pipeline.train_pipeline import TrainModel
 
 logger = logging.getLogger('pipeline')
 logger.setLevel(logging.DEBUG)
@@ -28,7 +29,7 @@ LEARN_CONST = 0
 # 'decay_values': {'default': .05, 'num_det': .05, 'temperature': .25, 'humidity': .5, 'rain': .25},
 params = {
     'model_structure': 'grid',
-    'separated_ignitions': 'separated',
+    'separated_ignitions': 'active_only',
     'active_model_type': 'hurdle_p',
     'ignition_model_type': 'hurdle_b2',
     'covariates': [],
@@ -47,8 +48,8 @@ params = {
     'log_correction_type': 'max',
     'log_correction_constant': .001,
     'fill_method': 'interpolate',
-    'forecast_horizon': 5,
-    'years_test': IN_SAMPLE,
+    'forecast_horizon': 2,
+    'years_test': [2007],
     'normalize_params': False,
     'rain_offset': 0,
     'exposure': False,

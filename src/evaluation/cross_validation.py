@@ -64,6 +64,7 @@ def evaluate_all(model, X, y, t_k, train=True, predict=True):
     # Split Y
     y_tr, y_te = y.values, y.values
 
+    fit_model = None
     if train:
         fit_model = model(t_k).fit(X_tr, y_tr)
 
@@ -89,11 +90,11 @@ def evaluate_all(model, X, y, t_k, train=True, predict=True):
 
 def make_year_list(years, shape):
     num = shape / len(years)
-    vals = []
+    values = []
     for y in years:
-        vals += [y] * num
+        values += [y] * num
 
-    return vals
+    return values
 
 
 def add_cell_encoding(data):

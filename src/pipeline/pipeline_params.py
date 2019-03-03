@@ -4,8 +4,8 @@ Store pipeline parameters used in multiple stages of the pipeline.
 
 import numpy as np
 
-from ..data import grib
-from ..helper.geometry import LatLonBoundingBox
+from src.data import grib
+from src.helper.geometry import LatLonBoundingBox
 
 # === General ===
 # Region bounding boxes
@@ -74,4 +74,4 @@ selections_era = {'default_v1': [temperature, humidity, wind_u, wind_v, rain]}
 ERA_MEASUREMENT_SEL = selections_era
 
 # === Weather ===
-WEATHER_FILL_METH = ['integrate_mean', 'integrate_interp', 'mean', 'interpolate', 'drop']
+WEATHER_FILL_METHOD = ['integrate_mean', 'integrate_interp', 'mean', 'interpolate', 'drop']

@@ -1,11 +1,14 @@
 """ Helper functions and classes for ETL pipeline. """
 
+import datetime as dtime
 import logging
 import os
 
 import luigi
+import luigi.contrib.ftp
 import numpy as np
-from helper.date_util import create_true_dates
+
+from src.helper.date_util import create_true_dates
 
 logger = logging.getLogger('pipeline')
 logger.setLevel(logging.DEBUG)
@@ -20,7 +23,7 @@ def check_spanning_file(dest_path, span_check_func):
     """ 
     Check if the target specified by dest_path is spanned by an existing target in the same directory. 
 
-    Spanning is deterimined by the provided span_check_func.
+    Spanning is determined by the provided span_check_func.
     """
     dir_path, fn = os.path.split(dest_path)
 
@@ -32,10 +35,7 @@ def check_spanning_file(dest_path, span_check_func):
 
     # Check every file in dest_dir to see if it spans the intended target
     for f in files:
-        try:
-            check = span_check_func(f, fn)
-        except Exception as e:
-            check = False
+        check = span_check_func(f, fn)
 
         if check:
             return os.path.join(dir_path, f)
@@ -44,12 +44,12 @@ def check_spanning_file(dest_path, span_check_func):
 
 
 def check_date_str_spanning(test_str_start, test_str_end, cur_str_start, cur_str_end, date_fmt):
-    test_start_date = dt.datetime.strptime(test_str_start, date_fmt)
-    cur_start_date = dt.datetime.strptime(cur_str_start, date_fmt)
+    test_start_date = dtime.datetime.strptime(test_str_start, date_fmt)
+    cur_start_date = dtime.datetime.strptime(cur_str_start, date_fmt)
     start_check = test_start_date <= cur_start_date
 
-    test_end_date = dt.datetime.strptime(test_str_end, date_fmt)
-    cur_end_date = dt.datetime.strptime(cur_str_end, date_fmt)
+    test_end_date = dtime.datetime.strptime(test_str_end, date_fmt)
+    cur_end_date = dtime.datetime.strptime(cur_str_end, date_fmt)
     end_check = test_end_date >= cur_end_date
 
     return start_check and end_check
@@ -97,7 +97,7 @@ class FtpFile(luigi.ExternalTask):
     server_username = luigi.parameter.Parameter(significant=False)
     server_password = luigi.parameter.Parameter(significant=False)
 
-    file_path = luigi.parameter.Parameter()
+    file_path: str = luigi.parameter.Parameter()
 
     resources = {'ftp': 1}
 

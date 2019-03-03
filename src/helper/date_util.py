@@ -1,7 +1,7 @@
 """
 Helper functions for dealing with calendar dates.
 """
-import datetime as dt
+import datetime as dtime
 from datetime import timedelta, tzinfo
 from functools import total_ordering
 
@@ -33,7 +33,7 @@ def days_per_month(month, is_leap):
     return month_arr[month - 1]
 
 
-def daterange(start_date, end_date=None, increment=timedelta(hours=24)):
+def date_range(start_date, end_date=None, increment=timedelta(hours=24)):
     """
     Generate all dates between start and end date (inclusive lower, exclusive upper).
 
@@ -49,32 +49,32 @@ def daterange(start_date, end_date=None, increment=timedelta(hours=24)):
             start_date += increment
 
 
-def daterange_days(start_date, end_date):
+def date_range_days(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
-        yield start_date + dt.timedelta(n)
+        yield start_date + dtime.timedelta(n)
 
 
-def daterange_months(start_date, end_date):
+def date_range_months(start_date, end_date):
     """Iterate through months in date range (inclusive)."""
 
     cur_month, cur_year = start_date.month, start_date.year
     end_month, end_year = end_date.month, end_date.year
 
     while (cur_month != end_month) or (cur_year != end_year):
-        yield dt.date(cur_year, cur_month, 1)
+        yield dtime.date(cur_year, cur_month, 1)
 
         cur_year += cur_month == 12
         cur_month = np.remainder(cur_month, 12) + 1
 
-    yield dt.date(end_year, end_month, 1)
+    yield dtime.date(end_year, end_month, 1)
 
 
 def filter_fire_season(ds, start=(5, 14), end=(8, 31), years=range(2007, 2016 + 1)):
     dates = ds.time.values
     ind = np.zeros(dates.shape, dtype=np.bool)
     for year in years:
-        start_date = np.datetime64(dt.date(year, start[0], start[1]))
-        end_date = np.datetime64(dt.date(year, end[0], end[1]))
+        start_date = np.datetime64(dtime.date(year, start[0], start[1]))
+        end_date = np.datetime64(dtime.date(year, end[0], end[1]))
         ind = ind | ((dates >= start_date) & (dates <= end_date))
 
     data_vars = {}
@@ -88,15 +88,15 @@ def filter_fire_season(ds, start=(5, 14), end=(8, 31), years=range(2007, 2016 + 
 
 def create_true_dates(start_date, end_date, times, offsets):
     """ 
-    Used to build list of datetimes and offsets for a range of dates. Returns datetime64 dates.
+    Used to build list of datetime and offsets for a range of dates. Returns datetime64 dates.
 
     Inclusive of dates. 
     """
-    dates = list(daterange_days(start_date, end_date + dt.timedelta(1)))
-    times = list(map(lambda x: dt.time(x), times))
-    offsets = list(map(lambda x: dt.timedelta(hours=x), offsets))
+    dates = list(date_range_days(start_date, end_date + dtime.timedelta(1)))
+    times = list(map(lambda x: dtime.time(x), times))
+    offsets = list(map(lambda x: dtime.timedelta(hours=x), offsets))
 
-    true_dates, true_offsets = zip(*[(dt.datetime.combine(d, t), o) for d in dates for t in times for o in offsets])
+    true_dates, true_offsets = zip(*[(dtime.datetime.combine(d, t), o) for d in dates for t in times for o in offsets])
 
     true_dates = pd.to_datetime(true_dates)
     return true_dates, np.array(true_offsets)
@@ -158,7 +158,7 @@ class DatetimeMeasurement(object):
     Tracks a datetime with an offset (usually used for integrated measurements) and supports conversion to truly local
     time.
 
-    Stores all datetimes in UTC local. Supports using lon for a truly localized offset
+    Stores all datetime in UTC local. Supports using lon for a truly localized offset
     """
 
     def __init__(self, dt, td_offset=timedelta(0)):
@@ -173,7 +173,7 @@ class DatetimeMeasurement(object):
         """
         Return datetime. Can be truly localized if lat/lon are provided.
 
-        WARNGING: Cannot pickle a truly localized datetime because it relies on a tzinfo wich requires init() arguments.
+        WARNING: Cannot pickle a truly localized datetime because it relies on a tzinfo which requires init() arguments.
         """
         if lon:
             return self.dt.astimezone(self.get_localized_tz(lon))
@@ -183,8 +183,9 @@ class DatetimeMeasurement(object):
     def get_offset(self):
         return self.td_offset
 
-    def get_localized_tz(self, lon):
-        if self.lon is None:
+    @staticmethod
+    def get_localized_tz(lon):
+        if lon is None:
             raise ValueError('lon must be defined to get a truly localized tzinfo')
 
         return TrulyLocalTzInfo(lon)
@@ -196,8 +197,8 @@ class DatetimeMeasurement(object):
         return self.get() < other.get()
 
 
-def day2monthday(my_day, leapyear=False):
-    if leapyear:
+def day2monthday(my_day, leap_year=False):
+    if leap_year:
         month_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     else:
         month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -210,14 +211,14 @@ def day2monthday(my_day, leapyear=False):
     return month, day
 
 
-def monthday2day(month, day, leapyear=False):
+def monthday2day(month, day, leap_year=False):
     """Convert month/day into days since Jan 1"""
-    if leapyear:
+    if leap_year:
         month_arr = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     else:
         month_arr = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     days = 0
-    for mon in xrange(1, month):
+    for mon in range(1, month):
         days += month_arr[mon - 1]
     days += day - 1
     return days
@@ -241,5 +242,5 @@ def increment_day(year, month, day):
     return year, month, day
 
 
-def dayofyear_from_datetime(dt_):
+def day_of_year_from_datetime(dt_):
     return dt_.timetuple().tm_yday

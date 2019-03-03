@@ -3,11 +3,12 @@ import os
 import sys
 from collections import defaultdict
 
-import evaluation.evaluate_model as evm
-import helper.date_util as du
-import helper.loaders as load
-import helper.weather as weather
 import numpy as np
+
+from src.evaluation import evaluate_model as evm
+from . import date_util as du
+from . import loaders as load
+from . import weather
 
 REP_DIR = "/home/cagraff/Documents/dev/fire_prediction/"
 SRC_DIR = REP_DIR + 'src/'
@@ -16,20 +17,6 @@ DATA_DIR = REP_DIR + 'data/'
 
 def date_to_day_of_year(date):
     return date.year, date.timetuple().tm_yday
-
-
-ignition_cube_src = os.path.join(DATA_DIR, 'interim/modis/fire_cube/fire_ignition_cube_modis_alaska_2007-2016.pkl')
-detection_cube_src = os.path.join(DATA_DIR, 'interim/modis/fire_cube/fire_detection_cube_modis_alaska_2007-2016.pkl')
-weather_proc_region_src = os.path.join(DATA_DIR, 'interim/gfs/weather_proc/weather_proc_gfs_4_alaska_2007-2016.pkl')
-
-_, Y_detection_c = evm.setup_ignition_data(ignition_cube_src, detection_cube_src)
-Y_detection_c.name = 'num_det'
-weather_proc_region = load.load_pickle(weather_proc_region_src)
-
-fill_n_days = 5
-
-t_k = int(sys.argv[2])
-print('T_k=%d' % t_k)
 
 
 def get_date_index(weather_data, target_datetime):
@@ -48,25 +35,21 @@ def get_date_index(weather_data, target_datetime):
     return date_ind
 
 
-def get_weather_variables(vals, weather_data, target_datetime, covariates):
+def get_weather_variables(weather_values, weather_data, target_datetime, covariates, fill_n_days):
     # Get date index
     date_ind = get_date_index(weather_data, target_datetime)
 
-    # vals = []
     for key in covariates:
         data = weather_data[key].values
         val = data[:, :, date_ind]
 
         if np.any(np.isnan(val)):
-            val = fill_missing_value(data, date_ind)
+            val = fill_missing_value(data, date_ind, fill_n_days)
 
-            # vals.append(val)
-        vals[key].append(val)
-
-    # return vals
+        weather_values[key].append(val)
 
 
-def fill_missing_value(data, date_ind):
+def fill_missing_value(data, date_ind, fill_n_days):
     """
     Try to replace with closest prev day in range [1, fill_n_days].                                                
 
@@ -86,40 +69,58 @@ def fill_missing_value(data, date_ind):
     return np.nanmean(data[:, :, :], axis=2)
 
 
-vals = defaultdict(list)
-for date in Y_detection_c.dates:
-    time = 14
-    date += du.INC_ONE_DAY * t_k
-    # TODO: I think the lon (153) doesn't matter because of the time of day we have  selected 14
-    tzinfo = du.TrulyLocalTzInfo(153, du.round_to_nearest_quarter_hour)
-    target_datetime = dt.datetime.combine(date, dt.time(time, 0, 0, tzinfo=tzinfo))
+def main():
+    ignition_cube_src = os.path.join(DATA_DIR, 'interim/modis/fire_cube/fire_ignition_cube_modis_alaska_2007-2016.pkl')
+    detection_cube_src = os.path.join(DATA_DIR,
+                                      'interim/modis/fire_cube/fire_detection_cube_modis_alaska_2007-2016.pkl')
+    weather_proc_region_src = os.path.join(DATA_DIR, 'interim/gfs/weather_proc/weather_proc_gfs_4_alaska_2007-2016.pkl')
 
-    get_weather_variables(vals, weather_proc_region, target_datetime, ['temperature', 'humidity', 'wind', 'rain'])
+    _, Y_detection_c = evm.setup_ignition_data(ignition_cube_src, detection_cube_src)
+    Y_detection_c.name = 'num_det'
+    weather_proc_region = load.load_pickle(weather_proc_region_src)
 
-to_flatten = weather.WeatherRegion('flatten')
-for k, v in vals.items():
-    vals[k] = np.rollaxis(np.array(v), 0, 3)
-    cube = weather.WeatherCube(k, vals[k], None, dates=Y_detection_c.dates)
-    to_flatten.add_cube(cube)
+    t_k = int(sys.argv[2])
+    print('T_k=%d' % t_k)
 
-# Shift detections by t_k
-det_shift = Y_detection_c.values
-shape = np.shape(det_shift)[:2] + (t_k,)
-det_shift = np.concatenate((det_shift, np.zeros(shape)), axis=2)
-det_shift = det_shift[:, :, t_k:]
+    values = defaultdict(list)
+    for date in Y_detection_c.dates:
+        time = 14
+        date += du.INC_ONE_DAY * t_k
+        # TODO: I think the lon (153) doesn't matter because of the time of day we have  selected 14
+        tzinfo = du.TrulyLocalTzInfo(153, du.round_to_nearest_quarter_hour)
+        target_datetime = dt.datetime.combine(date, dt.time(time, 0, 0, tzinfo=tzinfo))
 
-vals, keys = zip(*[(to_flatten.cubes[k].values, k) for k in ['temperature', 'humidity', 'wind', 'rain']])
-vals = (Y_detection_c.values,) + vals + (det_shift,)
-keys = ('num_det',) + keys + ('num_det_target',)
-to_flatten_arr = np.stack(vals, axis=3)
+        get_weather_variables(values, weather_proc_region, target_datetime, ['temperature', 'humidity', 'wind', 'rain'],
+                              2)
 
-with open(sys.argv[1], 'wb') as fout:
-    header = 'year,day_of_year,row,col,' + ','.join(keys) + '\n'
-    fout.write(header)
-    for i, d in enumerate(Y_detection_c.dates):
-        year, day_of_year = date_to_day_of_year(d)
-        for row in range(33):
-            for col in range(55):
-                line = '%d,%d,%d,%d,%d,%f,%f,%f,%f,%d\n' % (
+    to_flatten = weather.WeatherRegion('flatten')
+    for k, v in values.items():
+        values[k] = list(np.rollaxis(np.array(v), 0, 3))
+        cube = weather.WeatherCube(k, values[k], None, dates=Y_detection_c.dates)
+        to_flatten.add_cube(cube)
+
+    # Shift detections by t_k
+    det_shift = Y_detection_c.values
+    shape = np.shape(det_shift)[:2] + (t_k,)
+    det_shift = np.concatenate((det_shift, np.zeros(shape)), axis=2)
+    det_shift = det_shift[:, :, t_k:]
+
+    values, keys = zip(*[(to_flatten.cubes[k].values, k) for k in ['temperature', 'humidity', 'wind', 'rain']])
+    values = (Y_detection_c.values,) + values + (det_shift,)
+    keys = ('num_det',) + keys + ('num_det_target',)
+    to_flatten_arr = np.stack(values, axis=3)
+
+    with open(sys.argv[1], 'wb') as f_out:
+        header = 'year,day_of_year,row,col,' + ','.join(keys) + '\n'
+        f_out.write(header.encode())
+        for i, d in enumerate(Y_detection_c.dates):
+            year, day_of_year = date_to_day_of_year(d)
+            for row in range(33):
+                for col in range(55):
+                    line = '%d,%d,%d,%d,%d,%f,%f,%f,%f,%d\n' % (
                             (year, day_of_year, row, col) + tuple(to_flatten_arr[row, col, i, :]))
-                fout.write(line)
+                    f_out.write(line.encode())
+
+
+if __name__ == '__main__':
+    main()

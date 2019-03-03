@@ -1,26 +1,29 @@
+import datetime as dtime
 import os
 
 import luigi
+import parse
 import xarray as xr
-from evaluation.setup_data_structs import build_x_grid_nw
 
+from src.evaluation.setup_data_structs import build_x_grid_nw
 from .fire_pipeline import FireGridGeneration
-from .pipeline_params import GFS_RESOLUTIONS, WEATHER_FILL_METH, REGION_BOUNDING_BOXES
+from .pipeline_helper import check_date_str_spanning
+from .pipeline_params import GFS_RESOLUTIONS, WEATHER_FILL_METHOD, REGION_BOUNDING_BOXES
 from .weather_pipeline import WeatherGridGeneration
 
 
 class GridDatasetGeneration(luigi.Task):
     """ Build dataset for training/testing grid models. """
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default='processed/grid/')
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default='processed/grid/')
 
-    start_date = luigi.parameter.DateParameter()
-    end_date = luigi.parameter.DateParameter()
+    start_date: dtime.date = luigi.parameter.DateParameter()
+    end_date: dtime.date = luigi.parameter.DateParameter()
 
     resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
     bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys())
 
-    fill_method = luigi.parameter.ChoiceParameter(choices=WEATHER_FILL_METH)
+    fill_method = luigi.parameter.ChoiceParameter(choices=WEATHER_FILL_METHOD)
 
     forecast_horizon = luigi.parameter.NumericalParameter(var_type=int, min_value=0, max_value=10)
     rain_offset = luigi.parameter.NumericalParameter(var_type=int, min_value=-24, max_value=24, default=0)
@@ -132,7 +135,7 @@ def grid_dataset_span_check_func(test_fn, cur_fn):
 
     # Check dates
     date_fmt = '%Y%m%d'
-    check = check and check_date_str_spanning(test_p['start_date'], cur_p['start_date'], date_fmt)
-    check = check and check_date_str_spanning(test_p['end_date'], cur_p['end_date'], date_fmt)
+    check = check and check_date_str_spanning(test_p['start_date'], test_p['end_date'],
+                                              cur_p['start_date'], cur_p['end_date'], date_fmt)
 
     return check

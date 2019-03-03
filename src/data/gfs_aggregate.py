@@ -5,35 +5,36 @@ Convert extracted GFS data to WeatherRegion.
 import datetime
 import logging
 import os
-
 import pickle
+
 import click
 import numpy as np
 import pytz
-from .base.converter import Converter
-from ..helper import date_util as du
-from ..helper import weather
 
-year_month_dir_fmt = "%d%.2d"
-year_month_day_dir_fmt = "%d%.2d%.2d"
-extracted_file_fmt_half_deg = "gfsanl_4_%s_%.4d_%.3d.pkl"
-extracted_file_fmt_one_deg = "gfsanl_3_%s_%.4d_%.3d.pkl"
+from src.helper import date_util as du
+from src.helper import weather
+from .base.converter import Converter
+
+YEAR_MONTH_DIR_FMT = "%d%.2d"
+YEAR_MONTH_DAY_DIR_FMT = "%d%.2d%.2d"
+EXTRACTED_FILE_FMT_HALF_DEG = "gfsanl_4_%s_%.4d_%.3d.pkl"
+EXTRACTED_FILE_FMT_ONE_DEG = "gfsanl_3_%s_%.4d_%.3d.pkl"
 
 SCALE_HALF_DEG = '4'
 SCALE_ONE_DEG = '3'
 
-times = [0, 600, 1200, 1800]
-offsets = [0, 3, 6, ]
-time_offset_list = [(t, o) for t in times for o in offsets]
+TIMES = [0, 600, 1200, 1800]
+OFFSETS = [0, 3, 6, ]
+TIME_OFFSET_LIST = [(t, o) for t in TIMES for o in OFFSETS]
 
-def_name_conversion_dict = {'Surface air relative humidity': 'humidity', '2 metre relative humidity': 'humidity',
+DEF_NAME_CONVERSION_DICT = {'Surface air relative humidity': 'humidity', '2 metre relative humidity': 'humidity',
                             'Relative humidity': 'humidity', '10 metre U wind component': 'U wind component',
                             '10 metre V wind component': 'V wind component'}
 
 
 def def_name_func(name):
     # Convert name if entry in dict
-    name_dict = def_name_conversion_dict
+    name_dict = DEF_NAME_CONVERSION_DICT
     if name in name_dict:
         name = name_dict[name]
 
@@ -46,6 +47,7 @@ class GFStoWeatherRegionConverter(Converter):
     """
 
     def __init__(self, year_start, year_end, scale_sel, measurement_name_func=def_name_func):
+        super().__init__()
         self.year_range = (year_start, year_end)
         self.measurement_name_func = measurement_name_func
         self.src_dir = None
@@ -53,11 +55,11 @@ class GFStoWeatherRegionConverter(Converter):
 
         # Choose file format based on selected scale
         if scale_sel == SCALE_HALF_DEG:
-            self.extracted_file_fmt = extracted_file_fmt_half_deg
+            self.extracted_file_fmt = EXTRACTED_FILE_FMT_HALF_DEG
         elif scale_sel == SCALE_ONE_DEG:
-            self.extracted_file_fmt = extracted_file_fmt_one_deg
+            self.extracted_file_fmt = EXTRACTED_FILE_FMT_ONE_DEG
         else:
-            raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
+            raise ValueError('Scale selection "%s" is invalid.' % scale_sel)
 
     def load(self, src_dir):
         self.src_dir = src_dir
@@ -91,13 +93,10 @@ class GFStoWeatherRegionConverter(Converter):
                 except Exception as e:
                     logging.debug('Failed to append data: %s' % str(e))
 
-            else:
-                file_data = None
-
-        return all_data, dates, offsets
+        return all_data, dates, OFFSETS
 
     @staticmethod
-    def transform():
+    def transform(data):
         all_data, dates, offsets = data
 
         # Create WeatherRegion and add WeatherCubes for each measurement
@@ -112,9 +111,9 @@ class GFStoWeatherRegionConverter(Converter):
         return region
 
     @staticmethod
-    def save(data):
-        with open(dest_path, 'wb') as fout:
-            pickle.dump(data, fout, protocol=pickle.HIGHEST_PROTOCOL)
+    def save(data, dest_path):
+        with open(dest_path, 'wb') as f_out:
+            pickle.dump(data, f_out, protocol=pickle.HIGHEST_PROTOCOL)
 
     def get_available_files(self):
         """
@@ -124,7 +123,7 @@ class GFStoWeatherRegionConverter(Converter):
 
         for year in range(self.year_range[0], self.year_range[1] + 1):
             for month in range(1, 13):
-                year_month = year_month_dir_fmt % (year, month)
+                year_month = YEAR_MONTH_DIR_FMT % (year, month)
 
                 months_in_dir = [d for d in os.listdir(self.src_dir) if os.path.isdir(os.path.join(self.src_dir, d))]
 
@@ -134,11 +133,11 @@ class GFStoWeatherRegionConverter(Converter):
                 try:
                     days_in_month_dir = [d for d in os.listdir(os.path.join(self.src_dir, year_month)) if
                                          os.path.isdir(os.path.join(self.src_dir, year_month, d))]
-                except Exception as e:
+                except FileNotFoundError:
                     days_in_month_dir = []
 
                 for day in range(1, du.days_per_month(month, du.is_leap_year(year)) + 1):
-                    year_month_day = year_month_day_dir_fmt % (year, month, day)
+                    year_month_day = YEAR_MONTH_DAY_DIR_FMT % (year, month, day)
 
                     if year_month_day not in days_in_month_dir:
                         logging.debug('Missing Day: year %d month %d day %d not in source' % (year, month, day))
@@ -146,12 +145,12 @@ class GFStoWeatherRegionConverter(Converter):
                     try:
                         grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day))
                                          if os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
-                    except Exception as e:
+                    except FileNotFoundError:
                         grib_dir_list = []
 
-                    todays_grib_files = [self.extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in
-                                         time_offset_list]
-                    for grib_file in todays_grib_files:
+                    today_grib_files = [self.extracted_file_fmt % (year_month_day, t, offset) for (t, offset) in
+                                        TIME_OFFSET_LIST]
+                    for grib_file in today_grib_files:
                         path = os.path.join(self.src_dir, year_month, year_month_day, grib_file)
 
                         # Check if grib file not on server
@@ -166,7 +165,7 @@ class GFStoWeatherRegionConverter(Converter):
         return available_files
 
     @staticmethod
-    def get_date_from_name():
+    def get_date_from_name(file_name):
         name = file_name[9:]  # strip prefix
 
         year = int(name[:4])

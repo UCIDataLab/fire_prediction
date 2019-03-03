@@ -1,11 +1,16 @@
 """
 Generating tables.
 """
-import StringIO
+import io
+
+import tabulate
+
+from src.evaluation import metrics
+from src.pipeline.train_pipeline import flat
 
 
 def build_results_table(results_list):
-    out = StringIO.StringIO()
+    out = io.StringIO()
 
     metrics_ = [metrics.mean_absolute_error, metrics.root_mean_squared_error]
     for results, title in results_list:
@@ -16,8 +21,8 @@ def build_results_table(results_list):
             out.write(metric.__name__ + '\n')
             table = []
             for k, v in results.items():
-                vals = map(lambda x: round(metric(*flat(x)), 5), results[k])
-                table.append([k] + vals)
+                values = list(map(lambda x: round(metric(*flat(x)), 5), results[k]))
+                table.append([k] + values)
             out.write(tabulate.tabulate(table))
 
     return out.getvalue()

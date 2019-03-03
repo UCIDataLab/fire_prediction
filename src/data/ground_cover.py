@@ -20,5 +20,5 @@ lon_min_ind = (180 - 138) * 2
 
 sel_land_cover_types = land_cover_types[lat_max_ind:lat_min_ind + 1, lon_max_ind:lon_min_ind + 1]
 
-with open('land_cover_alaska.pkl', 'wb') as fout:
-    pickle.dump(sel_land_cover_types, fout, protocol=2)
+with open('land_cover_alaska.pkl', 'wb') as f_out:
+    pickle.dump(sel_land_cover_types, f_out, protocol=2)

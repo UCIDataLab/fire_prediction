@@ -1,13 +1,13 @@
 """
 Model for predicting all detections in a region by summing over cluster predictions.
 """
-from datetime import date
+import datetime as dtime
 
-import helper.date_util as du
-import helper.df_util as dfu
 import numpy as np
 import pandas as pd
 
+from src.helper import date_util as du
+from src.helper import df_util as dfu
 from .base.model import Model
 
 
@@ -63,10 +63,10 @@ class RegionalSummationModel(Model):
 
         dates = []
         for year in range(year_range[0], year_range[1] + 1):
-            begin = date(year, self.date_range[0][0], self.date_range[0][1])
-            end = date(year, self.date_range[1][0], self.date_range[1][1])
+            begin = dtime.date(year, self.date_range[0][0], self.date_range[0][1])
+            end = dtime.date(year, self.date_range[1][0], self.date_range[1][1])
 
-            dates += list(du.daterange(begin, end + du.INC_ONE_DAY))
+            dates += list(du.date_range(begin, end + du.INC_ONE_DAY))
 
         return dates
 
@@ -85,5 +85,5 @@ class RegionalSummationModel(Model):
         return X_region
 
     @staticmethod
-    def preprocess_data():
+    def preprocess_data(X):
         return X

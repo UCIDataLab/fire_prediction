@@ -1,12 +1,13 @@
 import logging
 import multiprocessing
 import os
-
 import pickle
+
 import click
 import grib
+
+from src.helper import date_util as du
 from .ftp_async import PoolLimitedTaskQueue
-from ..helper import date_util as du
 
 year_month_dir_fmt = "%d%.2d"
 year_month_day_dir_fmt = "%d%.2d%.2d"
@@ -32,8 +33,8 @@ class Writer(object):
                 logging.debug('Writing queue has reached terminal element, exiting')
                 return
             logging.debug('Writing %s, %d items in queue' % (dest_path, self.write_queue.qsize()))
-            with open(dest_path, 'wb') as fout:
-                pickle.dump(data, fout, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(dest_path, 'wb') as f_out:
+                pickle.dump(data, f_out, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def extract_thread(context, src_path, dest_path):
@@ -110,7 +111,7 @@ class GfsExtract(object):
         elif scale_sel == SCALE_ONE_DEG:
             self.grib_file_fmt = grib_file_fmt_one_deg
         else:
-            raise ValueError('Scale selction "%s" is invalid.' % scale_sel)
+            raise ValueError('Scale selection "%s" is invalid.' % scale_sel)
 
         self.extractor = GfsExtractor(pool_size=8, queue_size=50)
 
@@ -174,9 +175,9 @@ class GfsExtract(object):
                     grib_dir_list = [d for d in os.listdir(os.path.join(self.src_dir, year_month, year_month_day)) if
                                      os.path.isfile(os.path.join(self.src_dir, year_month, year_month_day, d))]
 
-                    todays_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in
-                                         time_offset_list]
-                    for grib_file in todays_grib_files:
+                    today_grib_files = [self.grib_file_fmt % (year_month_day, t, offset) for (t, offset) in
+                                        time_offset_list]
+                    for grib_file in today_grib_files:
                         # Check if grib file not on server
                         if grib_file not in grib_dir_list:
                             logging.debug('Missing Grib: grib %s not in source' % grib_file)

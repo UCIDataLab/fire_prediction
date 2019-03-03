@@ -4,13 +4,14 @@ Setup data structures used for model training.
 import datetime as dt
 from collections import defaultdict
 
-import helper.date_util as du
-import helper.multidata_wrapper as mdw
 import numpy as np
 import pandas as pd
 import pytz
-import visualization.mapping as vmap
 import xarray as xr
+
+from src.helper import date_util as du
+from src.helper import multidata_wrapper as mdw
+from src.visualization import mapping as vmap
 
 fill_n_days = 5
 
@@ -54,11 +55,10 @@ def get_date_index(weather_dates, target_datetime):
     return date_ind
 
 
-def get_weather_variables(vals, weather_data, target_datetime, covariates):
+def get_weather_variables(values, weather_data, target_datetime, covariates):
     # Get date index
     date_ind = get_date_index(weather_data.dates, target_datetime)
 
-    # vals = []
     for key in covariates:
         data = weather_data[key].values
         val = data[:, :, date_ind]
@@ -66,8 +66,7 @@ def get_weather_variables(vals, weather_data, target_datetime, covariates):
         if np.any(np.isnan(val)):
             val = fill_missing_value(data, date_ind)
 
-        # vals.append(val)
-        vals[key].append(val)
+        values[key].append(val)
 
 
 def create_cell_encoding(group_size, shape):
@@ -150,7 +149,7 @@ def build_x_active(X, t_k_arr, years=None):
     return X_dict
 
 
-def shift_in_time(arr, dates, num_days, fill_func, axis=2):
+def shift_in_time(arr, dates, num_days, fill_func):
     if num_days == 0:
         return arr
     years_all = np.array(list(map(lambda x: x.year, dates)))
@@ -186,26 +185,26 @@ def build_x_grid(X, y, land_cover, t_k_arr, num_auto_memory=0, num_weather_mem=0
         y_new = shift_in_time(y.values, y.dates, t_k, np.zeros)
 
         # Build grid of weather
-        vals = defaultdict(list)
+        values = defaultdict(list)
         for date in y.dates:
             time = 14
             date += du.INC_ONE_DAY * t_k  # For row t, store weather(t+k)
             tzinfo = du.TrulyLocalTzInfo(153, du.round_to_nearest_quarter_hour)
             target_datetime = dt.datetime.combine(date, dt.time(time, 0, 0, tzinfo=tzinfo))
 
-            get_weather_variables(vals, X, target_datetime, ['temperature', 'humidity', 'wind', 'rain'])
+            get_weather_variables(values, X, target_datetime, ['temperature', 'humidity', 'wind', 'rain'])
 
-        for k, v in vals.items():
-            vals[k] = np.rollaxis(np.array(v), 0, 3)
+        for k, v in values.items():
+            values[k] = list(np.rollaxis(np.array(v), 0, 3))
 
         dates = pd.to_datetime(np.array(y.dates))
         X_ds = xr.Dataset({'num_det': (('y', 'x', 'time'), y.values),
                            'num_det_target': (('y', 'x', 'time'), y_new),
                            'active': (('y', 'x', 'time'), y.values != 0),
-                           'temperature': (('y', 'x', 'time'), vals['temperature']),
-                           'humidity': (('y', 'x', 'time'), vals['humidity']),
-                           'wind': (('y', 'x', 'time'), vals['wind']),
-                           'rain': (('y', 'x', 'time'), vals['rain'])},
+                           'temperature': (('y', 'x', 'time'), values['temperature']),
+                           'humidity': (('y', 'x', 'time'), values['humidity']),
+                           'wind': (('y', 'x', 'time'), values['wind']),
+                           'rain': (('y', 'x', 'time'), values['rain'])},
                           {'time': dates})
 
         # Add land cover
@@ -229,31 +228,34 @@ def build_x_grid(X, y, land_cover, t_k_arr, num_auto_memory=0, num_weather_mem=0
             name = 'num_det_' + str(i)
             X_ds.update({name: (('y', 'x', 'time'), y_mem)})
 
+        # Convert values to np.ndarray
+        values = {k: np.array(v) for k, v in values.items()}
+
         # Add weather memory (rain)
-        rain_mean = np.mean(vals['rain'])
+        rain_mean = np.mean(values['rain'])
         for i in range(1, num_weather_mem + 1):
             # shape = np.shape(y.values)[:2]+(i,)
-            # x_mem = np.concatenate((np.zeros(shape)+rain_mean, vals['rain']), axis=2)
+            # x_mem = np.concatenate((np.zeros(shape)+rain_mean, values['rain']), axis=2)
             # x_mem = x_mem[:,:,:-i]
 
-            x_mem = shift_in_time(vals['rain'], y.dates, -i, lambda x: np.zeros(x) + rain_mean)
+            x_mem = shift_in_time(values['rain'], y.dates, -i, lambda x: np.zeros(x) + rain_mean)
 
             name = 'rain_' + str(i)
             X_ds.update({name: (('y', 'x', 'time'), x_mem)})
 
         # Add weather memory (temp)
-        temp_mean = np.mean(vals['temperature'])
+        temp_mean = np.mean(values['temperature'])
         for i in range(1, num_weather_mem + 1):
             # shape = np.shape(y.values)[:2]+(i,)
-            # x_mem = np.concatenate((np.zeros(shape)+temp_mean, vals['temperature']), axis=2)
+            # x_mem = np.concatenate((np.zeros(shape)+temp_mean, values['temperature']), axis=2)
             # x_mem = x_mem[:,:,:-i]
 
-            x_mem = shift_in_time(vals['temperature'], y.dates, -i, lambda x: np.zeros(x) + temp_mean)
+            x_mem = shift_in_time(values['temperature'], y.dates, -i, lambda x: np.zeros(x) + temp_mean)
 
             name = 'temperature_' + str(i)
             X_ds.update({name: (('y', 'x', 'time'), x_mem)})
 
-        # Add alternative active defns.
+        # Add alternative active definitions
         # TODO: Fix shifting
         for act in actives:
             shape = np.shape(y.values)[:2] + (act,)
@@ -265,16 +267,16 @@ def build_x_grid(X, y, land_cover, t_k_arr, num_auto_memory=0, num_weather_mem=0
             name = 'active_' + str(act)
             X_ds.update({name: (('y', 'x', 'time'), is_act)})
 
-        # Compute expon decay
+        # Compute exponential decay
         for num, decay in enumerate(exponential_decay):
             for interval in exponential_decay_int:
-                vals = np.power(1 - decay, range(1, interval))
+                values = np.power(1 - decay, range(1, interval))
                 for cov in ['num_det', 'rain', 'temperature']:
                     new = np.zeros(np.shape(y.values))
                     for i in range(1, interval):
-                        new += X_ds[cov + '_' + str(i)] * vals[i - 1]
+                        new += X_ds[cov + '_' + str(i)] * values[i - 1]
 
-                    name = cov + '_expon_' + str(num) + '_' + str(interval)
+                    name = '{0}_expon_{1}_{2}'.format(cov, str(num), str(interval))
                     X_ds.update({name: (('y', 'x', 'time'), new)})
 
         if years:
@@ -287,13 +289,13 @@ def build_x_grid(X, y, land_cover, t_k_arr, num_auto_memory=0, num_weather_mem=0
     return X_dict
 
 
-def get_weather_variables_nw(vals, weather_data, weather_dates, target_datetime, covariates):
+def get_weather_variables_nw(values, weather_data, weather_dates, target_datetime, covariates):
     # Get date index
     date_ind = get_date_index(weather_dates, target_datetime)
     # date_ind = weather_data.time == np.datetime64(target_datetime)
     # print(np.datetime64(target_datetime))
     # print(np.any(date_ind))
-    # vals = []
+    # values = []
     for key in covariates:
         data = weather_data[key]
         if date_ind:
@@ -301,12 +303,12 @@ def get_weather_variables_nw(vals, weather_data, weather_dates, target_datetime,
         else:
             val = np.full_like(data.isel(time=0), fill_value=np.nan)
 
-        # vals.append(val)
-        vals[key].append(val)
+        # values.append(val)
+        values[key].append(val)
 
 
 # def build_x_grid_nw(X, y, land_cover, t_k_arr, num_auto_memory=0, num_weather_mem=0, actives=[2,5,10],
-# expon_decay=[.25, .5, .75], expon_decay_int=[5,10,15], years=None):
+# exponential_decay=[.25, .5, .75], expon_decay_int=[5,10,15], years=None):
 def build_x_grid_nw(X, y, land_cover, t_k_arr, years=None):
     X_dict = {}
 
@@ -324,34 +326,34 @@ def build_x_grid_nw(X, y, land_cover, t_k_arr, years=None):
         y_new = shift_in_time(y_values, y_dates, t_k, np.zeros)
 
         # Build grid of weather
-        vals = defaultdict(list)
+        values = defaultdict(list)
         for date in y_dates:
             time = 14
             date += du.INC_ONE_DAY * t_k  # For row t, store weather(t+k)
             tzinfo = du.TrulyLocalTzInfo(153, du.round_to_nearest_quarter_hour)
             target_datetime = dt.datetime.combine(date, dt.time(time, 0, 0, tzinfo=tzinfo))
 
-            get_weather_variables_nw(vals, X, weather_dates, target_datetime,
+            get_weather_variables_nw(values, X, weather_dates, target_datetime,
                                      ['temperature', 'humidity', 'wind_speed', 'precipitation_24hr', 'vpd', 'in_filled',
                                       'interpolated'])
 
-        for k, v in vals.items():
-            vals[k] = np.rollaxis(np.array(v), 0, 3)
+        for k, v in values.items():
+            values[k] = list(np.rollaxis(np.array(v), 0, 3))
             # Rename
-        vals['rain'] = vals['precipitation_24hr']
-        vals['wind'] = vals['wind_speed']
+        values['rain'] = values['precipitation_24hr']
+        values['wind'] = values['wind_speed']
 
         dates = pd.to_datetime(np.array(y_dates))
         X_ds = xr.Dataset({'num_det': (('y', 'x', 'time'), y_values),
                            'num_det_target': (('y', 'x', 'time'), y_new),
                            'active': (('y', 'x', 'time'), y_values != 0),
-                           'temperature': (('y', 'x', 'time'), vals['temperature']),
-                           'humidity': (('y', 'x', 'time'), vals['humidity']),
-                           'wind': (('y', 'x', 'time'), vals['wind']),
-                           'rain': (('y', 'x', 'time'), vals['rain']),
-                           'in_filled': (('y', 'x', 'time'), vals['in_filled']),
-                           'interpolated': (('y', 'x', 'time'), vals['interpolated']),
-                           'vpd': (('y', 'x', 'time'), vals['vpd'])},
+                           'temperature': (('y', 'x', 'time'), values['temperature']),
+                           'humidity': (('y', 'x', 'time'), values['humidity']),
+                           'wind': (('y', 'x', 'time'), values['wind']),
+                           'rain': (('y', 'x', 'time'), values['rain']),
+                           'in_filled': (('y', 'x', 'time'), values['in_filled']),
+                           'interpolated': (('y', 'x', 'time'), values['interpolated']),
+                           'vpd': (('y', 'x', 'time'), values['vpd'])},
                           {'lat': (['y'], X.lat.values), 'lon': (['x'], X.lon.values), 'time': dates})
 
         # Add land cover
@@ -378,30 +380,30 @@ def build_x_grid_nw(X, y, land_cover, t_k_arr, years=None):
             X_ds.update({name: (('y','x','time'), y_mem)})
 
         # Add weather memory (rain)
-        rain_mean = np.mean(vals['rain'])
+        rain_mean = np.mean(values['rain'])
         for i in range(1,num_weather_mem+1):
             #shape = np.shape(y.values)[:2]+(i,)
-            #x_mem = np.concatenate((np.zeros(shape)+rain_mean, vals['rain']), axis=2)
+            #x_mem = np.concatenate((np.zeros(shape)+rain_mean, values['rain']), axis=2)
             #x_mem = x_mem[:,:,:-i]
 
-            x_mem = shift_in_time(vals['rain'], y_dates, -i, lambda x: np.zeros(x)+rain_mean)
+            x_mem = shift_in_time(values['rain'], y_dates, -i, lambda x: np.zeros(x)+rain_mean)
 
             name = 'rain_' + str(i)
             X_ds.update({name: (('y','x','time'), x_mem)})
 
         # Add weather memory (temp)
-        temp_mean = np.mean(vals['temperature'])
+        temp_mean = np.mean(values['temperature'])
         for i in range(1,num_weather_mem+1):
             #shape = np.shape(y.values)[:2]+(i,)
-            #x_mem = np.concatenate((np.zeros(shape)+temp_mean, vals['temperature']), axis=2)
+            #x_mem = np.concatenate((np.zeros(shape)+temp_mean, values['temperature']), axis=2)
             #x_mem = x_mem[:,:,:-i]
 
-            x_mem = shift_in_time(vals['temperature'], y_dates, -i, lambda x: np.zeros(x)+temp_mean)
+            x_mem = shift_in_time(values['temperature'], y_dates, -i, lambda x: np.zeros(x)+temp_mean)
 
             name = 'temperature_' + str(i)
             X_ds.update({name: (('y','x','time'), x_mem)})
 
-        # Add alternative active defns.
+        # Add alternative active definitions
         # TODO: Fix shifting
         for act in actives:
             shape = np.shape(y_values)[:2]+(act,)
@@ -413,14 +415,14 @@ def build_x_grid_nw(X, y, land_cover, t_k_arr, years=None):
             name = 'active_' + str(act)
             X_ds.update({name: (('y','x','time'), is_act)})
 
-        # Compute expon decay
+        # Compute exponential decay
         for num, decay in enumerate(expon_decay):
             for interval in expon_decay_int:
-                vals = np.power(1-decay, range(1,interval))
+                values = np.power(1-decay, range(1,interval))
                 for cov in ['num_det', 'rain', 'temperature']:
                     new = np.zeros(np.shape(y_values))
                     for i in range(1, interval):
-                        new += X_ds[cov + '_' + str(i)] * vals[i-1]
+                        new += X_ds[cov + '_' + str(i)] * values[i-1]
 
                     name = cov + '_expon_' + str(num) + '_' + str(interval)
                     X_ds.update({name: (('y','x','time'), new)})

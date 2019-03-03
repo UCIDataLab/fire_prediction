@@ -5,10 +5,10 @@ import time
 import luigi
 import numpy as np
 import xarray as xr
-from helper.geometry import upsample_spatial
 
+from src.helper.geometry import upsample_spatial
 from .gfs_pipeline import GfsFilterRegion
-from .pipeline_params import REGION_BOUNDING_BOXES, GFS_RESOLUTIONS, WEATHER_FILL_METH, GFS_OFFSETS
+from .pipeline_params import REGION_BOUNDING_BOXES, GFS_RESOLUTIONS, WEATHER_FILL_METHOD, GFS_OFFSETS
 
 # 48 timesteps (aprox. 4 days)
 INTERP_FILL_LIM = None
@@ -32,8 +32,8 @@ def grid_interpolate_nan_days(data, nan_inds):
     days = np.arange(data.shape[0])[~nan_inds]
     lats = np.arange(data.shape[1])
     lons = np.arange(data.shape[2])
-    points = (days, lats, lons)
 
+    # points = (days, lats, lons)
     # sample = np.array(list(itertools.product(days, lats, lons)))
     # interp_values = interp.interpn(points, data[~nan_inds], sample)
 
@@ -53,16 +53,16 @@ class WeatherFillMissingValues(luigi.Task):
     
     Options include integrating multiple sources (e.g. .5 and 1.), interpolation, and  using mean values.
     """
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default='interim/gfs/filled')
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default='interim/gfs/filled')
 
     start_date = luigi.parameter.DateParameter()
     end_date = luigi.parameter.DateParameter()
 
-    resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
-    bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys())
+    resolution: str = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS, var_type=str)
+    bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys(), var_type=str)
 
-    fill_method = luigi.parameter.ChoiceParameter(choices=WEATHER_FILL_METH)
+    fill_method = luigi.parameter.ChoiceParameter(choices=WEATHER_FILL_METHOD)
 
     use_era = luigi.parameter.BoolParameter()
 
@@ -184,8 +184,8 @@ class WeatherGridGeneration(luigi.Task):
     Includes computing derived variables (e.g. wind speed, 24-hour rain accumulation) and discarding
     unnecessary information (e.g. the 3 and 6 hour offsets from GFS).
     """
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default='interim/gfs/grid')
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default='interim/gfs/grid')
 
     start_date = luigi.parameter.DateParameter()
     end_date = luigi.parameter.DateParameter()
@@ -193,9 +193,9 @@ class WeatherGridGeneration(luigi.Task):
     resolution = luigi.parameter.ChoiceParameter(choices=GFS_RESOLUTIONS)
     bounding_box_name = luigi.parameter.ChoiceParameter(choices=REGION_BOUNDING_BOXES.keys())
 
-    fill_method = luigi.parameter.ChoiceParameter(choices=WEATHER_FILL_METH)
+    fill_method = luigi.parameter.ChoiceParameter(choices=WEATHER_FILL_METHOD)
 
-    rain_offset = luigi.parameter.NumericalParameter(var_type=int, min_value=-24, max_value=24, default=0)
+    rain_offset: int = luigi.parameter.NumericalParameter(var_type=int, min_value=-24, max_value=24, default=0)
 
     use_era = luigi.parameter.BoolParameter()
 
@@ -213,7 +213,7 @@ class WeatherGridGeneration(luigi.Task):
 
         if not self.use_era:
             logger.debug('Discarding')
-            data = self.discard_offset_measurments(data)
+            data = self.discard_offset_measurements(data)
 
         logger.debug('Computing wind')
         data = self.compute_wind_speed(data)
@@ -268,7 +268,7 @@ class WeatherGridGeneration(luigi.Task):
 
     def integrate_rain(self, data):
         rain_da = data['precipitation']
-        rain_vals = np.array(rain_da)
+        rain_values = np.array(rain_da)
 
         lag = int(self.rain_offset)
         if self.use_era:
@@ -284,29 +284,29 @@ class WeatherGridGeneration(luigi.Task):
 
         startup_length = (length + lag) * num_offsets
 
-        integrated_rain = np.empty(rain_vals.shape, dtype=rain_vals.dtype)
+        integrated_rain = np.empty(rain_values.shape, dtype=rain_values.dtype)
         start = time.time()
-        for i in range(0, rain_vals.shape[0], num_offsets):
+        for i in range(0, rain_values.shape[0], num_offsets):
             if i <= upper_off:
                 if self.use_era:
-                    integrated_rain[i] = np.sum(rain_vals[0], axis=0)
+                    integrated_rain[i] = np.sum(rain_values[0], axis=0)
                 else:
-                    integrated_rain[i] = np.sum(rain_vals[num_offsets - 1], axis=0)
+                    integrated_rain[i] = np.sum(rain_values[num_offsets - 1], axis=0)
             elif i < startup_length:
                 if self.use_era:
-                    integrated_rain[i] = np.sum(rain_vals[:i - upper_off:num_offsets], axis=0)
+                    integrated_rain[i] = np.sum(rain_values[:i - upper_off:num_offsets], axis=0)
                 else:
-                    integrated_rain[i] = np.sum(rain_vals[num_offsets - 1:i - upper_off:num_offsets], axis=0)
+                    integrated_rain[i] = np.sum(rain_values[num_offsets - 1:i - upper_off:num_offsets], axis=0)
             else:
-                integrated_rain[i] = np.sum(rain_vals[i - lower_off:i - upper_off:num_offsets], axis=0)
+                integrated_rain[i] = np.sum(rain_values[i - lower_off:i - upper_off:num_offsets], axis=0)
 
                 if (i % (num_offsets * 1000)) == 0:
                     logger.debug('Current rain ind: %d' % i)
                     logger.debug('Val: {:f}, Range: {}, Start: {:d}, End: {:d}'.format(integrated_rain[i, 0, 0], str(
-                        rain_vals[i - lower_off:i - upper_off:num_offsets, 0, 0]), i - lower_off, i - upper_off))
+                        rain_values[i - lower_off:i - upper_off:num_offsets, 0, 0]), i - lower_off, i - upper_off))
         if self.use_era:
-            for i in range(0, rain_vals.shape[0] - 1, num_offsets):
-                if i + 2 >= rain_vals.shape[0]:
+            for i in range(0, rain_values.shape[0] - 1, num_offsets):
+                if i + 2 >= rain_values.shape[0]:
                     integrated_rain[i + 1] = integrated_rain[i]
                 else:
                     integrated_rain[i + 1] = (integrated_rain[i] + integrated_rain[i + 2]) / 2
@@ -319,7 +319,7 @@ class WeatherGridGeneration(luigi.Task):
         return data
 
     @staticmethod
-    def discard_offset_measurments(data):
+    def discard_offset_measurements(data):
         # offset = pd.to_timedelta(data.offset)
         # non_offset_inds = offset.seconds == 0
 
@@ -335,13 +335,13 @@ class WeatherGridGeneration(luigi.Task):
             encodings[measurement] = data[measurement].encoding
 
         logger.debug('Building coords')
-        time = np.array(data.time)[non_offset_slice]
+        times = np.array(data.time)[non_offset_slice]
         lat = np.array(data.lat)
         lon = np.array(data.lon)
 
         logger.debug('Building dataset')
         ds_new = xr.Dataset(data_arrays, coords={'lat': (['y'], lat), 'lon': (['x'], lon),
-                                                 'time': time}, attrs=data.attrs)
+                                                 'time': times}, attrs=data.attrs)
 
         for measurement in ds_new.data_vars.keys():
             ds_new[measurement].encoding = encodings[measurement]
@@ -358,9 +358,9 @@ class WeatherGridGeneration(luigi.Task):
         v_wind_speed = np.array(v_wind, dtype=np.float64)
 
         logger.debug('Computing wind magnitude')
-        squared_vals = np.square(u_wind_speed) + np.square(v_wind_speed)
+        squared_values = np.square(u_wind_speed) + np.square(v_wind_speed)
 
-        # for v in squared_vals:
+        # for v in squared_values:
         #    t = np.sqrt(v)
         #    """
         #    try:
@@ -369,7 +369,7 @@ class WeatherGridGeneration(luigi.Task):
         #        print('Invalid', str(v))
         #    """
 
-        wind_speed = np.sqrt(squared_vals).astype(u_wind.dtype)
+        wind_speed = np.sqrt(squared_values).astype(u_wind.dtype)
 
         logger.debug('Updating wind values')
         u_wind[:] = wind_speed

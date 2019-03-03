@@ -90,11 +90,15 @@ def convert_era(src_path, src_path_precip, dest_path):
     ds_new.to_netcdf(dest_path, engine='netcdf4', encoding=encoding)
 
 
-if __name__ == '__main__':
+def main():
     print(sys.argv[1], sys.argv[2])
     dest_name = 'eraanl_default_v1_alaska_%d_0101_1231.hdf5'
     for year in YEARS:
         src_path = os.path.join(sys.argv[1], str(year) + '.nc')
         src_path_precip = os.path.join(sys.argv[1], str(year) + '_precip.nc')
-        dest_path = os.path.join(sys.argv[2], dest_name % year)
-        convert_era(src_path, src_path_precip, dest_path)
+        dest_path_ = os.path.join(sys.argv[2], dest_name % year)
+        convert_era(src_path, src_path_precip, dest_path_)
+
+
+if __name__ == '__main__':
+    main()

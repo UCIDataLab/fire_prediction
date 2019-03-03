@@ -5,7 +5,8 @@ import bisect
 import datetime as dt
 
 import numpy as np
-from helper import date_util as du
+
+from src.helper import date_util as du
 
 
 class WeatherCube(object):
@@ -42,7 +43,7 @@ class WeatherCube(object):
 
     def filter_dates_per_year(self, date_range):
         # TODO: No support for attributes.
-        years = range(np.min(self.dates).year, np.max(self.dates).year + 1)
+        years = range(np.min(self.dates.year), np.max(self.dates.year) + 1)
         values = []
         dates = []
         for year in years:
@@ -102,9 +103,9 @@ class WeatherCube(object):
                 year_only.add_attribute(k, v)
 
         # Build WeatherCube w/o year included
-        vals = np.concatenate((self.values[:, :, :ind_start], self.values[:, :, ind_end:]), axis=2)
+        values = np.concatenate((self.values[:, :, :ind_start], self.values[:, :, ind_end:]), axis=2)
         dates = np.concatenate((self.dates[:ind_start], self.dates[ind_end:]), axis=0)
-        year_not = WeatherCube(self.name, vals, self.units, self.bounding_box, self.axis_labels, dates)
+        year_not = WeatherCube(self.name, values, self.units, self.bounding_box, self.axis_labels, dates)
         for k, v in self.attributes.items():
             if len(v) == len(self.dates):
                 v_ = np.concatenate((v[:ind_start], v[ind_end:]), axis=0)

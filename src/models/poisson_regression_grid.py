@@ -12,12 +12,12 @@ from .base.model import Model
 
 
 class PoissonRegressionGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None,
+    def __init__(self, covariates, regularization_weight=None, log_shift=1, log_correction='add', filter_func=None,
                  pred_func=None):
         super(PoissonRegressionGridModel, self).__init__()
 
         self.covariates = covariates
-        self.regularizer_weight = regularizer_weight
+        self.regularization_weight = regularization_weight
         self.log_shift = log_shift
         self.log_correction = log_correction
         self.filter_func = filter_func
@@ -67,14 +67,14 @@ class PoissonRegressionGridModel(Model):
             # print(pd.DataFrame.from_csv(StringIO(X_df.to_csv())))
             X_df = pd.read_csv(StringIO(X_df.to_csv()))
             # print(X_df)
-        except Exception as e:
+        except AttributeError:
             X_df = X
 
-        if self.regularizer_weight is None:
+        if self.regularization_weight is None:
             self.fit_result = smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
         else:
             self.fit_result = smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit_regularized(
-                alpha=self.regularizer_weight)
+                alpha=self.regularization_weight)
         # self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
         # return self.fit_result
@@ -112,7 +112,7 @@ class PoissonRegressionGridModel(Model):
 
             pred = np.array(pred)
             pred = np.reshape(pred, shape, order='F')
-        except Exception as e:
+        except AttributeError:
             X_df = X
             pred = self.fit_result.predict(X_df)
 

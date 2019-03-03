@@ -7,7 +7,6 @@ from scipy.stats.stats import pearsonr
 
 
 def calc_mean(values, shape):
-    table = []
     mean = np.zeros(shape[:2])
     for lat in range(0, shape[0]):
         for lon in range(0, shape[1]):
@@ -23,7 +22,6 @@ def calc_mean(values, shape):
 def calc_cor(values, shape, lat_off_tup, lon_off_tup):
     min_lat_off, max_lat_off, lat_off = lat_off_tup
     min_lon_off, max_lon_off, lon_off = lon_off_tup
-    table = []
     cor = np.zeros(shape[:2])
     for lat in range(min_lat_off, shape[0] + max_lat_off):
         for lon in range(min_lon_off, shape[1] + max_lon_off):

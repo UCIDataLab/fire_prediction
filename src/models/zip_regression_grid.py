@@ -11,12 +11,12 @@ from .base.model import Model
 
 
 class ZIPRegressionGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None,
+    def __init__(self, covariates, regularization_weight=None, log_shift=1, log_correction='add', filter_func=None,
                  pred_func=None):
         super(ZIPRegressionGridModel, self).__init__()
 
         self.covariates = covariates
-        self.regularizer_weight = regularizer_weight
+        self.regularization_weight = regularization_weight
         self.log_shift = log_shift
         self.log_correction = log_correction
         self.filter_func = filter_func
@@ -68,9 +68,9 @@ class ZIPRegressionGridModel(Model):
         X_df = pd.DataFrame.from_csv(StringIO(X_df.to_csv()))
         # print(X_df)
 
-        if self.regularizer_weight is None:
+        if self.regularization_weight is None:
             # self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit()
-            formula = 'num_det_target ~ np.log(num_det+%f)' % self.log_shift
+            _ = 'num_det_target ~ np.log(num_det+%f)' % self.log_shift
 
             y = np.zeros(len(X_df))
             y[:] = X_df['num_det_target']
@@ -90,7 +90,7 @@ class ZIPRegressionGridModel(Model):
             # smf.glm(formula, data=X_df, family=sm.genmod.families.family.Poisson()).fit()
         else:
             # self.fit_result = ZeroInflatedPoisson.from_formula(formula, data=X_df).fit_regularized(
-            # alpha=self.regularizer_weight)
+            # alpha=self.regularization_weight)
             raise NotImplementedError()
         # self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 

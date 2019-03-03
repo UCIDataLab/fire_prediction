@@ -2,8 +2,9 @@
 Generating timing related visualizations.
 """
 
-from helper import date_util as du
 from matplotlib import pyplot as plt
+
+from src.helper import date_util as du
 
 
 def plot_df(df, data_types, title=''):
@@ -12,5 +13,5 @@ def plot_df(df, data_types, title=''):
     plt.tight_layout(pad=4)
 
     for i, (type_, form, title) in enumerate(data_types):
-        axes[i].plot(map(lambda x: du.dayofyear_from_datetime(x), df.date_local), df[type_], form)
+        axes[i].plot(map(lambda x: du.day_of_year_from_datetime(x), df.date_local), df[type_], form)
         axes[i].set_title(title)

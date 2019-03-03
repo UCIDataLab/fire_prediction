@@ -4,12 +4,13 @@ Converts raw MODIS data to a data frame.
 import gzip
 import logging
 import os
-
 import pickle
+
 import click
 import pandas
+
+from src.helper.geometry import get_default_bounding_box, filter_bounding_box_df
 from .base.converter import Converter
-from ..helper.geometry import get_default_bounding_box, filter_bounding_box_df
 
 
 class ModisToDfConverter(Converter):
@@ -19,7 +20,7 @@ class ModisToDfConverter(Converter):
         self.bounding_box = bounding_box
 
     @staticmethod
-    def load():
+    def load(src_dir):
         logging.info('Loading files from %s' % src_dir)
         files = [f for f in os.listdir(src_dir) if os.path.isfile(os.path.join(src_dir, f))]
 
@@ -43,10 +44,10 @@ class ModisToDfConverter(Converter):
         return pandas.concat(frames)
 
     @staticmethod
-    def save(data):
+    def save(data, dest):
         logging.info('Saving data frame to %s' % dest)
-        with open(dest, 'wb') as fout:
-            pickle.dump(data, fout, pickle.HIGHEST_PROTOCOL)
+        with open(dest, 'wb') as f_out:
+            pickle.dump(data, f_out, pickle.HIGHEST_PROTOCOL)
 
     def transform(self, data):
         logging.debug('Applying transforms to data frame')

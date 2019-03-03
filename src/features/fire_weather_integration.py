@@ -4,14 +4,15 @@ Integrating clustered fire data and weather data.
 
 import datetime as dt
 import logging
+import pickle
 from datetime import datetime
 
-import pickle
 import click
-from ..helper import date_util as du
-from ..helper import preprocessing as pp
 import numpy as np
 import pandas as pd
+
+from src.helper import date_util as du
+from src.helper import preprocessing as pp
 
 
 class FireWeatherIntegration(object):
@@ -29,7 +30,7 @@ class FireWeatherIntegration(object):
         self.integrated_data = None
 
     def integrate(self, fire_src_path, weather_src_path):
-        logging.info('Integerating fire and weather data')
+        logging.info('Integrating fire and weather data')
         fire_df = self.load_fire(fire_src_path)
 
         # TEMP: Reset index numbering for fire_df
@@ -38,6 +39,7 @@ class FireWeatherIntegration(object):
         weather_region = self.load_weather(weather_src_path)
 
         weather_vars = []
+        lat, lon = None, None
         for i, row in enumerate(fire_df.itertuples()):
             logging.debug('Starting integration for row %d/%d' % (i + 1, fire_df.shape[0]))
             num_det = row.num_det
@@ -62,7 +64,7 @@ class FireWeatherIntegration(object):
         self.integrated_data = pp.add_autoregressive_col(self.integrated_data, self.k_days)
 
     @staticmethod
-    def load_fire():
+    def load_fire(src_path):
         logging.info('Loading file from %s' % src_path)
         with open(src_path, 'rb') as fin:
             data = pickle.load(fin)
@@ -70,7 +72,7 @@ class FireWeatherIntegration(object):
         return data
 
     @staticmethod
-    def load_weather():
+    def load_weather(src_path):
         logging.info('Loading file from %s' % src_path)
         with open(src_path, 'rb') as fin:
             data = pickle.load(fin)
@@ -80,8 +82,8 @@ class FireWeatherIntegration(object):
     def save(self, dest_path):
         logging.info('Saving data frame to %s' % dest_path)
 
-        with open(dest_path, 'wb') as fout:
-            pickle.dump(self.integrated_data, fout, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(dest_path, 'wb') as f_out:
+            pickle.dump(self.integrated_data, f_out, protocol=pickle.HIGHEST_PROTOCOL)
 
     def get_weather_variables(self, weather_data, target_datetime, lat, lon):
         # Get lat/lon index
@@ -90,13 +92,13 @@ class FireWeatherIntegration(object):
         # Get date index
         date_ind = self.get_date_index(weather_data, target_datetime)
 
-        vals = []
+        values = []
         for key in self.weather_vars_labels:
             data = weather_data[key].values
             if key == 'rain':
                 try:
                     val = data[lat_ind, lon_ind, date_ind + self.rain_offset]
-                except Exception as e:
+                except IndexError:
                     val = np.nan
             else:
                 val = data[lat_ind, lon_ind, date_ind]
@@ -104,9 +106,9 @@ class FireWeatherIntegration(object):
             if np.isnan(val) and self.fill_missing:
                 val = self.fill_missing_value(data, lat_ind, lon_ind, date_ind)
 
-            vals.append(val)
+            values.append(val)
 
-        return vals
+        return values
 
     def fill_missing_value(self, data, lat_ind, lon_ind, date_ind):
         """
@@ -128,7 +130,7 @@ class FireWeatherIntegration(object):
         return np.nanmean(data[lat_ind, lon_ind, :])
 
     @staticmethod
-    def get_latlon_index(lat, lon):
+    def get_latlon_index(weather_data, lat, lon):
         bb = weather_data.bounding_box
 
         lat_res, lon_res = bb.get_latlon_resolution(weather_data.shape[:2])
@@ -143,7 +145,7 @@ class FireWeatherIntegration(object):
         return lat_ind, lon_ind
 
     @staticmethod
-    def get_date_index(target_datetime):
+    def get_date_index(weather_data, target_datetime):
         date_ind = np.searchsorted(weather_data.dates, target_datetime, side='left')
 
         # Check if left or right element is closer
@@ -166,17 +168,17 @@ class FireWeatherIntegration(object):
 @click.option('--k', default=1, type=click.INT)
 @click.option('--time', default=14, type=click.INT)
 @click.option('--fill', default=True, type=click.BOOL)
-@click.option('--filldays', default=5, type=click.INT)
-@click.option('--rainoffset', default=0, type=click.INT)
+@click.option('--fill_days', default=5, type=click.INT)
+@click.option('--rain_offset', default=0, type=click.INT)
 @click.option('--log', default='INFO')
-def main(fire_src_path, weather_src_path, dest_path, k, time, fill, filldays, rainoffset, log):
+def main(fire_src_path, weather_src_path, dest_path, k, time, fill, fill_days, rain_offset, log):
     """
     Load fire data frame and create clusters.
     """
     log_fmt = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=getattr(logging, log.upper()), format=log_fmt)
 
-    fwi = FireWeatherIntegration(k, time, fill, filldays, rainoffset)
+    fwi = FireWeatherIntegration(k, time, fill, fill_days, rain_offset)
 
     logging.info('Starting fire/weather integration for k=%d' % k)
     fwi.integrate(fire_src_path, weather_src_path)

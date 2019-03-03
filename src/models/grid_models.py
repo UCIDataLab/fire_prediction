@@ -32,7 +32,7 @@ def prep_df_for_model(X, filter_func):
         X_df = filter_func(X_df)
 
     if 'filter_mask' in X_df.columns:
-        X_df = filter_mask_func(X_df)
+        X_df = filter_mask(X_df)
 
     X_df = pd.read_csv(StringIO(X_df.to_csv()))
 
@@ -57,9 +57,10 @@ class GridComponent(Model):
         # If passing xarray, convert to dataframe
         try:
             X_df = X.to_dataframe()
-        except Exception as e:
+        except AttributeError:
             X_df = X
 
+        rem = None
         if choice is not None:
             ret = self.model.predict(X_df, choice)
             pred = ret[0]
@@ -91,30 +92,30 @@ class UnifiedGrid(GridComponent):
         return super().predict(X[0], shape)
 
 
-def filter_mask_func(x):
+def filter_mask(x):
     return x[x.filter_mask]
 
 
-def active_filter_func(x):
+def active_filter(x):
     return x[x.active]
 
 
-def ignition_filter_func(x):
+def ignition_filter(x):
     return x[~x.active]
 
 
-def active_pred_func(x, y):
+def active_pred(x, y):
     return y * x.active
 
 
-def ignition_pred_func(x, y):
+def ignition_pred(x, y):
     return y * (~x.active)
 
 
 class ActiveIgnitionGrid(Model):
-    def __init__(self, active_fire_model, ignition_model, active_filter_func=active_filter_func,
-                 ignition_filter_func=ignition_filter_func, active_pred_func=active_pred_func,
-                 ignition_pred_func=ignition_pred_func):
+    def __init__(self, active_fire_model, ignition_model, active_filter_func=active_filter,
+                 ignition_filter_func=ignition_filter, active_pred_func=active_pred,
+                 ignition_pred_func=ignition_pred):
         super().__init__()
 
         afm_filter_func = active_filter_func
@@ -195,8 +196,8 @@ class ActiveIgnitionGrid(Model):
 
 
 class SwitchingRegressionGrid(Model):
-    def __init__(self, active_fire_model, ignition_model, mixture_model, active_filter_func=active_filter_func,
-                 ignition_filter_func=ignition_filter_func):
+    def __init__(self, active_fire_model, ignition_model, mixture_model, active_filter_func=active_filter,
+                 ignition_filter_func=ignition_filter):
         super().__init__()
 
         afm_filter_func = active_filter_func

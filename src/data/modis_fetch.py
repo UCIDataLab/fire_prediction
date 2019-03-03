@@ -13,8 +13,8 @@ class ModisFetch(object):
 
     def fetch(self):
         raise NotImplementedError()
-        logging.info('Starting fetch for MODIS')
-        logging.info('End fetch for MODIS')
+        # logging.info('Starting fetch for MODIS')
+        # logging.info('End fetch for MODIS')
 
 
 @click.command()

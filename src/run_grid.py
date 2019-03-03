@@ -2,7 +2,8 @@ import datetime as dt
 import logging
 
 import luigi
-from pipeline.dataset_pipeline import GridDatasetGeneration
+
+from src.pipeline.dataset_pipeline import GridDatasetGeneration
 
 logger = logging.getLogger('pipeline')
 logger.setLevel(logging.DEBUG)

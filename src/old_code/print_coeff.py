@@ -1,5 +1,5 @@
 """
-Print coeffs. from saved model.
+Print coefficients from saved model.
 """
 import pickle
 import sys
@@ -30,14 +30,14 @@ try:
     ext = models[0][0].afm.model.fit_result_inflated
     active_vs_ign.append(['Extinction'] + list(ext.params))
     active_vs_ign_p.append(['Extinction'] + list(np.round(ext.pvalues, 4)))
-except Exception as e:
+except AttributeError as e:
     pass
 
 try:
     small = models[T_K - 1][0].afm.model.small_model.fit_result
     large_vs_small.append(['Small'] + list(small.params))
     large_vs_small_p.append(['Small'] + list(np.round(small.pvalues)))
-except Exception as e:
+except AttributeError as e:
     pass
 
 header = ['Model'] + list(large.params.index)
@@ -55,6 +55,7 @@ print()
 # Compare forecast horizon
 forecast_horizon = []
 forecast_horizon_p = []
+model = None
 for k in range(5):
     print('K==%d' % (k + 1))
     model = models[k]

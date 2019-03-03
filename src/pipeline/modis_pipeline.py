@@ -1,11 +1,12 @@
+import datetime as dtime
 import gzip
 import os
 
 import luigi
 import pandas as pd
-from helper.date_util import daterange_months
-from helper.geometry import filter_bounding_box_df
 
+from src.helper.date_util import date_range_months
+from src.helper.geometry import filter_bounding_box_df
 from .pipeline_helper import FtpFile, change_data_dir_path
 from .pipeline_params import (REGION_BOUNDING_BOXES,
                               MODIS_RAW_DATA_DIR, MODIS_AGGREGATED_DATA_DIR, MODIS_REGION_DATA_DIR,
@@ -18,15 +19,15 @@ def build_modis_server_file_path(data_dir, date):
 
 
 class ModisFtpFileDownload(luigi.Task):
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=MODIS_RAW_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=MODIS_RAW_DATA_DIR)
 
     server_name = luigi.parameter.Parameter(default=MODIS_SERVER_NAME)
     server_username = luigi.parameter.Parameter(default=MODIS_SERVER_USERNAME, significant=False)
     server_password = luigi.parameter.Parameter(default=MODIS_SERVER_PASSWORD, significant=False)
     server_data_dir = luigi.parameter.Parameter(MODIS_SERVER_DATA_DIR)
 
-    month_sel = luigi.parameter.MonthParameter()
+    month_sel: dtime.date = luigi.parameter.MonthParameter()
 
     resources = {'ftp': 1}
 
@@ -47,14 +48,14 @@ class ModisFtpFileDownload(luigi.Task):
 
 
 class ModisAggregate(luigi.Task):
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=MODIS_AGGREGATED_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=MODIS_AGGREGATED_DATA_DIR)
 
-    start_month_sel = luigi.parameter.MonthParameter()
-    end_month_sel = luigi.parameter.MonthParameter()
+    start_month_sel: dtime.date = luigi.parameter.MonthParameter()
+    end_month_sel: dtime.date = luigi.parameter.MonthParameter()
 
     def requires(self):
-        months = daterange_months(self.start_month_sel, self.end_month_sel)
+        months = date_range_months(self.start_month_sel, self.end_month_sel)
         return [ModisFtpFileDownload(data_dir=self.data_dir, month_sel=month) for month in months]
 
     def run(self):
@@ -89,8 +90,8 @@ class ModisAggregate(luigi.Task):
 
 
 class ModisFilterRegion(luigi.Task):
-    data_dir = luigi.parameter.Parameter()
-    dest_data_dir = luigi.parameter.Parameter(default=MODIS_REGION_DATA_DIR)
+    data_dir: str = luigi.parameter.Parameter()
+    dest_data_dir: str = luigi.parameter.Parameter(default=MODIS_REGION_DATA_DIR)
 
     start_month_sel = luigi.parameter.MonthParameter()
     end_month_sel = luigi.parameter.MonthParameter()

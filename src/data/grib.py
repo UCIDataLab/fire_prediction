@@ -1,7 +1,8 @@
 import logging
 
 import numpy as np
-from helper.geometry import LatLonBoundingBox
+
+from src.helper.geometry import LatLonBoundingBox
 
 # import gribapi
 
@@ -40,27 +41,28 @@ class GribMessage(object):
         """
         Get the "value" key from message. Optionally applies a bounding-box to lat/lon of values.
         """
-        dlat, dlon = gribapi.grib_get_array(self.gid, 'distinctLatitudes'), gribapi.grib_get_array(self.gid,
-                                                                                                   'distinctLongitudes')
+        diff_lat = gribapi.grib_get_array(self.gid, 'distinctLatitudes')
+        diff_lon = gribapi.grib_get_array(self.gid, 'distinctLongitudes')
 
         if self.lon_offset:
-            dlon = np.remainder((dlon + 180), 360) - 180  # Convert from 0 to 360 longitude notation to -180 to 180
-            self.lon_rot = -np.argmin(dlon)
-            dlon = np.roll(dlon, self.lon_rot)  # Rotate so min lon comes first
+            diff_lon = np.remainder((diff_lon + 180),
+                                    360) - 180  # Convert from 0 to 360 longitude notation to -180 to 180
+            self.lon_rot: int = -np.argmin(diff_lon)
+            diff_lon = np.roll(diff_lon, self.lon_rot)  # Rotate so min lon comes first
 
         values = gribapi.grib_get_values(self.gid)
-        values = np.reshape(values, newshape=(len(dlat), len(dlon)))
+        values = np.reshape(values, newshape=(len(diff_lat), len(diff_lon)))
 
-        # If needed, roll values along longitude axis to match rolled dlon values
+        # If needed, roll values along longitude axis to match rolled diff_lon values
         if self.lon_rot != 0:
             values = np.roll(values, self.lon_rot, axis=1)
 
         if bounding_box:
-            lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = bounding_box.get_min_max_indexes(dlat, dlon)
+            lat_min_ind, lat_max_ind, lon_min_ind, lon_max_ind = bounding_box.get_min_max_indexes(diff_lat, diff_lon)
 
             # Lat is typically ordered from highest to lowest
             return values[lat_max_ind:lat_min_ind + 1, lon_min_ind:lon_max_ind + 1], LatLonBoundingBox(
-                dlat[lat_min_ind], dlat[lat_max_ind], dlon[lon_min_ind], dlon[lon_max_ind])
+                diff_lat[lat_min_ind], diff_lat[lat_max_ind], diff_lon[lon_min_ind], diff_lon[lon_max_ind])
 
     def release(self):
         """
@@ -112,12 +114,11 @@ class GribFile(object):
         return selected
 
     @staticmethod
-    def grib_message_is_match(key_val_dict):
+    def grib_message_is_match(message, key_val_dict):
         """
         Check if grib message matches on all key/value pairs.
         """
         for k, v in key_val_dict.items():
-            mval = message.get(k)
             if message.get(k) != v:
                 return False
         return True
@@ -162,7 +163,7 @@ class GribSelector(object):
         """
         Get data (within bounding-box) from message in grib_file that matches selection criteria.
 
-        If more than one message matches, uses "first" which is not garuanteed to relate to order in file.
+        If more than one message matches, uses "first" which is not guaranteed to relate to order in file.
         """
         data = {}
 
@@ -172,12 +173,12 @@ class GribSelector(object):
 
             # Silently fail on empty selections
             if not selected_messages:
-                logging.debug('No gribmessage matched selection for %s.' % s)
+                logging.debug('No grib message matched selection for %s.' % s)
                 continue
 
             if len(selected_messages) > 1:
                 logging.debug(
-                    'More than one gribmessage matched selection for %s. Found %d.' % (s, len(selected_messages)))
+                    'More than one grib message matched selection for %s. Found %d.' % (s, len(selected_messages)))
 
             message = selected_messages[0]
 
@@ -188,7 +189,7 @@ class GribSelector(object):
             # Convert from 0 to 360 longitude to -180 to 180
             diff_lon = np.remainder((diff_lon + 180), 360) - 180
 
-            self.lon_rot = -np.argmin(diff_lon)
+            self.lon_rot: int = -np.argmin(diff_lon)
             diff_lon = np.roll(diff_lon, self.lon_rot)  # Rotate so min lon comes first
 
             values = message.values.astype(s.dtype)
@@ -208,7 +209,7 @@ class GribSelector(object):
         return data
 
     @staticmethod
-    def select_message(selection):
+    def select_message(grib_file, selection):
         """
         Return message from grib_file that matches selection.
 

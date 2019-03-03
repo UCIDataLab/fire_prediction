@@ -1,9 +1,7 @@
 import datetime as dt
 import luigi
-import os
 
-from modis_pipeline import ModisFilterRegion
-from fire_pipeline import FireGridGeneration
+from src.pipeline.fire_pipeline import FireGridGeneration
 
 """
 start_date = dt.date(2007, 1, 1)

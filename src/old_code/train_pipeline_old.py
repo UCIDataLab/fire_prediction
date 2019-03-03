@@ -298,10 +298,10 @@ class TrainModel(luigi.Task):
         self.t_k_arr = range(1, self.forecast_horizon + 1)
         if self.model_structure == 'grid':
             tasks = {
-            k: GridDatasetGeneration(data_dir=self.data_dir, start_date=self.start_date, end_date=self.end_date,
-                                     resolution=self.resolution, bounding_box_name=self.bounding_box_name,
-                                     fill_method=self.fill_method,
-                                     forecast_horizon=k) for k in self.t_k_arr}
+                k: GridDatasetGeneration(data_dir=self.data_dir, start_date=self.start_date, end_date=self.end_date,
+                                         resolution=self.resolution, bounding_box_name=self.bounding_box_name,
+                                         fill_method=self.fill_method,
+                                         forecast_horizon=k) for k in self.t_k_arr}
         else:
             raise NotImplementedError('Training cluster models not supported yet')
 

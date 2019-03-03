@@ -58,8 +58,9 @@ def cross_validation_evaluation(df, autoreg, t_k, weather_vars, zero_padding,
                             test_df.set_value(name, cov, np.mean(test_df[cov]))
                             break
                         pot_val = \
-                        test_df[(test_df.dayofyear == (dayofyear + next_offset_to_try)) & (test_df.cluster == clust)][
-                            cov]
+                            test_df[
+                                (test_df.dayofyear == (dayofyear + next_offset_to_try)) & (test_df.cluster == clust)][
+                                cov]
                         if not len(pot_val) or np.isnan(float(pot_val)):
                             if next_offset_to_try < 0:
                                 next_offset_to_try = - next_offset_to_try

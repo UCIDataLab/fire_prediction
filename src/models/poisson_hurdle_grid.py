@@ -13,11 +13,11 @@ from .base.model import Model
 
 
 class PoissonRegressionHurdleGridModel(Model):
-    def __init__(self, covariates, regularizer_weight=None, log_shift=1, log_correction='add', filter_func=None,
+    def __init__(self, covariates, regularization_weight=None, log_shift=1, log_correction='add', filter_func=None,
                  pred_func=None):
         super().__init__()
         self.covariates = covariates
-        self.regularizer_weight = regularizer_weight
+        self.regularization_weight = regularization_weight
         self.log_shift = log_shift
         self.log_correction = log_correction
         self.filter_func = filter_func
@@ -73,13 +73,13 @@ class PoissonRegressionHurdleGridModel(Model):
 
         self.fit_ignition = sd.Logit.from_formula(formula, data=X_df).fit()
 
-        if self.regularizer_weight is None:
+        if self.regularization_weight is None:
             self.fit_result = smf.glm(formula, data=X_df[X_df.num_det_target != 0],
                                       family=sm.genmod.families.family.Poisson()).fit()
         else:
             self.fit_result = smf.glm(formula, data=X_df[X_df.num_det_target != 0],
                                       family=sm.genmod.families.family.Poisson()).fit_regularized(
-                alpha=self.regularizer_weight)
+                alpha=self.regularization_weight)
         # self.fit_result = MLPRegressor(hidden_layer_sizes=(100,50)).fit(exog, endog)
 
         return self.fit_result

@@ -5,7 +5,7 @@ import multiprocessing
 import os
 from ftplib import FTP
 
-from StringIO import StringIO
+from io import StringIO
 
 
 class Writer(object):
@@ -42,7 +42,7 @@ class AsyncFTPFetcher(object):
 
         try:
             self.ftp.retrbinary(command, out_str.write, blocksize=self.blk_size)
-        except ftplib.error_temp as err:
+        except ftplib.error_temp:
             # Reset connection and retry
             logging.debug('Resetting connection')
             self.ftp.close()
@@ -164,7 +164,7 @@ class AsyncFTP(object):
         logging.debug('Initialized worker (%d)' % os.getpid())
 
     @staticmethod
-    def destruct_worker():
+    def destruct_worker(context):
         async_fetcher = context['fetcher']
         async_fetcher.ftp.quit()
 

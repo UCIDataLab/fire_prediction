@@ -4,9 +4,10 @@ import sys
 
 import h5py
 import numpy as np
-from data import grib
-from pipeline.pipeline_helper import change_data_dir_path
-from pipeline.pipeline_params import GFS_RAW_DATA_DIR, GFS_FILTERED_DATA_DIR, REGION_BOUNDING_BOXES
+
+from src.data import grib
+from src.pipeline.pipeline_helper import change_data_dir_path
+from src.pipeline.pipeline_params import GFS_RAW_DATA_DIR, GFS_FILTERED_DATA_DIR, REGION_BOUNDING_BOXES
 
 resolution = '3'
 data_dir = '/extra/graffc0/fire_prediction/data/'
@@ -56,11 +57,11 @@ for i, (fn_in, fn_out) in enumerate(zip(files_in, files_out)):
         extracted = grib.GribSelector(selections, bounding_box).select(fin)
 
         if 'humidity' in extracted:
-            vals = extracted['humidity']['values']
+            values = extracted['humidity']['values']
 
-            with h5py.File(fn_out) as fout:
-                del fout['humidity']
-                d = fout.create_dataset(name='humidity', data=vals, dtype=vals.dtype, compression='lzf')
+            with h5py.File(fn_out) as f_out:
+                del f_out['humidity']
+                d = f_out.create_dataset(name='humidity', data=values, dtype=values.dtype, compression='lzf')
                 d.attrs['units'] = extracted['humidity']['units']
 
         else:

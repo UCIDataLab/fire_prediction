@@ -26,15 +26,13 @@ logger = logging.getLogger('pipeline')
 logger.setLevel(logging.DEBUG)
 logging.basicConfig(level=logging.DEBUG)
 
-data_dir = '/extra/graffc0/fire_prediction/data/'
-
 start_date = dt.date(2007, 1, 1)
 end_date = dt.date(2016, 12, 31)
 data_dir = '/extra/graffc0/fire_prediction/data/'
 luigi.build([GfsFilterRegion(raw_data_dir=os.path.join(data_dir, 'raw/gfs/3/'),
-                             interim_filtered_data_dir=os.path.join(data_dir,'interim/gfs/filtered/3/'),
+                             interim_filtered_data_dir=os.path.join(data_dir, 'interim/gfs/filtered/3/'),
                              interim_aggregated_data_dir=os.path.join(data_dir, 'interim/gfs/aggregated/3'),
-                             dest_data_dir=os.path.join(data_dir,'interim/gfs/region/3'), resolution_sel='3',
+                             dest_data_dir=os.path.join(data_dir, 'interim/gfs/region/3'), resolution_sel='3',
                              start_date_sel=start_date, end_date_sel=end_date, bounding_box_sel_name='alaska')],
             local_scheduler=False, worker_scheduler_factory=None, workers=1, scheduler_port=8881, log_level='INFO')
 

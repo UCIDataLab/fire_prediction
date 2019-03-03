@@ -6,7 +6,7 @@ Entry point for command line execution of project.
 import click
 import yaml
 
-from .evaluation import evaluate
+from src.evaluation import evaluate
 
 COMMAND_HANDLERS = {'eval': evaluate.evaluate}
 

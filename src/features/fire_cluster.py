@@ -2,20 +2,20 @@
 Converts a data frame of fire data to a cluster data frame.
 """
 
-import os
-import click
-import pickle
-import pandas as pd
-import logging
-import numpy as np
 import datetime as dt
+import logging
+import os
+import pickle
 
-from .base.converter import Converter
-from ..helper import df_util as dfu
-from ..helper import date_util as du
-import clustering
-
+import click
+import numpy as np
+import pandas as pd
 import pyximport
+
+import clustering
+from src.helper import date_util as du
+from src.helper import df_util as dfu
+from .base.converter import Converter
 
 pyximport.install()
 
@@ -25,8 +25,9 @@ class FireDfToClusterConverter(Converter):
     Converts a data frame of fire data to a cluster data frame.
     """
 
-    def __init__(self, cluster_id_path=None, cluster_type=clustering.CLUST_TYPE_SPATIAL_TEMPORAL, cluster_thresh_km=5.,
-                 cluster_thresh_days=3., only_day=False, fixed_centroids=True, fire_season=((5, 14), (8, 31))):
+    def __init__(self, cluster_id_path=None, cluster_type=clustering.CLUSTER_TYPE_SPATIAL_TEMPORAL,
+                 cluster_thresh_km=5., cluster_thresh_days=3., only_day=False, fixed_centroids=True,
+                 fire_season=((5, 14), (8, 31))):
         super(FireDfToClusterConverter, self).__init__()
 
         self.cluster_id_path = cluster_id_path
@@ -108,11 +109,11 @@ class FireDfToClusterConverter(Converter):
         logging.debug('Appending cluster ids')
 
         # TODO: Possibly replace with a dictionary for type lookup
-        if self.cluster_type == clustering.CLUST_TYPE_SPATIAL:
+        if self.cluster_type == clustering.CLUSTER_TYPE_SPATIAL:
             data = clustering.cluster_spatial(data, self.cluster_thresh_km)
-        elif self.cluster_type == clustering.CLUST_TYPE_SPATIAL_TEMPORAL:
+        elif self.cluster_type == clustering.CLUSTER_TYPE_SPATIAL_TEMPORAL:
             data = clustering.cluster_spatial_temporal(data, self.cluster_thresh_km, self.cluster_thresh_days)
-        elif self.cluster_type == clustering.CLUST_TYPE_SPATIAL_TEMPORAL_FORWARDS:
+        elif self.cluster_type == clustering.CLUSTER_TYPE_SPATIAL_TEMPORAL_FORWARDS:
             data = clustering.cluster_spatial_temporal_forwards(data, self.cluster_thresh_km, self.cluster_thresh_days)
         else:
             raise ValueError('Invalid selection for clustering type: "%s"' % self.cluster_type)
@@ -134,7 +135,7 @@ class FireDfToClusterConverter(Converter):
                 lat_centroid, lon_centroid = np.mean(c_df.lat), np.mean(c_df.lon)
 
             # dates = set(c_df.date_local)
-            dates = du.daterange(np.min(c_df.date_local), np.max(c_df.date_local) + du.INC_ONE_DAY)
+            dates = du.date_range(np.min(c_df.date_local), np.max(c_df.date_local) + du.INC_ONE_DAY)
             for date in dates:
                 if self.only_day:
                     date_df = c_df[(c_df.date_local == date) & (c_df.day_det == 1)]
@@ -163,10 +164,10 @@ class FireDfToClusterConverter(Converter):
 @click.argument('src_path', type=click.Path(exists=True))
 @click.argument('dest_path')
 @click.option('--cluster', default=None)
-@click.option('--cluster_type', default=clustering.CLUST_TYPE_SPATIAL_TEMPORAL, type=click.Choice(
-    [clustering.CLUST_TYPE_SPATIAL,
-     clustering.CLUST_TYPE_SPATIAL_TEMPORAL,
-     clustering.CLUST_TYPE_SPATIAL_TEMPORAL_FORWARDS]))
+@click.option('--cluster_type', default=clustering.CLUSTER_TYPE_SPATIAL_TEMPORAL, type=click.Choice(
+    [clustering.CLUSTER_TYPE_SPATIAL,
+     clustering.CLUSTER_TYPE_SPATIAL_TEMPORAL,
+     clustering.CLUSTER_TYPE_SPATIAL_TEMPORAL_FORWARDS]))
 @click.option('--cluster_km', default=5., type=click.FLOAT)
 @click.option('--cluster_days', default=10, type=click.INT)
 @click.option('--daytime', default=False, type=click.BOOL)

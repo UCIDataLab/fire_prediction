@@ -2,8 +2,8 @@
 Model wrappers for making advanced forecast predictions (e.g. recursive forecasting).
 """
 
+from src.helper import multidata_wrapper as mdw
 from .base.model import Model
-from ..helper import multidata_wrapper as mdw
 
 
 class RecursiveForecast(Model):
@@ -22,6 +22,7 @@ class RecursiveForecast(Model):
     def predict(self, X, shape=None):
         """ Predict by recursively predicting using the previous predictions as input. """
         # TODO: Support update memory according to predictions
+        pred = None
         for i in range(1, self.t_k + 1):
             if i > 1:
                 X_ds = X[i - 1].assign(num_det=(('y', 'x', 'time'), pred))

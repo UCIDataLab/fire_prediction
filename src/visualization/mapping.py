@@ -6,9 +6,10 @@ import datetime as dt
 
 import matplotlib.pyplot as plt
 import numpy as np
-from helper import date_util as du
 from matplotlib import animation
 from mpl_toolkits.basemap import Basemap
+
+from src.helper import date_util as du
 
 
 def make_map(bb, grid_spacing=(2, .5, 2, .5)):
@@ -49,7 +50,7 @@ def make_contourf(mp, values, bb, alpha=.6, vmin=None, vmax=None):
     lats, lons = bb.make_grid()
 
     cs = mp.contourf(lons, lats, values, latlon=True, alpha=alpha, vmin=vmin, vmax=vmax)
-    cbar = mp.colorbar(cs, location='bottom', pad="5%")
+    _ = mp.colorbar(cs, location='bottom', pad="5%")
 
 
 def animate_map_latlon(df, bb, dates, figsize=(10, 12)):
@@ -69,7 +70,7 @@ def animate_map_latlon(df, bb, dates, figsize=(10, 12)):
     def animate(i):
         date = dates[i]
 
-        _ = plt.title('Date %s (day %d)' % (str(date), du.dayofyear_from_datetime(date)))
+        _ = plt.title('Date %s (day %d)' % (str(date), du.day_of_year_from_datetime(date)))
 
         sel_df = df[df.date_local == date]
 
@@ -89,16 +90,16 @@ def animate_map_latlon(df, bb, dates, figsize=(10, 12)):
     return anim
 
 
-def animate_map_latlon_all(df, clust_id, bb, dates, show_prev=True, figsize=(10, 12)):
+def animate_map_latlon_all(df, cluster_id, bb, dates, show_prev=True, figsize=(10, 12)):
     fig = plt.figure(figsize=figsize)
 
-    clust_df = df[df.cluster_id == clust_id]
-    non_df = df[(df.cluster_id != clust_id) & (df.date_local >= np.min(clust_df.date_local))]
+    cluster_df = df[df.cluster_id == cluster_id]
+    non_df = df[(df.cluster_id != cluster_id) & (df.date_local >= np.min(cluster_df.date_local))]
 
     if show_prev:
-        year = np.min(clust_df.date_local).year
-        prev_df = df[(df.cluster_id != clust_id) & (df.date_local < np.min(clust_df.date_local)) & (
-                    df.date_local >= dt.date(year, 1, 1))]
+        year = np.min(cluster_df.date_local.year)
+        prev_df = df[(df.cluster_id != cluster_id) & (df.date_local < np.min(cluster_df.date_local)) & (
+                df.date_local >= dt.date(year, 1, 1))]
 
     mp = make_map(bb)
     mp.shadedrelief()
@@ -118,14 +119,14 @@ def animate_map_latlon_all(df, clust_id, bb, dates, show_prev=True, figsize=(10,
     def animate(i):
         date = dates[i]
 
-        _ = plt.title('Date %s (day %d)' % (str(date), du.dayofyear_from_datetime(date)))
+        _ = plt.title('Date %s (day %d)' % (str(date), du.day_of_year_from_datetime(date)))
 
-        sel_df = clust_df[clust_df.date_local == date]
+        sel_df = cluster_df[cluster_df.date_local == date]
 
         lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
         s.set_offsets(zip(lons, lats))
 
-        sel_df = clust_df[clust_df.date_local < date]
+        sel_df = cluster_df[cluster_df.date_local < date]
         lons, lats = mp(list(sel_df.lon), list(sel_df.lat))
         s2.set_offsets(zip(lons, lats))
 

@@ -5,8 +5,8 @@ import datetime as dt
 
 import numpy as np
 
+from src.helper import geometry as geo
 from .base.model import Model
-from ..helper import geometry as geo
 
 
 class GridPredictorModel(Model):
@@ -23,7 +23,7 @@ class GridPredictorModel(Model):
     def fit(self, X, y=None):
         return self.model.fit(X, y)
 
-    def pred_to_grid(self, preds, X, shape=None):
+    def pred_to_grid(self, predictions, X, shape=None):
         years = list(set(X.time.dt.year.values))
         years.sort()
         years = dict(zip(years, range(0, len(years))))
@@ -33,13 +33,14 @@ class GridPredictorModel(Model):
         # TODO: add dynamic sizing (bounds and increment)
         self.bounding_box = geo.LatLonBoundingBox(55, 71, -165, -138)
         spatial_size = np.shape(self.bounding_box.make_grid()[0])
-        # dates = list(du.daterange(dt.date(year, self.fire_season[0][0], self.fire_season[0][1]),
+        # dates = list(du.date_range(dt.date(year, self.fire_season[0][0], self.fire_season[0][1]),
         #    dt.date(year, self.fire_season[1][0], self.fire_season[1][1]) + du.INC_ONE_DAY))
         # grid = np.zeros(spatial_size + (len(set(X.time.values)),))
         grid = np.zeros(shape)
 
         # Assign each detection to a cell in time and space
-        for pred, row in zip(preds, X.to_dataframe().itertuples()):
+        lat_old, lon_old = None, None
+        for pred, row in zip(predictions, X.to_dataframe().itertuples()):
             lat, lon, date = row.lat_centroid, row.lon_centroid, row.Index.date()
             if lat == np.nan:
                 lat, lon = lat_old, lon_old
