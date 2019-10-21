@@ -4,6 +4,7 @@ import os
 import pickle
 import uuid
 from collections import defaultdict
+import scipy
 
 import luigi
 import numpy as np
@@ -16,13 +17,13 @@ from src.evaluation import metrics
 from src.evaluation import setup_data_structs as setup_ds, evaluate_model as evm
 from src.helper.date_util import filter_fire_season
 from src.helper.geometry import get_default_bounding_box
-from src.models import regression_models, grid_models, forecast_models, zero_inflated_models, mlp
+from src.models import regression_models, grid_models, forecast_models, zero_inflated_models, mlp, residual
 from .dataset_pipeline import GridDatasetGeneration
 from .pipeline_params import GFS_RESOLUTIONS, REGION_BOUNDING_BOXES, WEATHER_FILL_METHOD
 
-
 MODEL_STRUCTURES = ['grid', 'cluster']
 MODEL_TYPES = {
+    'residual_hurdle_p': residual.ResidualPoissonHurdleRegression,
     'mlp': mlp.MultilayerPerceptron,
     'mean_model': regression_models.MeanModel,
     'large_split': regression_models.LargeSplitModel,
@@ -53,7 +54,7 @@ logger = logging.getLogger('pipeline')
 
 
 def build_single_model(model_type, covariates, log_covariates, params, response_var='num_det_target',
-                       exclude_params=None, t_k=None):
+                       exclude_params=None, t_k=None, extra_model_params=None):
     covariates = [x for x in covariates]
     log_covariates = [x for x in log_covariates]
 
@@ -61,14 +62,24 @@ def build_single_model(model_type, covariates, log_covariates, params, response_
         for exc in exclude_params:
             if exc in covariates:
                 covariates.remove(exc)
-            if exc in log_covariates:
-                log_covariates.remove(exc)
+            if 'log_' in exc:
+                exc_log = exc.split('log_')[1]
+                if exc_log in log_covariates:
+                    log_covariates.remove(exc_log)
 
     model_cls = MODEL_TYPES[model_type]
-    model = model_cls(response_var, covariates, log_covariates, params['log_correction_type'],
-                      params['log_correction_constant'], params['regularization_weight'], params['normalize_params'],
-                      t_k=t_k,
-                      add_exposure=params['exposure'])
+    if extra_model_params:
+        model = model_cls(response_var, covariates, log_covariates, params['log_correction_type'],
+                          params['log_correction_constant'], params['regularization_weight'], params['normalize_params'],
+                          t_k=t_k,
+                          add_exposure=params['exposure'], extra_model_params=extra_model_params)
+
+    else:
+        model = model_cls(response_var, covariates, log_covariates, params['log_correction_type'],
+                params['log_correction_constant'], params['regularization_weight'], params['normalize_params'],
+                t_k=t_k,
+                add_exposure=params['exposure'])
+
 
     return model
 
@@ -254,6 +265,19 @@ def add_ignition_target(X_grid_dict):
 
         X_ds.update({'ignition': (('y', 'x', 'time'), ignition)})
 
+def add_avg_neighbor_det(X_grid_dict):
+    print('Adding avg neighbors')
+    for X_ds in X_grid_dict.values():
+        num_det = X_ds.num_det.values
+        num_det_neighbors = np.zeros_like(num_det)
+
+        kernel = np.array([[1,1,1], [1, 0, 1], [1,1,1]]) / 8
+
+        for t in range(num_det_neighbors.shape[-1]):
+            num_det_neighbors[:,:,t] = scipy.signal.correlate2d(num_det[:,:,t], kernel, mode='same')
+
+        X_ds.update({'num_det_neighbors': (('y', 'x', 'time'), num_det_neighbors)})
+
 
 def add_exposure(X_grid_dict):
     time = len(X_grid_dict[1].time)
@@ -265,6 +289,9 @@ def add_exposure(X_grid_dict):
     areas = np.zeros((33, 55, time))
     areas[:] = areas_vec[:, None, None]
 
+    print('areas top', areas[0, :, 0])
+    print('areas bottom', areas[-1, :, 0])
+
     for X_ds in X_grid_dict.values():
         X_ds.update({'exposure': (('y', 'x', 'time'), areas)})
 
@@ -273,7 +300,10 @@ def add_filter_mask(X_grid_dict, filter_mask):
     bb = get_default_bounding_box()
     target_shape = X_grid_dict[1].temperature.values.shape[0:2]
 
-    if filter_mask == 'interior':
+    if filter_mask is None:
+        mask = np.ones(target_shape, dtype=bool)
+
+    elif filter_mask == 'interior':
         alaska_interior_mask_src = os.path.join('/extra/graffc0/fire_prediction/data',
                                                 'processed/masks/alaska_interior_mask_05.nc')
         alaska_interior_mask = xr.open_dataset(alaska_interior_mask_src)
@@ -351,8 +381,7 @@ def build_covariates(X_grid_dict, params):
     if params['active_check_days'] > 1:
         add_active(X_grid_dict, params['active_check_days'], params)
 
-    if params['filter_mask'] is not None:
-        add_filter_mask(X_grid_dict, params['filter_mask'])
+    add_filter_mask(X_grid_dict, params['filter_mask'])
 
     if 'vpd' in params['memory_covariates'] and params['memory_type'] != 'none' and \
             'aug' in params['active_model_type']:
@@ -371,8 +400,11 @@ def build_covariates(X_grid_dict, params):
         new_covariates = add_fire_length(X_grid_dict, True)
         covariates += new_covariates
 
-    if params['exposure']:
+    if params['exposure'] or 'exposure' in covariates or 'exposure' in log_covariates:
         add_exposure(X_grid_dict)
+
+    if 'num_det_neighbors' in covariates or 'num_det_neighbors' in log_covariates:
+        add_avg_neighbor_det(X_grid_dict)
 
     """
     if params['log_correction_type'] == 'add':
@@ -417,24 +449,24 @@ def setup_data(in_files, start_date, end_date, forecast_horizon, parameters):
     return X_grid_dict_nw, y_grid_dict, covariates, log_covariates, years_train
 
 
-def build_model(covariates, log_covariates, params, t_k):
+def build_model(covariates, log_covariates, params, t_k, extra_model_params=None, use_residuals=False):
     """ Select and instantiate model corresponding to params. """
 
     if params['separated_ignitions'] == 'unified':
-        unified_model = build_single_model(params['active_model_type'], covariates, log_covariates, params, t_k=t_k)
+        unified_model = build_single_model(params['active_model_type'], covariates, log_covariates, params, t_k=t_k, extra_model_params=extra_model_params)
         model = grid_models.UnifiedGrid(unified_model)
 
     elif params['separated_ignitions'] == 'active_only':
         active_model = build_single_model(params['active_model_type'], covariates, log_covariates, params,
-                                          exclude_params=params['active_covariates_exclude'], t_k=t_k)
-        model = grid_models.ActiveIgnitionGrid(active_model, None)
+                                          exclude_params=params['active_covariates_exclude'], t_k=t_k, extra_model_params=extra_model_params)
+        model = grid_models.ActiveIgnitionGrid(active_model, None, use_residuals=use_residuals)
 
     elif params['separated_ignitions'] == 'separated':
         active_model = build_single_model(params['active_model_type'], covariates, log_covariates, params,
-                                          exclude_params=params['active_covariates_exclude'], t_k=t_k)
+                                          exclude_params=params['active_covariates_exclude'], t_k=t_k, extra_model_params=extra_model_params)
         ignition_model = build_single_model(params['ignition_model_type'], covariates, log_covariates, params,
-                                            exclude_params=params['ignition_covariates_exclude'], t_k=t_k)
-        model = grid_models.ActiveIgnitionGrid(active_model, ignition_model)
+                                            exclude_params=params['ignition_covariates_exclude'], t_k=t_k, extra_model_params=extra_model_params)
+        model = grid_models.ActiveIgnitionGrid(active_model, ignition_model, use_residuals=use_residuals)
 
     else:
         raise NotImplementedError()
@@ -445,8 +477,8 @@ def build_model(covariates, log_covariates, params, t_k):
     return model
 
 
-def build_model_func(covariates, log_covariates, params):
-    return lambda t_k: build_model(covariates, log_covariates, params, t_k=t_k)
+def build_model_func(covariates, log_covariates, params, extra_model_params=None, use_residuals=False):
+    return lambda t_k: build_model(covariates, log_covariates, params, t_k=t_k, extra_model_params=extra_model_params, use_residuals=use_residuals)
 
 
 def create_job_id():
@@ -457,23 +489,54 @@ def flat(values):
     return map(lambda x: x.flatten(), values)
 
 
-def compute_summary_results(results_tr, results_te, X_grid_dict_nw, years, metrics_=None):
+def compute_summary_results(results_tr, results_te, X_grid_dict_nw, years,  metrics_=None):
     if metrics_ is None:
         metrics_ = [metrics.root_mean_squared_error,
                     metrics.mean_absolute_error]
     summary_results = defaultdict(dict)
 
+    # Compute active and ignition error metrics
+    if years is not None:
+        active_inds = list(map(lambda k: filter_fire_season(X_grid_dict_nw[k][0], years=years).active.values.flatten(),
+                               range(1, len(X_grid_dict_nw) + 1)))
+        ignition_inds = list(map(lambda x: ~x, active_inds))
+
+        mask_inds = \
+            list(map(lambda k: filter_fire_season(X_grid_dict_nw[k][0], years=years).filter_mask.values.flatten(),
+                     range(1, len(X_grid_dict_nw) + 1)))[0]
+
+        mask_inds_train = np.empty((33 * 55 * 110 * 9, len(years)), dtype=bool)
+        for i, year in enumerate(years):
+            train_years = set(range(2007, 2016 + 1))
+            train_years.remove(year)
+
+            mask_inds_train[:, i] = list(map(lambda k: filter_fire_season(X_grid_dict_nw[k][0], years=train_years
+                                                                          ).filter_mask.values.flatten(),
+                                             range(1, len(X_grid_dict_nw) + 1)))[0]
+        mask_inds_train = mask_inds_train.flatten()
+
+    else:
+        active_inds = list(map(lambda k: X_grid_dict_nw[k][0].active.values.flatten(),
+                               range(1, len(X_grid_dict_nw) + 1)))
+        ignition_inds = list(map(lambda x: ~x, active_inds))
+
+        mask_inds = list(map(lambda k: X_grid_dict_nw[k][0].filter_mask.values.flatten(),
+                             range(1, len(X_grid_dict_nw) + 1)))[0]
+
+        mask_inds_train = mask_inds
+
+
     # Compute overall error metrics
     for i, metric in enumerate(metrics_):
         x_values = ['Avg.'] + list(range(1, len(results_tr) + 1))
-        y = list(map(lambda x: metric(*flat(x)), results_tr))
+        y = list(map(lambda x: metric(*flat(x), inds=mask_inds_train), results_tr))
         y = [np.mean(y)] + y
 
         # noinspection PyTypeChecker
         summary_results['train'][metric.__name__] = (x_values, y)
 
         x_values = ['Avg.'] + list(range(1, len(results_te) + 1))
-        y = list(map(lambda x: metric(*flat(x)), results_te))
+        y = list(map(lambda x: metric(*flat(x), inds=mask_inds), results_te))
         y = [np.mean(y)] + y
 
         # noinspection PyTypeChecker
@@ -482,21 +545,11 @@ def compute_summary_results(results_tr, results_te, X_grid_dict_nw, years, metri
     # ds = filter_fire_season(X_grid_dict_nw[1][0], years=years)
     # active_inds = ds.active.values.flatten()
 
-    # Compute active and ignition error metrics
-    if years is not None:
-        active_inds = list(map(lambda k: filter_fire_season(X_grid_dict_nw[k][0], years=years).active.values.flatten(),
-                               range(1, len(X_grid_dict_nw) + 1)))
-        ignition_inds = list(map(lambda x: ~x, active_inds))
-    else:
-        active_inds = list(map(lambda k: X_grid_dict_nw[k][0].active.values.flatten(),
-                               range(1, len(X_grid_dict_nw) + 1)))
-        ignition_inds = list(map(lambda x: ~x, active_inds))
-
     # Active based on day t
     for inds_name, inds in [('active', active_inds), ('ignition', ignition_inds)]:
         for i, metric in enumerate(metrics_):
             x_values = ['Avg.'] + list(range(1, len(results_te) + 1))
-            y = list(map(lambda x: metric(*flat(x[0]), inds=x[1]), zip(results_te, inds)))
+            y = list(map(lambda x: metric(*flat(x[0]), inds=x[1] & mask_inds), zip(results_te, inds)))
             y = [np.mean(y)] + y
             ratio = list(map(lambda x: np.sum(x) / x.size, inds))
             # noinspection PyTypeChecker
@@ -540,7 +593,7 @@ def compute_summary_results(results_tr, results_te, X_grid_dict_nw, years, metri
         for i, metric in enumerate(metrics_):
             x_values = ['Avg.'] + list(range(1, len(results_te) + 1))
             print(inds_name)
-            y = list(map(lambda x: metric(*flat(x[0]), inds=x[1]), zip(results_te, inds)))
+            y = list(map(lambda x: metric(*flat(x[0]), inds=x[1] & mask_inds), zip(results_te, inds)))
             y = [np.mean(y)] + y
             ratio = list(map(lambda x: np.sum(x) / x.size, inds))
             # noinspection PyTypeChecker
@@ -585,6 +638,9 @@ class TrainModel(luigi.Task):
     normalize_params = luigi.parameter.BoolParameter(default=False)
     filter_mask = luigi.parameter.ChoiceParameter(choices=FILTER_MASKS)
     large_fire_split_percent = luigi.parameter.NumericalParameter(var_type=float, min_value=0, max_value=1, default=.9)
+    save_residuals = luigi.parameter.BoolParameter(default=False)
+    use_residuals = luigi.parameter.BoolParameter(default=False)
+    extra_model_params = luigi.parameter.ListParameter()
 
     forecast_horizon: int = luigi.parameter.NumericalParameter(var_type=int, min_value=1, max_value=10, default=5)
     rain_offset = luigi.parameter.NumericalParameter(var_type=int, min_value=-24, max_value=24, default=0)
@@ -621,7 +677,7 @@ class TrainModel(luigi.Task):
             self.train_parameters)
 
         # Train model
-        model_func = build_model_func(covariates, log_covariates, self.train_parameters)
+        model_func = build_model_func(covariates, log_covariates, self.train_parameters, self.extra_model_params, self.use_residuals)
         if self.years_test is not None:
             if self.years_test[0] is None:
                 years_test = None
@@ -637,6 +693,11 @@ class TrainModel(luigi.Task):
         summary_results = compute_summary_results(results[0], results[1], X_grid_dict_nw, years_test)
 
         out_dict = {'models': models, 'summary_results': summary_results, 'params': self.train_parameters}
+
+        if self.train_parameters['save_residuals']:
+            print('saving residuals')
+            out_dict['residuals_tr'] = results[0]
+            out_dict['residuals_te'] = results[1]
 
         # Save model and parameters
         with self.output().temporary_path() as temp_output_path:
@@ -674,7 +735,10 @@ class TrainModel(luigi.Task):
             'exposure': self.exposure,
             'normalize_params': self.normalize_params,
             'filter_mask': self.filter_mask,
-            'large_fire_split_percent': self.large_fire_split_percent}
+            'large_fire_split_percent': self.large_fire_split_percent,
+            'extra_model_params': self.extra_model_params,
+            'use_residuals': self.use_residuals,
+            'save_residuals': self.save_residuals}
 
         # fn = '_'.join(list(map(str, self.train_parameters))) + '.pkl'
         self.job_id = create_job_id()

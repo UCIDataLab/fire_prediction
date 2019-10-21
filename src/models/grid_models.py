@@ -6,6 +6,8 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
+from src.evaluation import setup_data_structs as setup_ds
+from sklearn.linear_model import LinearRegression
 
 from .base.model import Model
 
@@ -32,7 +34,7 @@ def prep_df_for_model(X, filter_func):
         X_df = filter_func(X_df)
 
     if 'filter_mask' in X_df.columns:
-        X_df = filter_mask(X_df)
+        X_df = mask_filter(X_df)
 
     X_df = pd.read_csv(StringIO(X_df.to_csv()))
 
@@ -72,6 +74,9 @@ class GridComponent(Model):
         if self.pred_func:
             pred = self.pred_func(X_df, pred)
 
+        if 'filter_mask' in X_df.columns:
+            pred = mask_pred(X_df, pred)
+
         if shape is not None:
             pred = convert_pred_to_grid(pred, shape)
 
@@ -92,8 +97,12 @@ class UnifiedGrid(GridComponent):
         return super().predict(X[0], shape)
 
 
-def filter_mask(x):
+def mask_filter(x):
     return x[x.filter_mask]
+
+
+def mask_pred(x, y):
+    return y * x.filter_mask
 
 
 def active_filter(x):
@@ -115,7 +124,7 @@ def ignition_pred(x, y):
 class ActiveIgnitionGrid(Model):
     def __init__(self, active_fire_model, ignition_model, active_filter_func=active_filter,
                  ignition_filter_func=ignition_filter, active_pred_func=active_pred,
-                 ignition_pred_func=ignition_pred):
+                 ignition_pred_func=ignition_pred, use_residuals=False):
         super().__init__()
 
         afm_filter_func = active_filter_func
@@ -123,6 +132,9 @@ class ActiveIgnitionGrid(Model):
 
         afm_pred_func = active_pred_func
         igm_pred_func = ignition_pred_func
+
+        self.use_residuals = use_residuals
+        self.residual_model = None
 
         if active_fire_model:
             self.afm = GridComponent(active_fire_model, afm_filter_func, afm_pred_func)
@@ -142,6 +154,22 @@ class ActiveIgnitionGrid(Model):
         # Train ignition component
         if self.igm:
             self.igm = self.igm.fit(X[1], y)
+
+        if self.use_residuals:
+            residuals = y - self.predict(X, shape=np.shape(y))
+
+            active_0 = X[0].num_det != 0
+
+            dates = np.array(list(map(lambda x: pd.Timestamp(x).to_pydatetime().date(), X[0].time.values)))
+            active_1 = setup_ds.shift_in_time(X[0].num_det, dates, -1, np.zeros) != 0
+
+            shift_residuals = setup_ds.shift_in_time(residuals, dates, -1, np.zeros)
+            res_x = shift_residuals[active_0 & active_1].flatten()
+            res_y = residuals[active_0 & active_1].flatten()
+
+            print('total res pairs', np.sum(res_x != 0))
+
+            self.residual_model = LinearRegression().fit(np.array(res_x).reshape(-1, 1), res_y)
 
         return self
 
@@ -179,6 +207,27 @@ class ActiveIgnitionGrid(Model):
                 rem.append(ret_igm[1])
             else:
                 pred += self.igm.predict(X[1], shape, choice)
+
+        # Predict with residuals
+        if self.use_residuals and self.residual_model:
+            residuals = X[0].num_det_target.values - pred
+
+            dates = np.array(list(map(lambda x: pd.Timestamp(x).to_pydatetime().date(), X[0].time.values)))
+            shift_residuals = setup_ds.shift_in_time(residuals, dates, -1, np.zeros).flatten()
+
+            res_pred = self.residual_model.predict(shift_residuals.reshape(-1,1))
+            res_pred = convert_pred_to_grid(res_pred, shape)
+
+            inactive_0 = X[0].num_det == 0
+
+            dates = np.array(list(map(lambda x: pd.Timestamp(x).to_pydatetime().date(), X[0].time.values)))
+            inactive_1 = setup_ds.shift_in_time(X[0].num_det, dates, -1, np.zeros) == 0
+
+            res_pred[inactive_0 | inactive_1] = 0
+
+            print('total res pred', np.sum(res_pred != 0))
+
+            pred += res_pred
 
         if choice is not None:
             return pred, rem

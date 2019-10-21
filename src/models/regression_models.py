@@ -189,6 +189,11 @@ class RegressionBase(BasicModelBase):
         # X = X.filter(self.variables, axis=1)
         # X[self.inputs] = (X[self.inputs] - self.mean) / self.std
 
+        if self.add_exposure:
+            self.exposure = X.exposure.values
+        else:
+            self.exposure = None
+
         X = X[self.variables].copy()
 
         """
@@ -204,7 +209,7 @@ class RegressionBase(BasicModelBase):
         if self.normalize_params:
             X[self.inputs] = self.scaler.transform(X[self.inputs].values)
 
-        pred = self.fit_result.predict(X)
+        pred = self.fit_result.predict(X, exposure=self.exposure)
 
         if choice is None:
             return pred

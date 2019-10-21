@@ -26,7 +26,7 @@ MODIS_REGION_DATA_DIR = 'interim/modis/region'
 # === Server Info ===
 GFS_SERVER_NAME = 'nomads.ncdc.noaa.gov'  # Server from which to pull the GFS data
 GFS_SERVER_USERNAME = 'anonymous'
-GFS_SERVER_PASSWORD = 'graffc@uci.edu'
+GFS_SERVER_PASSWORD = ''
 GFS_SERVER_DATA_DIR = "GFS/analysis_only/"  # location on server of GFS data
 
 MODIS_SERVER_NAME = 'fuoco.geog.umd.edu'

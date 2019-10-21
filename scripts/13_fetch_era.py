@@ -9,11 +9,11 @@ time to run ~ 15 minutes
 '''prerequisites
 conda install -c conda-forge ecmwf-api-client
 retrieve your key at https://api.ecmwf.int/v1/key/
-create dot file under /Users/scoffiel/.ecmwfapirc with the following contents
+create dot file under /Users/<username>/.ecmwfapirc with the following contents
 {
     "url"   : "https://api.ecmwf.int/v1",
-    "key"   : "191269340f4ad15229c2cb135baf5802",
-    "email" : "scoffiel@uci.edu"
+    "key"   : "",
+    "email" : "",
 }
 
 """
@@ -23,7 +23,8 @@ from ecmwfapi import ECMWFDataServer
 import xarray as xr
 import numpy as np
 
-root = '/Users/scoffiel/fire_prediction/era_interim/'
+# TODO: Add correct path
+root = '/Users/<username>/fire_prediction/data/interim/gfs/aggregated/era/'
 
 years = range(2007, 2017)
 
