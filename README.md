@@ -33,7 +33,7 @@ Detailed Project Organization
 
 Hardware Requirements
 ---------------------
-The code can be run on most computers, anything with 8 or 16GB of RAM should suffice. Training only on active fires
+The code can be run on most computers with 8 or more GB of RAM. Training only on active fires
 takes less than five minutes and training and training on all data (Fire and Non-Fire days) should take a few hours.
 
 Some of the analysis code is written for fast exploration, but not memory effecient. Some parts of the analysis-code
